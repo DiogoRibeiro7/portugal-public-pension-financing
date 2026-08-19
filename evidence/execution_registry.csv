@@ -1,2 +1,3 @@
 run_id,instruction_file,branch,title,status,date,result,validation
 roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19,Read the roadmap and used its phase ordering for the run sequence.,validate-all
+00,prompts/00_master_research_guardrails.md,work/00-research-guardrails-review,Research guardrails review,complete,2026-08-19,Applied the guardrails as the governing evidence and neutrality constraints.,validate-all
