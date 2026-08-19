@@ -5,3 +5,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 22,prompts/22_accounting_ontology_and_concept_registry.md,work/22-accounting-ontology,Build accounting ontology,partial,2026-08-19,Added core concept definitions and documented the ontology boundary.,validate-all
 43,prompts/43_literature_review_and_novelty_map.md,work/43-literature-map,Build literature map,blocked_by_source_work,2026-08-19,Recorded search protocol requirements; database search still requires a dedicated source pass.,validate-all
 23,prompts/23_historical_source_discovery_and_gap_map.md,work/23-source-coverage-map,Build source coverage map,partial,2026-08-19,Recorded current source coverage status without filling historical gaps.,validate-all
+01,prompts/01_source_acquisition_and_hashing.md,work/01-source-acquisition-hashing,Acquire and hash sources,partial,2026-08-19,Registered current acquisition status and source-hash requirements.,validate-all
