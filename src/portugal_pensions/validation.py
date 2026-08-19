@@ -18,6 +18,23 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "counterfactual_registry.csv",
 )
 
+TEXT_MANIFEST_SUFFIXES: frozenset[str] = frozenset(
+    {
+        ".cff",
+        ".csv",
+        ".gitignore",
+        ".md",
+        ".py",
+        ".sha256",
+        ".tex",
+        ".toml",
+        ".txt",
+        ".yml",
+        ".yaml",
+    }
+)
+TEXT_MANIFEST_NAMES: frozenset[str] = frozenset({"Makefile"})
+
 
 def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     """Return validation errors for the repository evidence directory."""
@@ -74,7 +91,15 @@ def validate_manifest(manifest_path: Path, root: Path | None = None) -> list[str
             errors.append(f"Missing manifest entry target: {relative_path}")
             continue
 
-        actual_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        actual_hash = hashlib.sha256(manifest_bytes(path)).hexdigest()
         if actual_hash != expected_hash:
             errors.append(f"Checksum mismatch for {relative_path}")
     return errors
+
+
+def manifest_bytes(path: Path) -> bytes:
+    """Return stable bytes for repository manifest hashing."""
+    data = path.read_bytes()
+    if path.name in TEXT_MANIFEST_NAMES or path.suffix.lower() in TEXT_MANIFEST_SUFFIXES:
+        return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return data
