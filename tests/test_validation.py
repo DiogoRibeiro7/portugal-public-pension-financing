@@ -1,11 +1,20 @@
 from pathlib import Path
 
-from portugal_pensions.validation import validate_evidence_directory, validate_manifest
+from portugal_pensions.validation import (
+    validate_evidence_directory,
+    validate_manifest,
+    validate_zenodo_metadata,
+)
 
 
 def test_repository_evidence_files_exist() -> None:
     root = Path(__file__).resolve().parents[1]
     assert validate_evidence_directory(root / "evidence") == []
+
+
+def test_repository_zenodo_metadata_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert validate_zenodo_metadata(root / ".zenodo.json") == []
 
 
 def test_manifest_validation_accepts_matching_hash(tmp_path: Path) -> None:
@@ -39,3 +48,14 @@ def test_manifest_validation_reports_mismatch(tmp_path: Path) -> None:
     manifest.write_text(f"{'0' * 64}  ./payload.txt\n", encoding="utf-8")
 
     assert validate_manifest(manifest, tmp_path) == ["Checksum mismatch for ./payload.txt"]
+
+
+def test_zenodo_metadata_requires_creator(tmp_path: Path) -> None:
+    metadata = tmp_path / ".zenodo.json"
+    metadata.write_text(
+        '{"title": "Project", "upload_type": "software", "description": "Test", '
+        '"version": "0.1.0", "license": "mit", "creators": []}',
+        encoding="utf-8",
+    )
+
+    assert validate_zenodo_metadata(metadata) == ["Zenodo metadata requires at least one creator"]

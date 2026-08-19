@@ -1,0 +1,30 @@
+{
+  "title": "Who Funded the Public Pension Promise?",
+  "upload_type": "software",
+  "description": "Reproducible research package analyzing the historical financing of Portugal's public pension system, including CGA, Social Security, and transferred banking-sector pension liabilities.",
+  "creators": [
+    {
+      "name": "Ribeiro, Diogo"
+    }
+  ],
+  "version": "0.2.0",
+  "language": "eng",
+  "license": "mit",
+  "access_right": "open",
+  "keywords": [
+    "Portugal",
+    "pensions",
+    "public finance",
+    "social security",
+    "policy analysis",
+    "reproducible research",
+    "research software"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/DiogoRibeiro7/portugal-public-pension-financing",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    }
+  ]
+}

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -23,6 +25,7 @@ TEXT_MANIFEST_SUFFIXES: frozenset[str] = frozenset(
         ".cff",
         ".csv",
         ".gitignore",
+        ".json",
         ".md",
         ".py",
         ".sha256",
@@ -103,3 +106,44 @@ def manifest_bytes(path: Path) -> bytes:
     if path.name in TEXT_MANIFEST_NAMES or path.suffix.lower() in TEXT_MANIFEST_SUFFIXES:
         return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     return data
+
+
+def validate_zenodo_metadata(path: Path) -> list[str]:
+    """Return validation errors for the repository Zenodo metadata file."""
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    if not path.is_file():
+        return ["Missing Zenodo metadata file: .zenodo.json"]
+
+    try:
+        metadata: Any = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"Invalid Zenodo JSON: {exc.msg} at line {exc.lineno}"]
+
+    if not isinstance(metadata, dict):
+        return ["Zenodo metadata must be a JSON object"]
+
+    errors: list[str] = []
+    required_string_fields = ("title", "upload_type", "description", "version", "license")
+    for field in required_string_fields:
+        if not isinstance(metadata.get(field), str) or not metadata[field].strip():
+            errors.append(f"Missing or empty Zenodo field: {field}")
+
+    creators = metadata.get("creators")
+    if not isinstance(creators, list) or not creators:
+        errors.append("Zenodo metadata requires at least one creator")
+    else:
+        for index, creator in enumerate(creators, start=1):
+            if not isinstance(creator, dict):
+                errors.append(f"Zenodo creator {index} must be an object")
+                continue
+            if not isinstance(creator.get("name"), str) or not creator["name"].strip():
+                errors.append(f"Zenodo creator {index} is missing a name")
+
+    keywords = metadata.get("keywords")
+    if keywords is not None and (
+        not isinstance(keywords, list) or any(not isinstance(item, str) for item in keywords)
+    ):
+        errors.append("Zenodo keywords must be a list of strings")
+
+    return errors

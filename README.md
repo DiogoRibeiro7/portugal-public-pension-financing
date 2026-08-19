@@ -3,6 +3,7 @@
 ## Historical financing of Portugal's CGA, Social Security, and transferred banking-sector pension liabilities
 
 [![CI](https://github.com/DiogoRibeiro7/portugal-public-pension-financing/actions/workflows/ci.yml/badge.svg)](https://github.com/DiogoRibeiro7/portugal-public-pension-financing/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/1339566707.svg)](https://zenodo.org/badge/latestdoi/1339566707)
 
 This repository is a reproducible empirical research project on the long-run financing of Portuguese public pensions.
 
@@ -129,18 +130,22 @@ It runs:
 - `pytest`
 - `python -m portugal_pensions.cli validate-evidence`
 - `python -m portugal_pensions.cli validate-manifest`
+- `python -m portugal_pensions.cli validate-zenodo`
 
 ## Command-line utilities
 
 ```bash
 portugal-pensions validate-evidence
 portugal-pensions validate-manifest
+portugal-pensions validate-zenodo
 portugal-pensions validate-all
 ```
 
 ## Citation
 
-Use `CITATION.cff` for citation metadata. For reproducible snapshots, cite a tagged release and include the corresponding `MANIFEST.sha256` checksum file.
+Use `CITATION.cff` for GitHub citation metadata and `.zenodo.json` for Zenodo release metadata. For reproducible snapshots, cite a tagged Zenodo DOI and include the corresponding `MANIFEST.sha256` checksum file.
+
+The Zenodo badge becomes active after the repository is enabled in Zenodo and the first GitHub release is archived.
 
 ## Contributing
 

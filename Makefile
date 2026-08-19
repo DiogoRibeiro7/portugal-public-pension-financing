@@ -1,4 +1,4 @@
-.PHONY: install format lint typecheck test validate validate-manifest quality clean
+.PHONY: install format lint typecheck test validate validate-manifest validate-zenodo quality clean
 
 install:
 	python -m pip install -e ".[dev]"
@@ -23,7 +23,10 @@ validate:
 validate-manifest:
 	python -m portugal_pensions.cli validate-manifest
 
-quality: lint typecheck test validate validate-manifest
+validate-zenodo:
+	python -m portugal_pensions.cli validate-zenodo
+
+quality: lint typecheck test validate validate-manifest validate-zenodo
 
 clean:
 	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]; [shutil.rmtree(p, ignore_errors=True) for p in ['.pytest_cache', '.mypy_cache', '.ruff_cache', 'build', 'dist']]"

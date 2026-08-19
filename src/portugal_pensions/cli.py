@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .validation import validate_evidence_directory, validate_manifest
+from .validation import validate_evidence_directory, validate_manifest, validate_zenodo_metadata
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,6 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     manifest = subparsers.add_parser("validate-manifest", help="Validate MANIFEST.sha256 checksums")
     manifest.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
+    zenodo = subparsers.add_parser("validate-zenodo", help="Validate .zenodo.json metadata")
+    zenodo.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     validate_all = subparsers.add_parser("validate-all", help="Run all repository validations")
     validate_all.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     return parser
@@ -42,10 +44,18 @@ def main() -> None:
                 print(f"ERROR: {error}")
             raise SystemExit(1)
         print("Manifest checksums are valid.")
+    elif args.command == "validate-zenodo":
+        errors = validate_zenodo_metadata(args.root / ".zenodo.json")
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}")
+            raise SystemExit(1)
+        print("Zenodo metadata is valid.")
     elif args.command == "validate-all":
         errors = [
             *validate_evidence_directory(args.root / "evidence"),
             *validate_manifest(args.root / "MANIFEST.sha256", args.root),
+            *validate_zenodo_metadata(args.root / ".zenodo.json"),
         ]
         if errors:
             for error in errors:
