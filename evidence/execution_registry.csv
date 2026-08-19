@@ -33,3 +33,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 37,prompts/37_trace_2011_transferred_bank_assets.md,work/37-bank-asset-tracing,Trace bank assets,blocked_by_source_work,2026-08-19,Recorded asset tracing evidence requirements.,validate-all
 39,prompts/39_bank_financial_statement_liability_relief.md,work/39-bank-financial-statement-effects,Measure bank statement effects,blocked_by_source_work,2026-08-19,Recorded audited-statement extraction requirements.,validate-all
 09,prompts/09_bank_transfer_long_run_state_financing.md,work/09-bank-state-financing-reconciliation,Reconcile bank state financing,blocked_by_source_work,2026-08-19,Recorded annual special-regime financing requirements.,validate-all
+10,prompts/10_bank_transfer_benefit_and_risk_distribution.md,work/10-bank-benefit-risk-distribution,Quantify bank risk distribution,blocked_by_source_work,2026-08-19,Recorded benefit/risk channel requirements.,validate-all
