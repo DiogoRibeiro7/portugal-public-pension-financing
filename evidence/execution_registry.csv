@@ -36,3 +36,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 10,prompts/10_bank_transfer_benefit_and_risk_distribution.md,work/10-bank-benefit-risk-distribution,Quantify bank risk distribution,blocked_by_source_work,2026-08-19,Recorded benefit/risk channel requirements.,validate-all
 11,prompts/11_replicate_esa95_esa2010_treatment.md,work/11-esa-treatment-replication,Replicate ESA treatment,blocked_by_source_work,2026-08-19,Recorded ESA-95 and ESA-2010 replication requirements.,validate-all
 12,prompts/12_replicate_2012_bank_pension_cost.md,work/12-bank-pension-cost-replication,Replicate bank pension cost,blocked_by_source_work,2026-08-19,Recorded 2012 special-regime cost requirements.,validate-all
+42,prompts/42_bank_transfer_debt_and_financing_cost.md,work/42-bank-debt-financing-effects,Quantify bank debt effects,blocked_by_source_work,2026-08-19,Recorded debt and financing-cost requirements.,validate-all
