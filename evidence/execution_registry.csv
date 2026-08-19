@@ -30,3 +30,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 36,prompts/36_bank_worker_integration_contributions_2009_2011.md,work/36-bank-worker-integration-flows,Reconstruct bank worker flows,blocked_by_source_work,2026-08-19,Recorded active-worker flow separation requirements.,validate-all
 08,prompts/08_bank_transfer_asset_liability_audit.md,work/08-bank-asset-liability-audit,Audit bank assets and liabilities,blocked_by_source_work,2026-08-19,Recorded actuarial asset-liability source requirements.,validate-all
 38,prompts/38_bank_actuarial_identifiability_bounds.md,work/38-bank-actuarial-bounds,Define bank actuarial bounds,partial,2026-08-19,Recorded identifiability boundary and sensitivity prerequisites.,validate-all
+37,prompts/37_trace_2011_transferred_bank_assets.md,work/37-bank-asset-tracing,Trace bank assets,blocked_by_source_work,2026-08-19,Recorded asset tracing evidence requirements.,validate-all
