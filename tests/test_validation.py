@@ -3,6 +3,7 @@ from pathlib import Path
 from portugal_pensions.validation import (
     validate_evidence_directory,
     validate_manifest,
+    validate_source_registry,
     validate_zenodo_metadata,
 )
 
@@ -48,6 +49,64 @@ def test_manifest_validation_reports_mismatch(tmp_path: Path) -> None:
     manifest.write_text(f"{'0' * 64}  ./payload.txt\n", encoding="utf-8")
 
     assert validate_manifest(manifest, tmp_path) == ["Checksum mismatch for ./payload.txt"]
+
+
+def test_source_registry_accepts_acquired_file(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "data" / "raw"
+    raw_dir.mkdir(parents=True)
+    source = raw_dir / "source.pdf"
+    source.write_bytes(b"%PDF-1.6\n")
+    registry = tmp_path / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,primary,2026,https://example.test,"
+        "https://example.test/source.pdf,2026-08-19,2026,source,"
+        "data/raw/source.pdf,"
+        "9082eec5c6ba6e190d38f6014d2e8cfabb0abb2943bb3af1c5437f227590a49a,"
+        "acquired,Test source\n",
+        encoding="utf-8",
+    )
+
+    assert validate_source_registry(registry, tmp_path) == []
+
+
+def test_source_registry_reports_missing_raw_file(tmp_path: Path) -> None:
+    registry = tmp_path / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,primary,2026,https://example.test,"
+        "https://example.test/source.pdf,2026-08-19,2026,source,"
+        "data/raw/source.pdf,"
+        "60b1c307209d5ed068dbb745b6e03e7a13bd447936c98931791a833998e8c25f,"
+        "acquired,Test source\n",
+        encoding="utf-8",
+    )
+
+    assert validate_source_registry(registry, tmp_path) == [
+        "Source SRC raw file is missing: data/raw/source.pdf"
+    ]
+
+
+def test_source_registry_reports_checksum_mismatch(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "data" / "raw"
+    raw_dir.mkdir(parents=True)
+    source = raw_dir / "source.pdf"
+    source.write_bytes(b"changed\n")
+    registry = tmp_path / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,primary,2026,https://example.test,"
+        "https://example.test/source.pdf,2026-08-19,2026,source,"
+        f"data/raw/source.pdf,{'0' * 64},acquired,Test source\n",
+        encoding="utf-8",
+    )
+
+    assert validate_source_registry(registry, tmp_path) == [
+        "Source SRC checksum mismatch for data/raw/source.pdf"
+    ]
 
 
 def test_zenodo_metadata_requires_creator(tmp_path: Path) -> None:

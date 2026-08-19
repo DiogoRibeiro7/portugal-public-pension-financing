@@ -53,7 +53,95 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             pd.read_csv(path)
         except Exception as exc:  # pragma: no cover - defensive parsing boundary
             errors.append(f"Unreadable CSV {filename}: {exc}")
+    if (evidence_dir / "source_registry.csv").is_file():
+        errors.extend(
+            validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
     return errors
+
+
+def validate_source_registry(registry_path: Path, root: Path) -> list[str]:
+    """Return validation errors for source registry acquisition metadata."""
+    if not isinstance(registry_path, Path):
+        raise TypeError("registry_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    if not registry_path.is_file():
+        return [f"Missing source registry file: {registry_path.name}"]
+
+    try:
+        registry = pd.read_csv(registry_path, dtype=str)
+    except Exception as exc:  # pragma: no cover - defensive parsing boundary
+        return [f"Unreadable source registry: {exc}"]
+
+    required_columns = {
+        "source_id",
+        "title",
+        "institution",
+        "source_type",
+        "year",
+        "url",
+        "download_url",
+        "retrieval_date",
+        "reporting_period",
+        "accounting_basis",
+        "raw_path",
+        "sha256",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(registry.columns))
+    if missing_columns:
+        return [f"Source registry missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicated_ids = sorted(
+        source_id
+        for source_id in registry["source_id"].dropna().astype(str).unique()
+        if (registry["source_id"].astype(str) == source_id).sum() > 1
+    )
+    for source_id in duplicated_ids:
+        errors.append(f"Duplicate source_id in source registry: {source_id}")
+
+    for row_number, (_, row) in enumerate(registry.iterrows(), start=2):
+        source_id = _registry_field(row, "source_id") or f"row {row_number}"
+        status = _registry_field(row, "status").lower()
+        if status != "acquired":
+            continue
+
+        raw_path_value = _registry_field(row, "raw_path")
+        expected_hash = _registry_field(row, "sha256").lower()
+        if not raw_path_value:
+            errors.append(f"Source {source_id} is acquired but raw_path is empty")
+            continue
+        if len(expected_hash) != 64 or any(
+            char not in "0123456789abcdef" for char in expected_hash
+        ):
+            errors.append(f"Source {source_id} has invalid SHA-256 hash")
+            continue
+
+        candidate = Path(raw_path_value)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            errors.append(f"Source {source_id} has unsafe raw_path: {raw_path_value}")
+            continue
+
+        raw_file = root / candidate
+        if not raw_file.is_file():
+            errors.append(f"Source {source_id} raw file is missing: {raw_path_value}")
+            continue
+
+        actual_hash = hashlib.sha256(raw_file.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            errors.append(f"Source {source_id} checksum mismatch for {raw_path_value}")
+    return errors
+
+
+def _registry_field(row: pd.Series, column: str) -> str:
+    value = row[column]
+    if pd.isna(value):
+        return ""
+    return str(value).strip()
 
 
 def validate_manifest(manifest_path: Path, root: Path | None = None) -> list[str]:

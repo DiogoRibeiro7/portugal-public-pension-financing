@@ -2,6 +2,31 @@
 
 This note records only source-backed facts used to design the research pipeline. It is not a conclusion on whether the transaction was economically harmful or beneficial.
 
+## Acquisition status
+
+Retrieval date: 2026-08-19.
+
+The initial acquisition pass now stores and hashes official PDFs for the core sources in `evidence/source_registry.csv`. Diário da República legal acts are stored as full issue PDFs from `files.diariodarepublica.pt`, because direct act-page downloads from `diariodarepublica.pt` returned JavaScript shell HTML rather than citable raw text. Those failed captures were removed and are not registered as acquired evidence.
+
+Acquired source files:
+
+- `data/raw/legislation/DR_DL54_2009_issue.pdf`
+- `data/raw/legislation/DR_DL1A_2011_issue.pdf`
+- `data/raw/legislation/DR_DL127_2011_issue.pdf`
+- `data/raw/legislation/DR_DL88_2012_issue.pdf`
+- `data/raw/cge/DGO_CGE_2011_vol1.pdf`
+- `data/raw/european_accounts/EC_EXPOST_PAEF_ip040_en.pdf`
+
+The validation gate now checks that every source marked `acquired` has a relative raw path, a 64-character SHA-256 hash, an existing file, and matching bytes.
+
+## Decree-Law 54/2009
+
+Primary source: Diário da República.
+
+The decree required workers hired by banking institutions after its entry into force to be covered by the general Social Security regime, while preserving the substitute regime for workers hired before that date where applicable.
+
+Source registry ID: `DR_DL54_2009`.
+
 ## Decree-Law 1-A/2011
 
 Primary source: Diário da República.
