@@ -18,3 +18,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 04,prompts/04_employee_remittance_audit.md,work/04-employee-remittance-audit,Audit employee remittances,blocked_by_source_work,2026-08-19,Recorded remittance comparison requirements.,validate-all
 05,prompts/05_employer_contribution_audit.md,work/05-employer-contribution-audit,Audit employer contributions,blocked_by_source_work,2026-08-19,Recorded legal and economic gap separation.,validate-all
 47,prompts/47_cga_closed_scheme_demographic_decomposition.md,work/47-cga-closure-decomposition,Decompose CGA closure,blocked_by_source_work,2026-08-19,Recorded closed-scheme decomposition requirements.,validate-all
+06,prompts/06_post_2006_public_worker_reallocation.md,work/06-post-2006-reallocation,Quantify post-2006 reallocation,blocked_by_source_work,2026-08-19,Recorded reallocation estimand prerequisites.,validate-all
