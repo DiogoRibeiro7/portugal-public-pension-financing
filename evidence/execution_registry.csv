@@ -7,3 +7,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 23,prompts/23_historical_source_discovery_and_gap_map.md,work/23-source-coverage-map,Build source coverage map,partial,2026-08-19,Recorded current source coverage status without filling historical gaps.,validate-all
 01,prompts/01_source_acquisition_and_hashing.md,work/01-source-acquisition-hashing,Acquire and hash sources,partial,2026-08-19,Registered current acquisition status and source-hash requirements.,validate-all
 24,prompts/24_pdf_table_extraction_and_manual_transcription_qa.md,work/24-extraction-qa,Add extraction QA,partial,2026-08-19,Documented extraction audit requirements before headline values can be used.,validate-all
+25,prompts/25_units_currency_price_basis_and_time_alignment.md,work/25-unit-normalization,Add unit normalization,partial,2026-08-19,Documented unit and accounting-basis compatibility rules.,validate-all
