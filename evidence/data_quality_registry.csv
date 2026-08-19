@@ -1,1 +1,2 @@
 dataset,variable,year_start,year_end,issue_type,severity,resolution,status
+cga_financing_ledger,employee_quotations;employer_contributions;state_budget_transfers;other_public_transfers;investment_income;pension_expenditure;other_benefits;administration;contributor_count;pensioner_count;contribution_base_payroll,2011,2011,missing_component_values,high,Acquire CGA annual report or detailed CGE supporting tables before marking the ledger complete,open

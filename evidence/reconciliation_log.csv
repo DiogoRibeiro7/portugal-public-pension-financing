@@ -1,1 +1,3 @@
 reconciliation_id,year,module,lhs,rhs,residual,unit,status,explanation,source_ids
+CGA_2011_CGE_BALANCE_DECOMPOSITION,2011,cga_financing_ledger,186.2,476.7 + -290.6,0.1,EUR_million,reconciled_rounding,CGE reports CGA global balance of 186.2 and CGA excluding PT pension-fund effect of -290.6 with PT effect of 476.7; residual is one-decimal rounding,DGO_CGE_2011
+CGA_2011_FULL_FINANCING_IDENTITY,2011,cga_financing_ledger,,,,EUR_million,blocked_missing_components,CGE 2011 volume 1 does not provide employee quotations employer contributions total State Budget transfers investment income pension expenditure other benefits administration contributor count pensioner count or payroll in one component ledger,DGO_CGE_2011

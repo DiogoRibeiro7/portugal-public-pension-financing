@@ -9,6 +9,7 @@ from typing import Any
 
 import pandas as pd
 
+from .accounting import validate_cga_financing_ledger
 from .legal import validate_legal_contribution_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
@@ -65,6 +66,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 str(evidence_dir / "legal_contribution_registry.csv")
             )
         )
+    cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
+    if cga_ledger.is_file():
+        errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
     return errors
 
 
