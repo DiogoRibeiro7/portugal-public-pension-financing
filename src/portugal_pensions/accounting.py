@@ -236,6 +236,86 @@ def validate_employee_remittance_audit(path: str) -> list[str]:
     return errors
 
 
+def validate_employer_contribution_audit(path: str) -> list[str]:
+    """Return validation errors for the employer contribution audit table."""
+    audit = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "year",
+        "employer_class",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "legal_employer_rate_total",
+        "legal_due",
+        "recorded_cga_employer_revenue",
+        "timing_adjustments",
+        "arrears_corrections",
+        "base_definition_adjustment",
+        "perimeter_adjustment",
+        "legal_compliance_gap",
+        "economic_benchmark_rate_total",
+        "economic_benchmark_due",
+        "economic_benchmark_gap",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(audit.columns))
+    if missing_columns:
+        return [f"Employer contribution audit missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = audit[audit.duplicated(subset=["year", "employer_class"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate employer contribution audit row: "
+            f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'employer_class')}"
+        )
+
+    complete_fields = {
+        "legal_due",
+        "recorded_cga_employer_revenue",
+        "timing_adjustments",
+        "arrears_corrections",
+        "base_definition_adjustment",
+        "perimeter_adjustment",
+        "legal_compliance_gap",
+        "economic_benchmark_due",
+        "economic_benchmark_gap",
+    }
+    for row_number, record in enumerate(audit.to_dict("records"), start=2):
+        for column in required_columns.difference(complete_fields):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on employer contribution audit row {row_number}")
+
+        notes = _field(record, "notes").lower()
+        if "not a legal debt" not in notes:
+            errors.append(
+                "Employer contribution audit row "
+                f"{row_number} must state that the economic benchmark is not a legal debt"
+            )
+
+        status = _field(record, "status")
+        if status == "complete":
+            for column in complete_fields:
+                if not _field(record, column):
+                    errors.append(
+                        f"Complete employer contribution row {row_number} missing {column}"
+                    )
+        elif not status.startswith("blocked"):
+            errors.append(
+                f"Unexpected employer contribution audit status on row {row_number}: {status}"
+            )
+
+        for column in complete_fields.union(
+            {"legal_employer_rate_total", "economic_benchmark_rate_total"}
+        ):
+            value = _field(record, column)
+            if value:
+                _numeric(value, column)
+    return errors
+
+
 def _numeric(value: str, name: str) -> float:
     try:
         numeric = float(value)

@@ -4,6 +4,7 @@ from portugal_pensions.accounting import (
     reconcile_financing_identity,
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
+    validate_employer_contribution_audit,
 )
 
 
@@ -88,3 +89,32 @@ def test_complete_employee_remittance_audit_requires_quantities(tmp_path: Path) 
 
     errors = validate_employee_remittance_audit(str(audit))
     assert "Complete employee remittance row 2 missing withheld_from_payroll" in errors
+
+
+def test_repository_employer_contribution_audit_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_employer_contribution_audit(
+            str(root / "data" / "processed" / "employer_contribution_audit.csv")
+        )
+        == []
+    )
+
+
+def test_employer_contribution_audit_requires_benchmark_debt_warning(tmp_path: Path) -> None:
+    audit = tmp_path / "employer_contribution_audit.csv"
+    audit.write_text(
+        "year,employer_class,unit,price_basis,accounting_basis,legal_employer_rate_total,"
+        "legal_due,recorded_cga_employer_revenue,timing_adjustments,arrears_corrections,"
+        "base_definition_adjustment,perimeter_adjustment,legal_compliance_gap,"
+        "economic_benchmark_rate_total,economic_benchmark_due,economic_benchmark_gap,"
+        "source_ids,status,notes\n"
+        "2011,class,EUR_million,current,basis,0.15,,,,,,,,0.2375,,,SRC,blocked,missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_employer_contribution_audit(str(audit))
+    assert (
+        "Employer contribution audit row 2 must state that the economic benchmark is "
+        "not a legal debt" in errors
+    )
