@@ -1,24 +1,58 @@
 {
-  "title": "Who Funded the Public Pension Promise?",
+  "title": "Who Funded the Public Pension Promise? Historical financing of Portugal's CGA, Social Security, and transferred banking-sector pension liabilities",
   "upload_type": "software",
-  "description": "Reproducible research package analyzing the historical financing of Portugal's public pension system, including CGA, Social Security, and transferred banking-sector pension liabilities.",
-  "creators": [
-    {
-      "name": "Ribeiro, Diogo"
-    }
-  ],
+  "publication_date": "2026-08-19",
   "version": "0.2.0",
   "language": "eng",
   "license": "mit",
   "access_right": "open",
+  "description": "<p><strong>Who Funded the Public Pension Promise?</strong> is a reproducible empirical research package on the long-run financing of Portuguese public pensions: the Caixa Geral de Aposentações (CGA), the general Social Security system (RGSS), and the banking-sector pension liabilities transferred to the State between 2009 and 2012.</p><p>The project is deliberately <em>not</em> organised around a predetermined political conclusion. It keeps contributions legally due, deductions actually withheld, amounts recorded as received, State Budget transfers, transfers of pension assets and liabilities, economic counterfactual contributions, actuarial liabilities, institutional cash balances, consolidated general-government balances and statistical treatment under ESA-95 and ESA-2010 as separate objects, before any balance is interpreted as a deficit, surplus, subsidy, underfunding or transfer.</p><p><strong>Research question.</strong> How was the pension promise made to Portuguese public-sector workers actually financed over time, and how does that financing history affect contemporary assessments of the CGA and Social Security systems?</p><p><strong>Coverage.</strong> Preferred quantitative horizon 1977-2025, with documentary reconstruction for years before consistently machine-readable data. Where data quality does not support a continuous series, the gap is preserved rather than silently interpolated.</p><p><strong>Banking-sector module.</strong> The 2009-2012 integration of banking-sector workers and pension liabilities is treated as a separate research module built on Decree-Law 54/2009, Decree-Law 1-A/2011, Decree-Law 127/2011 and Decree-Law 88/2012. It tests whether the 2011 transfer was ex ante actuarially balanced, whether the State subsequently financed the transferred obligations as required, whether Social Security incurred an uncompensated net burden, and how the operation affected headline public accounts under ESA-95 versus ESA-2010.</p><p><strong>Contents.</strong> A typed Python package (portugal_pensions) with a command-line interface; analysis and source configuration; source, claim, legal, reconciliation and uncertainty registries under evidence/; sequential research notebooks; a manuscript scaffold with preregistered hypotheses and a falsification report; reproducible research and audit prompts; and deterministic unit tests.</p><p><strong>Reproducibility.</strong> The quality gate runs Ruff (lint and format), mypy in strict mode, pytest, and validation of the evidence registries, the release manifest and this metadata file. Every archived release ships MANIFEST.sha256 so that file-level integrity can be verified against the record. Raw primary sources are not redistributed: data/raw/ is populated by documented acquisition steps and every downloaded file is registered with a SHA-256 hash in evidence/source_registry.csv.</p><p><strong>Requirements.</strong> Python 3.11 or later.</p>",
+  "creators": [
+    {
+      "name": "Ribeiro, Diogo",
+      "affiliation": "ESMAD - Instituto Politécnico do Porto",
+      "orcid": "0009-0001-2022-7072"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Ribeiro, Diogo",
+      "affiliation": "ESMAD - Instituto Politécnico do Porto",
+      "orcid": "0009-0001-2022-7072",
+      "type": "ProjectLeader"
+    }
+  ],
   "keywords": [
     "Portugal",
-    "pensions",
-    "public finance",
+    "public pensions",
+    "pension financing",
+    "Caixa Geral de Aposentações",
+    "CGA",
+    "Segurança Social",
     "social security",
+    "RGSS",
+    "FEFSS",
+    "banking-sector pension funds",
+    "Decree-Law 127/2011",
+    "pension liabilities transfer",
+    "actuarial liabilities",
+    "public finance",
+    "fiscal policy",
+    "ESA 95",
+    "ESA 2010",
+    "national accounts",
+    "economic history",
     "policy analysis",
     "reproducible research",
-    "research software"
+    "open science",
+    "research software",
+    "Python"
+  ],
+  "references": [
+    "Decreto-Lei n.º 54/2009: new banking-sector workers enter the general social security regime.",
+    "Decreto-Lei n.º 1-A/2011: active banking-sector workers covered by CAFEB are integrated into the general regime for specified contingencies and CAFEB is extinguished.",
+    "Decreto-Lei n.º 127/2011: Social Security assumes specified pensions in payment on 31 December 2011, the assets of the relevant private pension funds are transferred to the State, the State becomes responsible for financing those pensions through a specific transfer to Social Security, and the corresponding bank responsibilities are definitively extinguished once the transfer is made.",
+    "Decreto-Lei n.º 88/2012: special treatment for the BPN group transfers specified liabilities to CGA with corresponding financing."
   ],
   "related_identifiers": [
     {
@@ -26,5 +60,6 @@
       "relation": "isSupplementTo",
       "resource_type": "software"
     }
-  ]
+  ],
+  "notes": "Archived snapshot of a tagged GitHub release. Verify downloaded files against MANIFEST.sha256 before use. The repository contains research code, configuration, evidence registries and manuscript scaffolding; it does not redistribute primary source documents. Preprints, datasets and the manuscript, when released, will be linked to this record. This work received no specific external funding."
 }
