@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import math
+from collections.abc import Sequence
 
 
 def _finite(value: float, name: str) -> float:
@@ -31,7 +31,9 @@ def compound_reserve(
         raise ValueError("contributions and annual_returns must have the same length")
     reserve = _finite(initial_reserve, "initial_reserve")
     path: list[float] = []
-    for index, (contribution, annual_return) in enumerate(zip(contributions, annual_returns, strict=True)):
+    for index, (contribution, annual_return) in enumerate(
+        zip(contributions, annual_returns, strict=True)
+    ):
         flow = _finite(contribution, f"contributions[{index}]")
         rate = _finite(annual_return, f"annual_returns[{index}]")
         if rate <= -1.0:

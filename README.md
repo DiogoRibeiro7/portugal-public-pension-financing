@@ -2,6 +2,8 @@
 
 ## Historical financing of Portugal's CGA, Social Security, and transferred banking-sector pension liabilities
 
+[![CI](https://github.com/DiogoRibeiro7/portugal-public-pension-financing/actions/workflows/ci.yml/badge.svg)](https://github.com/DiogoRibeiro7/portugal-public-pension-financing/actions/workflows/ci.yml)
+
 This repository is a reproducible empirical research project on the long-run financing of Portuguese public pensions.
 
 The project is deliberately **not** organised around a predetermined political conclusion. It distinguishes legal obligations, cash accounting, consolidated public-finance flows, actuarial liabilities, and counterfactual financing regimes before interpreting any balance as a deficit, surplus, subsidy, underfunding, or transfer.
@@ -63,6 +65,7 @@ primary sources
 ## Repository layout
 
 ```text
+.github/                CI, issue templates, pull request template, code ownership
 config/                 analysis and source configuration
 data/raw/                immutable downloaded sources
 data/interim/            extracted/normalised intermediate data
@@ -70,6 +73,7 @@ data/processed/          validated analytical datasets
 evidence/                source, claim, legal and reconciliation registries
 notebooks/               sequential research notebooks
 paper/                   manuscript scaffold and hypothesis registry
+prompts/                 reproducible research prompts and audit instructions
 src/portugal_pensions/   reusable research code
 tests/                   deterministic unit tests
 ```
@@ -90,9 +94,54 @@ tests/                   deterministic unit tests
 ```bash
 python -m venv .venv
 source .venv/bin/activate
+python -m pip install --upgrade pip
 pip install -e '.[dev]'
-pytest
+make quality
 python -m portugal_pensions.cli validate-evidence
 ```
 
+On Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+python -m pytest
+python -m portugal_pensions.cli validate-all
+```
+
 The notebooks are designed to be run in numerical order only after the corresponding source-acquisition prompt has been completed.
+
+## Quality gate
+
+The professional development gate is:
+
+```bash
+make quality
+```
+
+It runs:
+
+- `ruff check src tests`
+- `ruff format --check src tests`
+- `mypy src/portugal_pensions`
+- `pytest`
+- `python -m portugal_pensions.cli validate-evidence`
+- `python -m portugal_pensions.cli validate-manifest`
+
+## Command-line utilities
+
+```bash
+portugal-pensions validate-evidence
+portugal-pensions validate-manifest
+portugal-pensions validate-all
+```
+
+## Citation
+
+Use `CITATION.cff` for citation metadata. For reproducible snapshots, cite a tagged release and include the corresponding `MANIFEST.sha256` checksum file.
+
+## Contributing
+
+See `CONTRIBUTING.md` for development setup, research standards, and pull request expectations.

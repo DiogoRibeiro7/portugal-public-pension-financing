@@ -5,15 +5,21 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .validation import validate_evidence_directory
+from .validation import validate_evidence_directory, validate_manifest
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(description="Portuguese pension-financing research utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    validate = subparsers.add_parser("validate-evidence", help="Validate required evidence registries")
+    validate = subparsers.add_parser(
+        "validate-evidence", help="Validate required evidence registries"
+    )
     validate.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
+    manifest = subparsers.add_parser("validate-manifest", help="Validate MANIFEST.sha256 checksums")
+    manifest.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
+    validate_all = subparsers.add_parser("validate-all", help="Run all repository validations")
+    validate_all.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     return parser
 
 
@@ -29,6 +35,23 @@ def main() -> None:
                 print(f"ERROR: {error}")
             raise SystemExit(1)
         print("Evidence registry structure is valid.")
+    elif args.command == "validate-manifest":
+        errors = validate_manifest(args.root / "MANIFEST.sha256", args.root)
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}")
+            raise SystemExit(1)
+        print("Manifest checksums are valid.")
+    elif args.command == "validate-all":
+        errors = [
+            *validate_evidence_directory(args.root / "evidence"),
+            *validate_manifest(args.root / "MANIFEST.sha256", args.root),
+        ]
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}")
+            raise SystemExit(1)
+        print("Repository validations passed.")
 
 
 if __name__ == "__main__":

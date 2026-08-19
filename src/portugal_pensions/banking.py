@@ -5,9 +5,9 @@ The module intentionally separates actuarial valuation from accounting reconcili
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from collections.abc import Sequence
 import math
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)

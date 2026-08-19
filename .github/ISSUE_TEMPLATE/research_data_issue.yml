@@ -1,0 +1,38 @@
+name: Research data issue
+description: Report a source, evidence, accounting, or interpretation issue.
+title: "Research data: "
+labels: ["research", "data"]
+body:
+  - type: textarea
+    id: source
+    attributes:
+      label: Source Or Evidence Record
+      description: Identify the source, registry row, notebook, or manuscript claim.
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Legal contribution history
+        - Cash-flow accounting
+        - Actuarial liability
+        - Banking-sector transfer
+        - ESA-95 or ESA-2010 treatment
+        - Source conflict
+        - Reproducibility gap
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: Issue
+      description: Describe the proposed correction, uncertainty, or gap.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting Evidence
+      description: Add citations, links, hashes, or extraction notes when available.
