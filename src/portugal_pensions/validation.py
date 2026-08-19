@@ -14,6 +14,7 @@ from .accounting import (
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
 )
+from .banking import validate_bank_pension_transfer_registry
 from .counterfactuals import validate_public_worker_reallocation
 from .legal import validate_legal_contribution_registry
 
@@ -69,6 +70,12 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_legal_contribution_registry(
                 str(evidence_dir / "legal_contribution_registry.csv")
+            )
+        )
+    if (evidence_dir / "bank_pension_transfer_registry.csv").is_file():
+        errors.extend(
+            validate_bank_pension_transfer_registry(
+                str(evidence_dir / "bank_pension_transfer_registry.csv")
             )
         )
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
