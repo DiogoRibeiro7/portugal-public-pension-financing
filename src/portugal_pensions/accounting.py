@@ -171,6 +171,71 @@ def validate_cga_financing_ledger(path: str) -> list[str]:
     return errors
 
 
+def validate_employee_remittance_audit(path: str) -> list[str]:
+    """Return validation errors for the employee remittance audit table."""
+    audit = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "year",
+        "perimeter",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "legal_worker_rate_total",
+        "legal_worker_liability",
+        "withheld_from_payroll",
+        "recorded_cga_worker_revenue",
+        "timing_adjustments",
+        "arrears_corrections",
+        "base_definition_adjustment",
+        "perimeter_adjustment",
+        "unexplained_remittance_gap",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(audit.columns))
+    if missing_columns:
+        return [f"Employee remittance audit missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = audit[audit.duplicated(subset=["year", "perimeter"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate employee remittance audit row: "
+            f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'perimeter')}"
+        )
+
+    complete_fields = {
+        "legal_worker_liability",
+        "withheld_from_payroll",
+        "recorded_cga_worker_revenue",
+        "timing_adjustments",
+        "arrears_corrections",
+        "base_definition_adjustment",
+        "perimeter_adjustment",
+        "unexplained_remittance_gap",
+    }
+    for row_number, record in enumerate(audit.to_dict("records"), start=2):
+        for column in required_columns.difference(complete_fields):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on employee remittance audit row {row_number}")
+        status = _field(record, "status")
+        if status == "complete":
+            for column in complete_fields:
+                if not _field(record, column):
+                    errors.append(f"Complete employee remittance row {row_number} missing {column}")
+        elif not status.startswith("blocked"):
+            errors.append(
+                f"Unexpected employee remittance audit status on row {row_number}: {status}"
+            )
+
+        for column in complete_fields.union({"legal_worker_rate_total"}):
+            value = _field(record, column)
+            if value:
+                _numeric(value, column)
+    return errors
+
+
 def _numeric(value: str, name: str) -> float:
     try:
         numeric = float(value)

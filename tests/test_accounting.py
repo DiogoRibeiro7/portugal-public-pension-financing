@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from portugal_pensions.accounting import reconcile_financing_identity, validate_cga_financing_ledger
+from portugal_pensions.accounting import (
+    reconcile_financing_identity,
+    validate_cga_financing_ledger,
+    validate_employee_remittance_audit,
+)
 
 
 def test_financing_identity_reconciles() -> None:
@@ -59,3 +63,28 @@ def test_complete_cga_financing_ledger_requires_components(tmp_path: Path) -> No
 
     errors = validate_cga_financing_ledger(str(ledger))
     assert "Complete CGA ledger row 2 missing employee_quotations" in errors
+
+
+def test_repository_employee_remittance_audit_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_employee_remittance_audit(
+            str(root / "data" / "processed" / "employee_remittance_audit.csv")
+        )
+        == []
+    )
+
+
+def test_complete_employee_remittance_audit_requires_quantities(tmp_path: Path) -> None:
+    audit = tmp_path / "employee_remittance_audit.csv"
+    audit.write_text(
+        "year,perimeter,unit,price_basis,accounting_basis,legal_worker_rate_total,"
+        "legal_worker_liability,withheld_from_payroll,recorded_cga_worker_revenue,"
+        "timing_adjustments,arrears_corrections,base_definition_adjustment,"
+        "perimeter_adjustment,unexplained_remittance_gap,source_ids,status,notes\n"
+        "2011,perimeter,EUR_million,current,basis,0.11,,,,,,,,,SRC,complete,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_employee_remittance_audit(str(audit))
+    assert "Complete employee remittance row 2 missing withheld_from_payroll" in errors
