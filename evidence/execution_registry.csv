@@ -10,3 +10,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 25,prompts/25_units_currency_price_basis_and_time_alignment.md,work/25-unit-normalization,Add unit normalization,partial,2026-08-19,Documented unit and accounting-basis compatibility rules.,validate-all
 26,prompts/26_source_conflict_revisions_and_uncertainty.md,work/26-source-conflict-uncertainty,Add conflict policy,partial,2026-08-19,Documented conflict classes and uncertainty handling.,validate-all
 44,prompts/44_data_redistribution_licensing_and_archival_policy.md,work/44-data-licensing,Add data licensing policy,partial,2026-08-19,Documented redistribution policy and clean-room acquisition path.,validate-all
+02,prompts/02_build_legal_contribution_history.md,work/02-legal-contribution-history,Build legal contribution history,blocked_by_source_work,2026-08-19,Recorded legal registry prerequisites; no rates invented.,validate-all
