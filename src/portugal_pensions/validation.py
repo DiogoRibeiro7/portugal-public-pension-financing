@@ -9,6 +9,8 @@ from typing import Any
 
 import pandas as pd
 
+from .legal import validate_legal_contribution_registry
+
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "source_registry.csv",
     "claim_registry.csv",
@@ -56,6 +58,12 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "legal_contribution_registry.csv").is_file():
+        errors.extend(
+            validate_legal_contribution_registry(
+                str(evidence_dir / "legal_contribution_registry.csv")
+            )
         )
     return errors
 
