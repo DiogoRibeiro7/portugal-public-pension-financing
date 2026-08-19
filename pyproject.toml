@@ -29,17 +29,17 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "numpy>=1.26",
-  "pandas>=2.2",
+  "numpy>=1.26,<2.5",
+  "pandas>=2.2,<3.0",
   "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.0",
-  "ruff>=0.6",
-  "mypy>=1.11",
-  "pandas-stubs>=2.2",
+  "pytest>=8.0,<10.0",
+  "ruff>=0.6,<1.0",
+  "mypy>=1.11,<2.0",
+  "pandas-stubs>=2.2,<3.0",
   "types-PyYAML>=6.0",
 ]
 notebooks = [
