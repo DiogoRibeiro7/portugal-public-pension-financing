@@ -14,6 +14,7 @@ from .accounting import (
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
 )
+from .counterfactuals import validate_public_worker_reallocation
 from .legal import validate_legal_contribution_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
@@ -83,6 +84,22 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if employer_contribution.is_file():
         errors.extend(validate_employer_contribution_audit(str(employer_contribution)))
+    public_worker_cohorts = (
+        evidence_dir.parent / "data" / "processed" / "public_worker_rgss_cohorts.csv"
+    )
+    public_worker_contributions = (
+        evidence_dir.parent
+        / "data"
+        / "processed"
+        / "public_worker_rgss_contributions_2006_2025.csv"
+    )
+    if public_worker_cohorts.is_file() and public_worker_contributions.is_file():
+        errors.extend(
+            validate_public_worker_reallocation(
+                str(public_worker_cohorts),
+                str(public_worker_contributions),
+            )
+        )
     return errors
 
 
