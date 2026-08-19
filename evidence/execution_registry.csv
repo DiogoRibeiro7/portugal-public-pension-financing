@@ -13,3 +13,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 02,prompts/02_build_legal_contribution_history.md,work/02-legal-contribution-history,Build legal contribution history,blocked_by_source_work,2026-08-19,Recorded legal registry prerequisites; no rates invented.,validate-all
 27,prompts/27_public_sector_perimeter_and_employer_class_mapping.md,work/27-public-sector-perimeter,Map public sector perimeter,blocked_by_source_work,2026-08-19,Recorded employer-class mapping prerequisites.,validate-all
 28,prompts/28_state_guarantee_budget_transfer_and_financing_history.md,work/28-state-financing-history,Build state financing history,blocked_by_source_work,2026-08-19,Recorded State-transfer source requirements.,validate-all
+29,prompts/29_rgss_rate_decomposition_and_pension_only_benchmark.md,work/29-rgss-rate-decomposition,Decompose RGSS rates,blocked_by_source_work,2026-08-19,Recorded benchmark separation requirements.,validate-all
