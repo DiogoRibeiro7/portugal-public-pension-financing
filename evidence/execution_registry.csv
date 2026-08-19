@@ -43,3 +43,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 15,prompts/15_falsification_and_adversarial_review.md,work/15-falsification-review,Run falsification review,blocked_by_source_work,2026-08-19,Recorded falsification tests and dependency on notebooks.,validate-all
 16,prompts/16_generate_figures_and_tables.md,work/16-figures-and-tables,Generate figures and tables,blocked_by_source_work,2026-08-19,Recorded figure data prerequisites.,validate-all
 17,prompts/17_generate_article_evidence.md,work/17-article-evidence,Generate article evidence,blocked_by_source_work,2026-08-19,Recorded article-evidence gate requirements.,validate-all
+18,prompts/18_write_paper.md,work/18-manuscript-draft,Write manuscript draft,blocked_by_source_work,2026-08-19,Recorded manuscript gating requirements.,validate-all
