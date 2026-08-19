@@ -46,3 +46,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 18,prompts/18_write_paper.md,work/18-manuscript-draft,Write manuscript draft,blocked_by_source_work,2026-08-19,Recorded manuscript gating requirements.,validate-all
 45,prompts/45_manuscript_definitions_causal_language_and_claim_audit.md,work/45-language-claim-audit,Audit claim language,partial,2026-08-19,Recorded language audit terms and current gate.,validate-all
 19,prompts/19_peer_review_replication.md,work/19-internal-replication-review,Run internal replication review,blocked_by_source_work,2026-08-19,Recorded independent replication checks.,validate-all
+20,prompts/20_release_reproducibility.md,work/20-release-hardening,Harden release workflow,partial,2026-08-19,Recorded current release hardening status and remaining notebook gate.,validate-all
