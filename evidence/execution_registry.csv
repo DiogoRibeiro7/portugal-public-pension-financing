@@ -42,3 +42,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 14,prompts/14_counterfactual_financing.md,work/14-counterfactual-regimes,Build counterfactual regimes,partial,2026-08-19,Recorded stock-flow counterfactual constraints.,validate-all
 15,prompts/15_falsification_and_adversarial_review.md,work/15-falsification-review,Run falsification review,blocked_by_source_work,2026-08-19,Recorded falsification tests and dependency on notebooks.,validate-all
 16,prompts/16_generate_figures_and_tables.md,work/16-figures-and-tables,Generate figures and tables,blocked_by_source_work,2026-08-19,Recorded figure data prerequisites.,validate-all
+17,prompts/17_generate_article_evidence.md,work/17-article-evidence,Generate article evidence,blocked_by_source_work,2026-08-19,Recorded article-evidence gate requirements.,validate-all
