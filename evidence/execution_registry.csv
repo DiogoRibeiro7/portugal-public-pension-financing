@@ -15,3 +15,4 @@ roadmap,prompts/README.md,work/roadmap-review,Review roadmap,complete,2026-08-19
 28,prompts/28_state_guarantee_budget_transfer_and_financing_history.md,work/28-state-financing-history,Build state financing history,blocked_by_source_work,2026-08-19,Recorded State-transfer source requirements.,validate-all
 29,prompts/29_rgss_rate_decomposition_and_pension_only_benchmark.md,work/29-rgss-rate-decomposition,Decompose RGSS rates,blocked_by_source_work,2026-08-19,Recorded benchmark separation requirements.,validate-all
 03,prompts/03_reconstruct_cga_financing.md,work/03-cga-financing-ledger,Build CGA financing ledger,blocked_by_source_work,2026-08-19,Recorded ledger columns and source prerequisites.,validate-all
+04,prompts/04_employee_remittance_audit.md,work/04-employee-remittance-audit,Audit employee remittances,blocked_by_source_work,2026-08-19,Recorded remittance comparison requirements.,validate-all
