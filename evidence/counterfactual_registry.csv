@@ -1,0 +1,5 @@
+scenario_id,name,description,legal_or_economic,assumptions,status
+CF1,Historical legal compliance,All legally due historical contributions are remitted; State transfers adjust to preserve realised pension payments.,legal,No invented reserve; preserve stock-flow consistency.,preregistered
+CF2,Funding substitution,Alternative employer financing substitutes one-for-one for State Budget transfers.,economic,Total cash financing unchanged.,preregistered
+CF3,Funded reserve,Additional employer-equivalent contributions are genuinely additional public expenditure and accumulate in a reserve.,economic,Budget cost is explicit; multiple return scenarios.,preregistered
+CF4,Bank transfer discount-rate sensitivity,Revalue transferred bank pension liabilities using alternative discount rates around the legal 4% rate.,economic,Same cash-flow schedule; rates 2%-6%.,preregistered

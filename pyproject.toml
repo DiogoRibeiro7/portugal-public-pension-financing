@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "portugal-public-pension-financing"
+version = "0.2.0"
+description = "Reproducible research on the historical financing of Portuguese public pensions"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Diogo Ribeiro"}]
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+  "mypy>=1.11",
+  "pandas-stubs>=2.2",
+  "types-PyYAML>=6.0",
+]
+notebooks = [
+  "jupyter>=1.0",
+  "matplotlib>=3.9",
+  "scipy>=1.13",
+]
+
+[project.scripts]
+portugal-pensions = "portugal_pensions.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/portugal_pensions"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["portugal_pensions"]

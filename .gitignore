@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.pyc
+*.pyo
+.DS_Store
+dist/
+build/
+*.egg-info/
+# Raw data are intentionally not ignored: provenance matters.

@@ -1,0 +1,16 @@
+project:
+  start_year: 1977
+  end_year: 2025
+  base_currency: EUR
+  nominal_by_default: true
+
+banking_transfer:
+  legal_discount_rate_2011: 0.04
+  sensitivity_discount_rates: [0.02, 0.03, 0.04, 0.05, 0.06]
+  require_state_transfer_reconciliation: true
+  compare_esa95_and_esa2010: true
+
+counterfactuals:
+  preserve_stock_flow_consistency: true
+  allow_silent_interpolation: false
+  funded_reserve_is_additional_expenditure: true

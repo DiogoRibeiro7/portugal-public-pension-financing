@@ -1,0 +1,70 @@
+sources:
+  - id: DR_DL54_2009
+    title: "Decreto-Lei n.º 54/2009"
+    institution: "Diário da República"
+    type: "primary_legislation"
+    url: "https://diariodarepublica.pt/"
+    purpose: "Entry of new banking-sector workers into the general Social Security regime"
+
+  - id: DR_DL1A_2011
+    title: "Decreto-Lei n.º 1-A/2011, de 3 de janeiro"
+    institution: "Diário da República"
+    type: "primary_legislation"
+    url: "https://diariodarepublica.pt/dr/detalhe/decreto-lei/1-a-2011-406906"
+    purpose: "Integration of active banking-sector workers and extinction of CAFEB"
+
+  - id: DR_DL127_2011
+    title: "Decreto-Lei n.º 127/2011, de 31 de dezembro"
+    institution: "Diário da República"
+    type: "primary_legislation"
+    url: "https://diariodarepublica.pt/dr/detalhe/decreto-lei/127-2011-413399"
+    purpose: "Transfer of specified bank pension liabilities and pension-fund assets to the State/Social Security"
+
+  - id: DR_DL88_2012
+    title: "Decreto-Lei n.º 88/2012, de 11 de abril"
+    institution: "Diário da República"
+    type: "primary_legislation"
+    url: "https://diariodarepublica.pt/dr/detalhe/decreto-lei/88-2012-552546"
+    purpose: "BPN-group integration and transfer of specified pension responsibilities"
+
+  - id: DGO_CGE_2011
+    title: "Conta Geral do Estado 2011"
+    institution: "Direção-Geral do Orçamento"
+    type: "primary_public_accounts"
+    url: "https://www.dgo.gov.pt/politicaorcamental/ContaGeraldoEstado/2011/CGE_2011_vol1.pdf"
+    purpose: "2011 fiscal treatment and transfer amounts"
+
+  - id: EC_EXPOST_PAEF
+    title: "Ex Post Evaluation of the Economic Adjustment Programme: Portugal 2011-2014"
+    institution: "European Commission"
+    type: "official_evaluation"
+    url: "https://economy-finance.ec.europa.eu/system/files/2022-08/ip040_en.pdf"
+    purpose: "ESA-95/ESA-2010 treatment and fiscal effects of bank pension transfer"
+
+  - id: CGA_ANNUAL_REPORTS
+    title: "CGA annual reports and accounts"
+    institution: "Caixa Geral de Aposentações"
+    type: "primary_public_accounts"
+    url: "https://www.cga.pt/relatorios-anuais"
+    purpose: "CGA annual financing and pension expenditure"
+
+  - id: CSS_ANNUAL_ACCOUNTS
+    title: "Conta da Segurança Social"
+    institution: "IGFSS / Segurança Social"
+    type: "primary_public_accounts"
+    url: "https://www.seg-social.pt/"
+    purpose: "Social Security contributions, special-regime pension expenditure and State transfers"
+
+  - id: TC_PUBLIC_ACCOUNTS
+    title: "Pareceres e auditorias"
+    institution: "Tribunal de Contas"
+    type: "official_audit"
+    url: "https://www.tcontas.pt/"
+    purpose: "Independent reconciliation and audit evidence"
+
+  - id: CFP_SS_CGA
+    title: "Evolução orçamental da Segurança Social e da CGA"
+    institution: "Conselho das Finanças Públicas"
+    type: "official_independent_analysis"
+    url: "https://www.cfp.pt/"
+    purpose: "Independent cross-check of Social Security and CGA balances"

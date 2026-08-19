@@ -1,0 +1,6 @@
+source_id,title,institution,source_type,year,url,raw_path,sha256,status,notes
+DR_DL1A_2011,Decreto-Lei n.º 1-A/2011,Diário da República,primary_legislation,2011,https://diariodarepublica.pt/dr/detalhe/decreto-lei/1-a-2011-406906,,,registered,Banking worker integration and CAFEB extinction
+DR_DL127_2011,Decreto-Lei n.º 127/2011,Diário da República,primary_legislation,2011,https://diariodarepublica.pt/dr/detalhe/decreto-lei/127-2011-413399,,,registered,Bank pension liabilities and assets transfer
+DR_DL88_2012,Decreto-Lei n.º 88/2012,Diário da República,primary_legislation,2012,https://diariodarepublica.pt/dr/detalhe/decreto-lei/88-2012-552546,,,registered,BPN-specific integration
+DGO_CGE_2011,Conta Geral do Estado 2011,DGO,primary_public_accounts,2011,https://www.dgo.gov.pt/politicaorcamental/ContaGeraldoEstado/2011/CGE_2011_vol1.pdf,,,registered,Fiscal treatment and 2011 pension-fund transfer
+EC_EXPOST_PAEF,Ex Post Evaluation of the Economic Adjustment Programme: Portugal 2011-2014,European Commission,official_evaluation,2016,https://economy-finance.ec.europa.eu/system/files/2022-08/ip040_en.pdf,,,registered,3.5% GDP ESA-95 effect; ESA-2010 financial-transaction treatment; 2012 expenditure benchmark
