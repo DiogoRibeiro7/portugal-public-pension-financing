@@ -226,13 +226,18 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     falsification_review = evidence_dir.parent / "data" / "processed" / "falsification_review.csv"
     if falsification_review.is_file():
         errors.extend(validate_falsification_review(falsification_review))
+    article_evidence = evidence_dir / "article_evidence.csv"
+    internal_replication = (
+        evidence_dir.parent / "data" / "processed" / "internal_replication_review.csv"
+    )
+    if internal_replication.is_file() and article_evidence.is_file():
+        errors.extend(validate_internal_replication_review(internal_replication, article_evidence))
     figure_registry = evidence_dir.parent / "paper" / "figures" / "figure_registry.csv"
     table_registry = evidence_dir.parent / "paper" / "tables" / "table_registry.csv"
     if figure_registry.is_file() and table_registry.is_file():
         errors.extend(
             validate_publication_artifacts(figure_registry, table_registry, evidence_dir.parent)
         )
-    article_evidence = evidence_dir / "article_evidence.csv"
     article_figure_registry = evidence_dir / "figure_registry.csv"
     article_table_registry = evidence_dir / "table_registry.csv"
     if (
@@ -564,6 +569,129 @@ def validate_manuscript_draft(
     for phrase in sorted(unsupported_phrases):
         if phrase.lower() in lowered_text:
             errors.append(f"Manuscript contains unsupported phrase: {phrase}")
+
+    return errors
+
+
+def validate_internal_replication_review(
+    review_path: Path,
+    article_evidence_path: Path,
+) -> list[str]:
+    """Return validation errors for the internal replication review ledger."""
+    if not isinstance(review_path, Path):
+        raise TypeError("review_path must be pathlib.Path")
+    if not isinstance(article_evidence_path, Path):
+        raise TypeError("article_evidence_path must be pathlib.Path")
+
+    review = pd.read_csv(review_path, dtype=str)
+    article_evidence = pd.read_csv(article_evidence_path, dtype=str)
+
+    required_columns = {
+        "review_id",
+        "target_area",
+        "target_claim_ids",
+        "input_artifacts",
+        "source_ids",
+        "period",
+        "unit",
+        "perimeter",
+        "accounting_basis",
+        "check_type",
+        "independent_result",
+        "residual",
+        "alternative_definition_effect",
+        "decision",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(review.columns))
+    if missing_columns:
+        return [f"Internal replication review missing columns: {', '.join(missing_columns)}"]
+
+    required_review_ids = {
+        "REPL_ACCOUNTING_IDENTITIES",
+        "REPL_BANK_PERIMETER",
+        "REPL_CLAIM_REGISTRY",
+        "REPL_COUNTERFACTUAL_BUDGET",
+        "REPL_DISCOUNT_RATE",
+        "REPL_ESA_TREATMENT",
+        "REPL_LEGAL_CHRONOLOGY",
+        "REPL_MANUSCRIPT_LANGUAGE",
+        "REPL_MISSING_VALUES",
+        "REPL_STATE_FINANCING",
+    }
+    observed_review_ids = set(review["review_id"].dropna().astype(str))
+    errors: list[str] = []
+    for review_id in sorted(required_review_ids.difference(observed_review_ids)):
+        errors.append(f"Missing internal replication review row: {review_id}")
+
+    duplicates = review[review.duplicated(subset=["review_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate internal replication review row: "
+            f"{_registry_field(duplicate_row, 'review_id')}"
+        )
+
+    allowed_decisions = {
+        "classification_confirmed",
+        "no_overstatement_detected",
+        "replicated_bounded",
+        "unresolved_requires_sources",
+    }
+    allowed_statuses = {
+        "blocked_missing_inputs",
+        "complete",
+        "partial_bounded_review",
+    }
+    covered_claim_ids: set[str] = set()
+    for row_number, record in enumerate(review.to_dict("records"), start=2):
+        review_id = _registry_field(record, "review_id") or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on internal replication review row {row_number}")
+
+        decision = _registry_field(record, "decision")
+        if decision and decision not in allowed_decisions:
+            errors.append(
+                f"Unexpected decision on internal replication review row {row_number}: {decision}"
+            )
+
+        status = _registry_field(record, "status")
+        if status and status not in allowed_statuses:
+            errors.append(
+                f"Unexpected status on internal replication review row {row_number}: {status}"
+            )
+
+        blocking_issue = _registry_field(record, "blocking_issue")
+        if status == "blocked_missing_inputs" and blocking_issue in {"", "none"}:
+            errors.append(f"Blocked internal replication row {review_id} must name a blocker")
+        if decision == "unresolved_requires_sources" and status != "blocked_missing_inputs":
+            errors.append(f"Unresolved internal replication row {review_id} must be blocked")
+
+        residual = _registry_field(record, "residual")
+        if residual not in {"not_applicable", ""}:
+            try:
+                float(residual)
+            except ValueError:
+                errors.append(f"Internal replication row {review_id} has nonnumeric residual")
+
+        for artifact in _registry_field(record, "input_artifacts").split(";"):
+            artifact_path = Path(artifact)
+            if artifact_path.is_absolute() or ".." in artifact_path.parts:
+                errors.append(f"Unsafe input artifact on internal replication row {review_id}")
+
+        covered_claim_ids.update(
+            claim_id
+            for claim_id in _registry_field(record, "target_claim_ids").split(";")
+            if claim_id
+            and not claim_id.startswith("evidence_")
+            and claim_id != "article_evidence_gate"
+        )
+
+    article_claim_ids = set(article_evidence["claim_id"].dropna().astype(str))
+    for claim_id in sorted(article_claim_ids.difference(covered_claim_ids)):
+        errors.append(f"Article evidence claim missing replication review: {claim_id}")
 
     return errors
 

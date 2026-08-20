@@ -4,6 +4,7 @@ from portugal_pensions.validation import (
     validate_article_evidence,
     validate_evidence_directory,
     validate_falsification_review,
+    validate_internal_replication_review,
     validate_manifest,
     validate_manuscript_draft,
     validate_publication_artifacts,
@@ -67,6 +68,17 @@ def test_repository_manuscript_draft_is_valid() -> None:
     )
 
 
+def test_repository_internal_replication_review_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_internal_replication_review(
+            root / "data" / "processed" / "internal_replication_review.csv",
+            root / "evidence" / "article_evidence.csv",
+        )
+        == []
+    )
+
+
 def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -> None:
     manuscript = tmp_path / "manuscript.tex"
     article = tmp_path / "article_evidence.csv"
@@ -92,6 +104,29 @@ def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -
         "Manuscript does not reference article evidence row: AE_REQUIRED"
         in validate_manuscript_draft(manuscript, article)
     )
+
+
+def test_internal_replication_review_requires_article_claim_coverage(tmp_path: Path) -> None:
+    review = tmp_path / "internal_replication_review.csv"
+    article = tmp_path / "article_evidence.csv"
+    article.write_text(
+        "evidence_id,claim_id\nAE_REQUIRED,CLAIM_REQUIRED\n",
+        encoding="utf-8",
+    )
+    header = (
+        "review_id,target_area,target_claim_ids,input_artifacts,source_ids,period,unit,"
+        "perimeter,accounting_basis,check_type,independent_result,residual,"
+        "alternative_definition_effect,decision,status,blocking_issue,notes\n"
+    )
+    row = (
+        "REPL_ACCOUNTING_IDENTITIES,area,OTHER_CLAIM,evidence/file.csv,SRC,2011,"
+        "EUR_million,perimeter,basis,check,result,0.0,alternative,"
+        "replicated_bounded,partial_bounded_review,none,notes\n"
+    )
+    review.write_text(header + row, encoding="utf-8")
+
+    errors = validate_internal_replication_review(review, article)
+    assert "Article evidence claim missing replication review: CLAIM_REQUIRED" in errors
 
 
 def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
