@@ -7,6 +7,7 @@ from portugal_pensions.banking import (
     present_value,
     validate_bank_asset_liability_outputs,
     validate_bank_pension_transfer_registry,
+    validate_bank_special_regime_annual,
 )
 
 
@@ -65,6 +66,32 @@ def test_repository_bank_asset_liability_outputs_are_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_bank_special_regime_annual_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_special_regime_annual(
+            str(root / "evidence" / "bank_special_regime_annual.csv")
+        )
+        == []
+    )
+
+
+def test_bank_special_regime_annual_checks_residual_identity(tmp_path: Path) -> None:
+    ledger = tmp_path / "bank_special_regime_annual.csv"
+    ledger.write_text(
+        "year,perimeter,unit,price_basis,accounting_basis,state_specific_transfer,"
+        "pension_expenditure,administrative_cost,attributable_investment_income,"
+        "asset_drawdown,other_financing,timing_adjustment,reconciliation_residual,"
+        "source_ids,status,notes\n"
+        "2012,transferred_bank_pensions,EUR_million,current_prices,budgetary_public_accounts,"
+        "90,100,5,0,0,0,0,99,SRC,complete,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_special_regime_annual(str(ledger), end_year=2012)
+    assert "Bank special-regime residual identity fails on row 2" in errors
 
 
 def test_bank_asset_liability_sensitivity_requires_rate_surface(tmp_path: Path) -> None:

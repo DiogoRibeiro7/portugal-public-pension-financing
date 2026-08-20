@@ -183,6 +183,125 @@ def validate_bank_asset_liability_outputs(
     return errors
 
 
+def validate_bank_special_regime_annual(path: str, *, end_year: int = 2025) -> list[str]:
+    """Return validation errors for the annual bank special-regime financing ledger."""
+    annual = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "year",
+        "perimeter",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "state_specific_transfer",
+        "pension_expenditure",
+        "administrative_cost",
+        "attributable_investment_income",
+        "asset_drawdown",
+        "other_financing",
+        "timing_adjustment",
+        "reconciliation_residual",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(annual.columns))
+    if missing_columns:
+        return [f"Bank special-regime annual ledger missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = annual[annual.duplicated(subset=["year", "perimeter"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate bank special-regime annual row: "
+            f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'perimeter')}"
+        )
+
+    years = sorted(int(year) for year in annual["year"].dropna().astype(str))
+    expected_years = list(range(2012, end_year + 1))
+    if years != expected_years:
+        errors.append(f"Bank special-regime annual ledger must cover 2012-{end_year}")
+
+    allowed_statuses = {
+        "blocked_missing_official_annual_components",
+        "published_expenditure_benchmark_to_replicate",
+        "partial_official_reconciliation",
+        "complete",
+    }
+    nonnegative_columns = {
+        "state_specific_transfer",
+        "pension_expenditure",
+        "administrative_cost",
+        "attributable_investment_income",
+        "asset_drawdown",
+        "other_financing",
+    }
+    signed_columns = {"timing_adjustment", "reconciliation_residual"}
+
+    for row_number, record in enumerate(annual.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {
+                "state_specific_transfer",
+                "pension_expenditure",
+                "administrative_cost",
+                "attributable_investment_income",
+                "asset_drawdown",
+                "other_financing",
+                "timing_adjustment",
+                "reconciliation_residual",
+            }
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank special-regime row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank special-regime status on row {row_number}: {status}")
+
+        if _field(record, "unit") != "EUR_million":
+            errors.append(f"Unexpected unit on bank special-regime row {row_number}")
+        if _field(record, "price_basis") != "current_prices":
+            errors.append(f"Unexpected price_basis on bank special-regime row {row_number}")
+
+        for column in nonnegative_columns:
+            value = _field(record, column)
+            if value:
+                _nonnegative(value, column)
+        for column in signed_columns:
+            value = _field(record, column)
+            if value:
+                _numeric(value, column)
+
+        components = {
+            column: _field(record, column)
+            for column in {
+                "state_specific_transfer",
+                "pension_expenditure",
+                "administrative_cost",
+                "attributable_investment_income",
+                "asset_drawdown",
+                "other_financing",
+                "timing_adjustment",
+                "reconciliation_residual",
+            }
+        }
+        if all(components.values()):
+            expenditure = float(components["pension_expenditure"]) + float(
+                components["administrative_cost"]
+            )
+            financing = (
+                float(components["state_specific_transfer"])
+                + float(components["attributable_investment_income"])
+                + float(components["asset_drawdown"])
+                + float(components["other_financing"])
+                + float(components["timing_adjustment"])
+            )
+            residual = float(components["reconciliation_residual"])
+            if not math.isclose(expenditure - financing, residual, rel_tol=0.0, abs_tol=1e-9):
+                errors.append(f"Bank special-regime residual identity fails on row {row_number}")
+        elif status == "complete":
+            errors.append(f"Complete bank special-regime row {row_number} has missing components")
+    return errors
+
+
 def _validate_bank_asset_liability_audit(audit: pd.DataFrame) -> list[str]:
     required_columns = {
         "audit_id",
