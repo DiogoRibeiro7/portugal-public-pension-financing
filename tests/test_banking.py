@@ -5,6 +5,7 @@ import pytest
 from portugal_pensions.banking import (
     bank_transfer_balance,
     present_value,
+    validate_bank_asset_liability_outputs,
     validate_bank_pension_transfer_registry,
 )
 
@@ -52,3 +53,50 @@ def test_bank_transfer_registry_requires_institution_count(tmp_path: Path) -> No
 
     errors = validate_bank_pension_transfer_registry(str(registry))
     assert "Expected 18 participating institutions, found 0" in errors
+
+
+def test_repository_bank_asset_liability_outputs_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_asset_liability_outputs(
+            str(root / "data" / "processed" / "bank_asset_liability_audit.csv"),
+            str(root / "data" / "processed" / "bank_asset_trace.csv"),
+            str(root / "data" / "processed" / "bank_asset_liability_sensitivity.csv"),
+        )
+        == []
+    )
+
+
+def test_bank_asset_liability_sensitivity_requires_rate_surface(tmp_path: Path) -> None:
+    audit = tmp_path / "audit.csv"
+    trace = tmp_path / "trace.csv"
+    sensitivity = tmp_path / "sensitivity.csv"
+    audit.write_text(
+        "audit_id,year,institution,unit,price_basis,accounting_basis,"
+        "liability_pv_legal_4pct,assets_transferred_total,cash_transferred,"
+        "portuguese_public_debt_transferred,other_assets_transferred,"
+        "statutory_equality_residual,discount_rate_sensitivity_min,"
+        "discount_rate_sensitivity_max,mortality_sensitivity_status,source_ids,status,notes\n"
+        "BANK_AL_AGG_2011_OPERATION,2011,aggregate,EUR_million,current,basis,"
+        "5993.2,,,,,,0.02,0.06,blocked,SRC,partial_aggregate_extract,notes\n"
+        "BANK_AL_AGG_2011_STATE_RECEIPT,2011,aggregate,EUR_million,current,basis,"
+        ",3263.1,,,,,0.02,0.06,blocked,SRC,partial_aggregate_extract,notes\n",
+        encoding="utf-8",
+    )
+    trace.write_text(
+        "institution,asset_type,transfer_value,destination,accounting_treatment,source_id,"
+        "status,notes\n"
+        "aggregate_banking_sector,asset,3263.1,State,treatment,SRC,partial_aggregate_extract,"
+        "notes\n",
+        encoding="utf-8",
+    )
+    sensitivity.write_text(
+        "scenario_id,institution,discount_rate,mortality_assumption,liability_pv,"
+        "delta_vs_legal_4pct,unit,source_ids,status,notes\n"
+        "S1,aggregate,0.04,legal,,,EUR_million,SRC,"
+        "blocked_missing_cashflow_and_demographic_inputs,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_asset_liability_outputs(str(audit), str(trace), str(sensitivity))
+    assert "Bank asset-liability sensitivity must cover discount rates 0.02-0.06" in errors

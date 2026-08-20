@@ -1,0 +1,6 @@
+scenario_id,institution,discount_rate,mortality_assumption,liability_pv,delta_vs_legal_4pct,unit,source_ids,status,notes
+BANK_AL_SENS_020,aggregate_banking_sector,0.02,not_available,,,EUR_million,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Requires pension cash-flow schedule and defensible mortality/longevity assumptions
+BANK_AL_SENS_030,aggregate_banking_sector,0.03,not_available,,,EUR_million,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Requires pension cash-flow schedule and defensible mortality/longevity assumptions
+BANK_AL_SENS_040,aggregate_banking_sector,0.04,legal_DL127_TV_73_77_minus_1_male_TV_88_90_female,,,EUR_million,DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Legal discount-rate scenario cannot be recomputed without pension cash-flow schedule
+BANK_AL_SENS_050,aggregate_banking_sector,0.05,not_available,,,EUR_million,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Requires pension cash-flow schedule and defensible mortality/longevity assumptions
+BANK_AL_SENS_060,aggregate_banking_sector,0.06,not_available,,,EUR_million,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Requires pension cash-flow schedule and defensible mortality/longevity assumptions

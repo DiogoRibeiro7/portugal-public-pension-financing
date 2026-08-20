@@ -166,6 +166,203 @@ def validate_bank_pension_transfer_registry(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_asset_liability_outputs(
+    audit_path: str,
+    asset_trace_path: str,
+    sensitivity_path: str,
+) -> list[str]:
+    """Return validation errors for bank asset-liability audit outputs."""
+    audit = pd.read_csv(audit_path, dtype=str)
+    asset_trace = pd.read_csv(asset_trace_path, dtype=str)
+    sensitivity = pd.read_csv(sensitivity_path, dtype=str)
+    errors = [
+        *_validate_bank_asset_liability_audit(audit),
+        *_validate_bank_asset_trace(asset_trace),
+        *_validate_bank_asset_liability_sensitivity(sensitivity),
+    ]
+    return errors
+
+
+def _validate_bank_asset_liability_audit(audit: pd.DataFrame) -> list[str]:
+    required_columns = {
+        "audit_id",
+        "year",
+        "institution",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "liability_pv_legal_4pct",
+        "assets_transferred_total",
+        "cash_transferred",
+        "portuguese_public_debt_transferred",
+        "other_assets_transferred",
+        "statutory_equality_residual",
+        "discount_rate_sensitivity_min",
+        "discount_rate_sensitivity_max",
+        "mortality_sensitivity_status",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(audit.columns))
+    if missing_columns:
+        return [f"Bank asset-liability audit missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = audit[audit.duplicated(subset=["audit_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank asset-liability audit_id: {_field(duplicate_row, 'audit_id')}"
+        )
+
+    for row_number, record in enumerate(audit.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {
+                "liability_pv_legal_4pct",
+                "assets_transferred_total",
+                "cash_transferred",
+                "portuguese_public_debt_transferred",
+                "other_assets_transferred",
+                "statutory_equality_residual",
+            }
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank asset-liability audit row {row_number}")
+        status = _field(record, "status")
+        if status not in {"partial_aggregate_extract", "complete"}:
+            errors.append(
+                f"Unexpected bank asset-liability audit status on row {row_number}: {status}"
+            )
+        for column in {
+            "liability_pv_legal_4pct",
+            "assets_transferred_total",
+            "cash_transferred",
+            "portuguese_public_debt_transferred",
+            "other_assets_transferred",
+            "discount_rate_sensitivity_min",
+            "discount_rate_sensitivity_max",
+        }:
+            value = _field(record, column)
+            if value:
+                _nonnegative(value, column)
+        residual = _field(record, "statutory_equality_residual")
+        if residual:
+            _numeric(residual, "statutory_equality_residual")
+
+    operation = audit[audit["audit_id"] == "BANK_AL_AGG_2011_OPERATION"]
+    receipt = audit[audit["audit_id"] == "BANK_AL_AGG_2011_STATE_RECEIPT"]
+    if operation.empty or not math.isclose(
+        float(_field(operation.iloc[0], "liability_pv_legal_4pct")),
+        5993.2,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    ):
+        errors.append("Missing CGE 2011 aggregate operation value 5993.2")
+    if receipt.empty or not math.isclose(
+        float(_field(receipt.iloc[0], "assets_transferred_total")),
+        3263.1,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    ):
+        errors.append("Missing CGE 2011 recorded State receipt value 3263.1")
+    return errors
+
+
+def _validate_bank_asset_trace(asset_trace: pd.DataFrame) -> list[str]:
+    required_columns = {
+        "institution",
+        "asset_type",
+        "transfer_value",
+        "destination",
+        "accounting_treatment",
+        "source_id",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(asset_trace.columns))
+    if missing_columns:
+        return [f"Bank asset trace missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    blocked_count = int(
+        (asset_trace["status"].astype(str) == "blocked_missing_bank_level_values").sum()
+    )
+    if blocked_count != 18:
+        errors.append(f"Expected 18 blocked bank-level asset rows, found {blocked_count}")
+    aggregate = asset_trace[asset_trace["institution"] == "aggregate_banking_sector"]
+    if aggregate.empty or not math.isclose(
+        float(_field(aggregate.iloc[0], "transfer_value")),
+        3263.1,
+        rel_tol=0.0,
+        abs_tol=1e-12,
+    ):
+        errors.append("Missing aggregate bank asset trace value 3263.1")
+
+    for row_number, record in enumerate(asset_trace.to_dict("records"), start=2):
+        for column in required_columns.difference({"transfer_value"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank asset trace row {row_number}")
+        value = _field(record, "transfer_value")
+        if value:
+            _nonnegative(value, "transfer_value")
+    return errors
+
+
+def _validate_bank_asset_liability_sensitivity(sensitivity: pd.DataFrame) -> list[str]:
+    required_columns = {
+        "scenario_id",
+        "institution",
+        "discount_rate",
+        "mortality_assumption",
+        "liability_pv",
+        "delta_vs_legal_4pct",
+        "unit",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(sensitivity.columns))
+    if missing_columns:
+        return [f"Bank asset-liability sensitivity missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    rates = sorted(float(value) for value in sensitivity["discount_rate"].dropna().astype(str))
+    if rates != [0.02, 0.03, 0.04, 0.05, 0.06]:
+        errors.append("Bank asset-liability sensitivity must cover discount rates 0.02-0.06")
+    for row_number, record in enumerate(sensitivity.to_dict("records"), start=2):
+        for column in required_columns.difference({"liability_pv", "delta_vs_legal_4pct"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank sensitivity row {row_number}")
+        status = _field(record, "status")
+        if status not in {"blocked_missing_cashflow_and_demographic_inputs", "complete"}:
+            errors.append(f"Unexpected bank sensitivity status on row {row_number}: {status}")
+        for column in {"liability_pv", "discount_rate"}:
+            value = _field(record, column)
+            if value:
+                _nonnegative(value, column)
+        delta = _field(record, "delta_vs_legal_4pct")
+        if delta:
+            _numeric(delta, "delta_vs_legal_4pct")
+    return errors
+
+
+def _numeric(value: str, name: str) -> float:
+    try:
+        numeric = float(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be numeric") from exc
+    if not math.isfinite(numeric):
+        raise ValueError(f"{name} must be finite")
+    return numeric
+
+
+def _nonnegative(value: str, name: str) -> float:
+    numeric = _numeric(value, name)
+    if numeric < 0.0:
+        raise ValueError(f"{name} must be finite and non-negative")
+    return numeric
+
+
 def _field(row: Any, column: str) -> str:
     value = row[column]
     if pd.isna(value):
