@@ -91,6 +91,19 @@ net-subsidy claim. The current ledger records legal risk movement and aggregate 
 extracts, but bank-level net positions remain blocked until liability, asset and retained-benefit
 values are acquired for each participating institution.
 
+## Debt and financing effects
+
+`data/processed/bank_transfer_debt_financing_effects.csv` records the 2011 financing
+resource separately from the later pension-payment obligation. On the observed EUR
+3263.1m asset-title receipt recorded in CGE 2011, Banco de Portugal 2012 borrowing-cost
+anchors imply potential annual interest savings of EUR 84.8406m at 2.6 percent, EUR
+120.7347m at 3.7 percent, and EUR 238.2063m at 7.3 percent. These are sensitivity
+calculations, not a net welfare result.
+
+The gross-debt and consolidated public-finance classification remains unresolved until
+the final cash, public-debt-security, and other-asset composition is known and can be
+matched to the pension-obligation lifecycle.
+
 ## Accounting-standard issue
 
 The repository must replicate both treatments:

@@ -21,6 +21,7 @@ from .banking import (
     validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
+    validate_bank_transfer_debt_financing_effects,
 )
 from .counterfactuals import validate_public_worker_reallocation
 from .legal import validate_legal_contribution_registry
@@ -117,6 +118,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     bank_pension_cost = evidence_dir.parent / "data" / "processed" / "bank_pension_cost_2012.csv"
     if bank_pension_cost.is_file():
         errors.extend(validate_bank_pension_cost_2012(str(bank_pension_cost)))
+    bank_debt_financing = (
+        evidence_dir.parent / "data" / "processed" / "bank_transfer_debt_financing_effects.csv"
+    )
+    if bank_debt_financing.is_file():
+        errors.extend(validate_bank_transfer_debt_financing_effects(str(bank_debt_financing)))
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
