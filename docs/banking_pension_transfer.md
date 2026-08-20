@@ -96,4 +96,4 @@ The repository must replicate both treatments:
 - ESA-95: the 2011 transaction was recorded as deficit-improving revenue, about 3.5% of GDP according to the European Commission ex-post evaluation.
 - ESA-2010: the same operation is treated as a financial transaction with no direct deficit impact.
 
-This accounting discontinuity is itself an important result for the paper.
+`data/processed/bank_esa_treatment_bridge.csv` now records a checked bridge for this discontinuity. It reconciles the CGE 2011 amount of EUR 5993.2m to the 3.5 percent of GDP ESA-95 effect and separately records the ESA-2010 no-direct-deficit-impact classification from the Commission source. Full independent restatement from national-accounts bridge tables remains an open data-quality item.

@@ -7,6 +7,7 @@ from portugal_pensions.banking import (
     present_value,
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
+    validate_bank_esa_treatment_bridge,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
 )
@@ -87,6 +88,37 @@ def test_repository_bank_benefit_risk_distribution_is_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_bank_esa_treatment_bridge_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_esa_treatment_bridge(
+            str(root / "data" / "processed" / "bank_esa_treatment_bridge.csv")
+        )
+        == []
+    )
+
+
+def test_bank_esa_treatment_bridge_checks_percent_identity(tmp_path: Path) -> None:
+    bridge = tmp_path / "bank_esa_treatment_bridge.csv"
+    bridge.write_text(
+        "record_id,year,transaction,esa_standard,classification,deficit_effect_direction,"
+        "deficit_effect_percent_gdp,amount_eur_million,implied_gdp_eur_million,unit,"
+        "source_ids,status,notes\n"
+        "R1,2011,bank_pension_fund_transfer,ESA-95,revenue_increasing_operation,"
+        "deficit_decreasing,10.0,50.0,1000.0,EUR_million,SRC,"
+        "replicated_from_cge_and_ec,notes\n"
+        "R2,2011,bank_pension_fund_transfer,ESA-2010,financial_transaction,"
+        "no_direct_deficit_impact,0.0,,,EUR_million,SRC,"
+        "classification_confirmed_from_ec,notes\n"
+        "R3,2011,bank_pension_fund_transfer,bridge,bridge,not_applicable,,,,"
+        "EUR_million,SRC,interpretive_bridge,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_esa_treatment_bridge(str(bridge))
+    assert "Bank ESA bridge percent identity fails on row 2" in errors
 
 
 def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: Path) -> None:

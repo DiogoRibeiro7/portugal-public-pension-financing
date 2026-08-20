@@ -392,6 +392,99 @@ def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_esa_treatment_bridge(path: str) -> list[str]:
+    """Return validation errors for the ESA-95/ESA-2010 bank-transfer bridge."""
+    bridge = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "record_id",
+        "year",
+        "transaction",
+        "esa_standard",
+        "classification",
+        "deficit_effect_direction",
+        "deficit_effect_percent_gdp",
+        "amount_eur_million",
+        "implied_gdp_eur_million",
+        "unit",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(bridge.columns))
+    if missing_columns:
+        return [f"Bank ESA treatment bridge missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = bridge[bridge.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(f"Duplicate bank ESA bridge record_id: {_field(duplicate_row, 'record_id')}")
+
+    allowed_standards = {"ESA-95", "ESA-2010", "bridge"}
+    allowed_directions = {"deficit_decreasing", "no_direct_deficit_impact", "not_applicable"}
+    allowed_statuses = {
+        "replicated_from_cge_and_ec",
+        "classification_confirmed_from_ec",
+        "interpretive_bridge",
+        "blocked_missing_machine_readable_accounts",
+    }
+
+    for row_number, record in enumerate(bridge.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {"deficit_effect_percent_gdp", "amount_eur_million", "implied_gdp_eur_million"}
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank ESA bridge row {row_number}")
+        standard = _field(record, "esa_standard")
+        if standard not in allowed_standards:
+            errors.append(f"Unexpected ESA standard on bank ESA bridge row {row_number}")
+        direction = _field(record, "deficit_effect_direction")
+        if direction not in allowed_directions:
+            errors.append(
+                f"Unexpected deficit effect direction on bank ESA bridge row {row_number}"
+            )
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank ESA bridge status on row {row_number}: {status}")
+
+        percent = _field(record, "deficit_effect_percent_gdp")
+        amount = _field(record, "amount_eur_million")
+        implied_gdp = _field(record, "implied_gdp_eur_million")
+        for value, name in (
+            (percent, "deficit_effect_percent_gdp"),
+            (amount, "amount_eur_million"),
+            (implied_gdp, "implied_gdp_eur_million"),
+        ):
+            if value:
+                _nonnegative(value, name)
+
+        if amount and percent and implied_gdp:
+            reconstructed_percent = float(amount) / float(implied_gdp) * 100.0
+            if not math.isclose(
+                reconstructed_percent,
+                float(percent),
+                rel_tol=0.0,
+                abs_tol=0.05,
+            ):
+                errors.append(f"Bank ESA bridge percent identity fails on row {row_number}")
+
+    standards = set(bridge["esa_standard"].dropna().astype(str))
+    for standard in ("ESA-95", "ESA-2010", "bridge"):
+        if standard not in standards:
+            errors.append(f"Missing ESA bridge standard: {standard}")
+
+    esa2010 = bridge[bridge["esa_standard"].astype(str) == "ESA-2010"]
+    if esa2010.empty:
+        errors.append("Missing ESA-2010 bank transfer classification row")
+    else:
+        for _, esa2010_record in esa2010.iterrows():
+            if _field(esa2010_record, "deficit_effect_direction") != "no_direct_deficit_impact":
+                errors.append("ESA-2010 row must have no direct deficit impact")
+            effect = _field(esa2010_record, "deficit_effect_percent_gdp")
+            if effect and not math.isclose(float(effect), 0.0, rel_tol=0.0, abs_tol=1e-12):
+                errors.append("ESA-2010 direct deficit effect must be zero when populated")
+    return errors
+
+
 def _validate_bank_asset_liability_audit(audit: pd.DataFrame) -> list[str]:
     required_columns = {
         "audit_id",
