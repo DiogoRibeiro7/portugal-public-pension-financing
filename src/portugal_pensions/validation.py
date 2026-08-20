@@ -14,7 +14,7 @@ from .accounting import (
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
 )
-from .banking import validate_bank_pension_transfer_registry
+from .banking import validate_bank_asset_liability_outputs, validate_bank_pension_transfer_registry
 from .counterfactuals import validate_public_worker_reallocation
 from .legal import validate_legal_contribution_registry
 
@@ -76,6 +76,21 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_bank_pension_transfer_registry(
                 str(evidence_dir / "bank_pension_transfer_registry.csv")
+            )
+        )
+    bank_asset_liability = (
+        evidence_dir.parent / "data" / "processed" / "bank_asset_liability_audit.csv"
+    )
+    bank_asset_trace = evidence_dir.parent / "data" / "processed" / "bank_asset_trace.csv"
+    bank_sensitivity = (
+        evidence_dir.parent / "data" / "processed" / "bank_asset_liability_sensitivity.csv"
+    )
+    if bank_asset_liability.is_file() and bank_asset_trace.is_file() and bank_sensitivity.is_file():
+        errors.extend(
+            validate_bank_asset_liability_outputs(
+                str(bank_asset_liability),
+                str(bank_asset_trace),
+                str(bank_sensitivity),
             )
         )
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
