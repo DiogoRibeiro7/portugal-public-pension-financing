@@ -22,6 +22,7 @@ from .banking import (
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
     validate_bank_transfer_debt_financing_effects,
+    validate_bpn_2012_pension_transfer,
 )
 from .counterfactuals import validate_public_worker_reallocation
 from .legal import validate_legal_contribution_registry
@@ -123,6 +124,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if bank_debt_financing.is_file():
         errors.extend(validate_bank_transfer_debt_financing_effects(str(bank_debt_financing)))
+    bpn_transfer = evidence_dir.parent / "data" / "processed" / "bpn_2012_pension_transfer.csv"
+    if bpn_transfer.is_file():
+        errors.extend(validate_bpn_2012_pension_transfer(str(bpn_transfer)))
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
