@@ -2,23 +2,26 @@
 
 Instruction file: `prompts/18_write_paper.md`
 Date: 2026-08-19
-Status: `blocked_by_source_work`
+Updated: 2026-08-20
+Status: `partial_bounded_reconstruction`
 
 ## Actions
 
-- Read the instruction file together with the master research guardrails.
-- Checked the current repository architecture, registries, tests, and validation commands.
-- Preserved existing validated outputs.
-- Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
+- Read the instruction file together with the article-evidence gate, falsification report and current manuscript scaffold.
+- Replaced the placeholder manuscript with a bounded draft that uses only validated article evidence.
+- Added explicit manuscript labels for legal fact, accounting fact, interpretation, unresolved evidence, counterfactual result and actuarial assumption.
+- Added source-level article-evidence references for every currently supported article-evidence row.
+- Added validation that the manuscript references article evidence and keeps evidence-boundary language.
+- Added tests for repository manuscript validity and missing evidence references.
 
 ## Result
 
-Recorded manuscript gating requirements.
+Created a bounded manuscript draft. It reports extracted and replicated evidence only, and it explicitly blocks remittance-loss, employer-underpayment, post-2006 reallocation, combined-balance, bank-subsidy and lifecycle-cost conclusions until required inputs are registered.
 
 ## Current Stop Condition
 
-Completion beyond this record requires the registered primary sources and deterministic extraction chain needed by the task. Until those inputs exist, any quantitative result remains blocked or partial under the repository evidence rules.
+Completion beyond this bounded draft requires the unresolved source work recorded in the falsification report, article-evidence gate and data-quality registry.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran repository validation and full quality checks after regenerating `MANIFEST.sha256`.

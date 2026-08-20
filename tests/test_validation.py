@@ -5,6 +5,7 @@ from portugal_pensions.validation import (
     validate_evidence_directory,
     validate_falsification_review,
     validate_manifest,
+    validate_manuscript_draft,
     validate_publication_artifacts,
     validate_source_registry,
     validate_zenodo_metadata,
@@ -52,6 +53,44 @@ def test_repository_article_evidence_is_valid() -> None:
             root,
         )
         == []
+    )
+
+
+def test_repository_manuscript_draft_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_manuscript_draft(
+            root / "paper" / "manuscript.tex",
+            root / "evidence" / "article_evidence.csv",
+        )
+        == []
+    )
+
+
+def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -> None:
+    manuscript = tmp_path / "manuscript.tex"
+    article = tmp_path / "article_evidence.csv"
+    article.write_text(
+        "evidence_id,claim_id\nAE_REQUIRED,CLAIM\n",
+        encoding="utf-8",
+    )
+    manuscript.write_text(
+        "[Legal fact]\n"
+        "[Accounting fact]\n"
+        "[Interpretation]\n"
+        "[Unresolved evidence]\n"
+        "[Counterfactual result]\n"
+        "[Actuarial assumption]\n"
+        "does not yet support definitive claims\n"
+        "does not establish\n"
+        "does not classify\n"
+        "No numerical counterfactual result is reported\n",
+        encoding="utf-8",
+    )
+
+    assert (
+        "Manuscript does not reference article evidence row: AE_REQUIRED"
+        in validate_manuscript_draft(manuscript, article)
     )
 
 
