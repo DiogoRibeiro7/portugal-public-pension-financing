@@ -74,6 +74,20 @@ pension-payment execution reported by Tribunal de Contas. Later annual financing
 components remain blank with blocked statuses until official annual account tables are
 extracted. Missing values in this ledger are not zeros.
 
+## BPN Separate Case
+
+`data/processed/bpn_2012_pension_transfer.csv` keeps Decree-Law 88/2012 separate
+from the 2011 Decree-Law 127/2011 transfer. DL88 assigns the covered BPN-group
+responsibilities to CGA, with ISS/CNP handling payment of amounts communicated by
+CGA, and requires EUR 96.768004m from the BPN pension fund to be transferred to
+CGA. It also identifies EUR 7.319430m for SAMS contribution responsibilities retained
+outside the CGA transfer.
+
+The main 2011 private-bank panel excludes BPN unless a broader perimeter is explicitly
+defined. The current BPN ledger is a bounded reconstruction: it records the legal
+transfer amount and 2012 Tribunal de Contas account extracts but not the full
+actuarial valuation or post-2012 drawdown path.
+
 ## Competing explanations
 
 A. The transaction was close to actuarially neutral at inception and the State fully financed subsequent pension expenditure, leaving no material uncompensated burden on Social Security.

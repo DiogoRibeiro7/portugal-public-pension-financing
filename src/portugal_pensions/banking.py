@@ -536,6 +536,109 @@ def validate_bank_transfer_debt_financing_effects(path: str) -> list[str]:
     return errors
 
 
+def validate_bpn_2012_pension_transfer(path: str) -> list[str]:
+    """Return validation errors for the separate BPN 2012 pension-transfer case."""
+    bpn = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "record_id",
+        "year",
+        "case_id",
+        "measure",
+        "value",
+        "unit",
+        "receiving_institution",
+        "payment_institution",
+        "population",
+        "perimeter_inclusion",
+        "accounting_basis",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(bpn.columns))
+    if missing_columns:
+        return [f"BPN 2012 pension transfer missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = bpn[bpn.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(f"Duplicate BPN 2012 record_id: {_field(duplicate_row, 'record_id')}")
+
+    required_measures = {
+        "active_worker_rgss_integration",
+        "cga_responsibility_current_pensions",
+        "cga_responsibility_future_benefits",
+        "asset_transfer_to_cga",
+        "sams_assets_returned_to_entities",
+        "cga_financing_to_ss_2012",
+        "pensioners_2012",
+        "survivor_pensioners_2012",
+        "pensions_paid_by_cga_fund_2012",
+        "main_2011_panel_inclusion",
+    }
+    allowed_statuses = {
+        "legal_scope_registered",
+        "official_legal_amount_extracted",
+        "official_account_extract",
+        "panel_boundary_registered",
+        "blocked_missing_component_values",
+    }
+    allowed_units = {"EUR_million", "count", "not_applicable"}
+
+    for row_number, record in enumerate(bpn.to_dict("records"), start=2):
+        for column in required_columns.difference({"value", "payment_institution"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on BPN 2012 row {row_number}")
+        if _field(record, "year") != "2012":
+            errors.append(f"BPN 2012 row {row_number} must use year 2012")
+        if _field(record, "case_id") != "bpn_group_dl88":
+            errors.append(f"Unexpected BPN case_id on row {row_number}")
+        if _field(record, "unit") not in allowed_units:
+            errors.append(f"Unexpected BPN unit on row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected BPN status on row {row_number}: {status}")
+        value = _field(record, "value")
+        if value:
+            _nonnegative(value, "value")
+
+    measures = set(bpn["measure"].dropna().astype(str))
+    for measure in sorted(required_measures.difference(measures)):
+        errors.append(f"Missing BPN 2012 measure: {measure}")
+
+    expected_values = {
+        "asset_transfer_to_cga": 96.768004,
+        "sams_assets_returned_to_entities": 7.31943,
+        "cga_financing_to_ss_2012": 0.1359,
+        "pensioners_2012": 11.0,
+        "survivor_pensioners_2012": 18.0,
+        "pensions_paid_by_cga_fund_2012": 0.17927,
+    }
+    for measure, expected_value in expected_values.items():
+        matches = bpn[bpn["measure"].astype(str) == measure]
+        if matches.empty:
+            continue
+        value = _field(matches.iloc[0], "value")
+        if not value or not math.isclose(
+            float(value),
+            expected_value,
+            rel_tol=0.0,
+            abs_tol=0.0005,
+        ):
+            errors.append(f"Unexpected BPN value for {measure}: {value}")
+
+    panel_rows = bpn[bpn["measure"].astype(str) == "main_2011_panel_inclusion"]
+    if panel_rows.empty:
+        errors.append("Missing BPN main-panel boundary row")
+    else:
+        panel = panel_rows.iloc[0]
+        if _field(panel, "perimeter_inclusion") != "excluded_from_2011_dl127_panel":
+            errors.append("BPN case must remain excluded from the main 2011 DL127 panel")
+        if _field(panel, "receiving_institution") != "CGA":
+            errors.append("BPN panel-boundary row must identify CGA as receiving institution")
+    return errors
+
+
 def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
     """Return validation errors for bank-transfer benefit and risk distribution outputs."""
     distribution = pd.read_csv(path, dtype=str)

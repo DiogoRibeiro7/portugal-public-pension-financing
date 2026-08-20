@@ -12,6 +12,7 @@ from portugal_pensions.banking import (
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
     validate_bank_transfer_debt_financing_effects,
+    validate_bpn_2012_pension_transfer,
 )
 
 
@@ -198,6 +199,52 @@ def test_bank_transfer_debt_financing_effects_checks_interest_identity(
 
     errors = validate_bank_transfer_debt_financing_effects(str(debt))
     assert "Bank debt-financing interest identity fails on row 7" in errors
+
+
+def test_repository_bpn_2012_pension_transfer_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bpn_2012_pension_transfer(
+            str(root / "data" / "processed" / "bpn_2012_pension_transfer.csv")
+        )
+        == []
+    )
+
+
+def test_bpn_2012_pension_transfer_requires_panel_exclusion(tmp_path: Path) -> None:
+    transfer = tmp_path / "bpn_2012_pension_transfer.csv"
+    transfer.write_text(
+        "record_id,year,case_id,measure,value,unit,receiving_institution,payment_institution,"
+        "population,perimeter_inclusion,accounting_basis,source_ids,status,notes\n"
+        "R1,2012,bpn_group_dl88,active_worker_rgss_integration,,not_applicable,RGSS,,"
+        "workers,bpn_separate_case,legal_scope,SRC,legal_scope_registered,notes\n"
+        "R2,2012,bpn_group_dl88,cga_responsibility_current_pensions,,not_applicable,CGA,"
+        "ISS_CNP,pensioners,bpn_separate_case,legal_scope,SRC,legal_scope_registered,notes\n"
+        "R3,2012,bpn_group_dl88,cga_responsibility_future_benefits,,not_applicable,CGA,"
+        "ISS_CNP,workers,bpn_separate_case,legal_scope,SRC,legal_scope_registered,notes\n"
+        "R4,2012,bpn_group_dl88,asset_transfer_to_cga,96.768004,EUR_million,CGA,,"
+        "responsibilities,bpn_separate_case,legal_transfer_value,SRC,"
+        "official_legal_amount_extracted,notes\n"
+        "R5,2012,bpn_group_dl88,sams_assets_returned_to_entities,7.319430,EUR_million,"
+        "BPN_group_entities,,sams,bpn_separate_case,legal_transfer_value,SRC,"
+        "official_legal_amount_extracted,notes\n"
+        "R6,2012,bpn_group_dl88,cga_financing_to_ss_2012,0.1359,EUR_million,CGA,"
+        "ISS_CNP,component,bpn_separate_case,budgetary_public_accounts,SRC,"
+        "official_account_extract,notes\n"
+        "R7,2012,bpn_group_dl88,pensioners_2012,11,count,CGA,,pensioners,"
+        "bpn_separate_case,cga_accounts,SRC,official_account_extract,notes\n"
+        "R8,2012,bpn_group_dl88,survivor_pensioners_2012,18,count,CGA,,survivors,"
+        "bpn_separate_case,cga_accounts,SRC,official_account_extract,notes\n"
+        "R9,2012,bpn_group_dl88,pensions_paid_by_cga_fund_2012,0.17927,EUR_million,CGA,,"
+        "payments,bpn_separate_case,cga_accounts,SRC,official_account_extract,notes\n"
+        "R10,2012,bpn_group_dl88,main_2011_panel_inclusion,,not_applicable,CGA,ISS_CNP,"
+        "population,included_in_2011_dl127_panel,perimeter_classification,SRC,"
+        "panel_boundary_registered,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bpn_2012_pension_transfer(str(transfer))
+    assert "BPN case must remain excluded from the main 2011 DL127 panel" in errors
 
 
 def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: Path) -> None:
