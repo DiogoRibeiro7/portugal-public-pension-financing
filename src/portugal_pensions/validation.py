@@ -249,6 +249,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 evidence_dir.parent,
             )
         )
+    manuscript = evidence_dir.parent / "paper" / "manuscript.tex"
+    if manuscript.is_file() and article_evidence.is_file():
+        errors.extend(validate_manuscript_draft(manuscript, article_evidence))
     return errors
 
 
@@ -506,6 +509,62 @@ def validate_article_evidence(
             required_ids=None,
         )
     )
+    return errors
+
+
+def validate_manuscript_draft(
+    manuscript_path: Path,
+    article_evidence_path: Path,
+) -> list[str]:
+    """Return validation errors for the bounded manuscript draft."""
+    if not isinstance(manuscript_path, Path):
+        raise TypeError("manuscript_path must be pathlib.Path")
+    if not isinstance(article_evidence_path, Path):
+        raise TypeError("article_evidence_path must be pathlib.Path")
+
+    text = manuscript_path.read_text(encoding="utf-8")
+    article_evidence = pd.read_csv(article_evidence_path, dtype=str)
+    errors: list[str] = []
+
+    required_labels = {
+        "[Legal fact]",
+        "[Accounting fact]",
+        "[Interpretation]",
+        "[Unresolved evidence]",
+        "[Counterfactual result]",
+        "[Actuarial assumption]",
+    }
+    for label in sorted(required_labels):
+        if label not in text:
+            errors.append(f"Manuscript missing required label: {label}")
+
+    for evidence_id in article_evidence["evidence_id"].dropna().astype(str):
+        if evidence_id not in text:
+            errors.append(f"Manuscript does not reference article evidence row: {evidence_id}")
+
+    required_gate_phrases = {
+        "does not yet support definitive claims",
+        "does not establish",
+        "does not classify",
+        "No numerical counterfactual result is reported",
+    }
+    for phrase in sorted(required_gate_phrases):
+        if phrase not in text:
+            errors.append(f"Manuscript missing evidence-boundary phrase: {phrase}")
+
+    unsupported_phrases = {
+        "proves that CGA",
+        "proves Social Security",
+        "definitive remittance loss",
+        "definitive employer underpayment",
+        "bank-transfer subsidy",
+        "lifecycle public-finance loss.",
+    }
+    lowered_text = text.lower()
+    for phrase in sorted(unsupported_phrases):
+        if phrase.lower() in lowered_text:
+            errors.append(f"Manuscript contains unsupported phrase: {phrase}")
+
     return errors
 
 

@@ -1,25 +1,106 @@
 \documentclass[11pt]{article}
 \usepackage[a4paper,margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb,booktabs,graphicx,hyperref}
-\title{Who Funded the Public Pension Promise?\\\large The Historical Financing of Portugal's CGA and Transferred Pension Liabilities}
+
+\title{Who Funded the Public Pension Promise?\\\large A Bounded Evidence Draft on Portugal's CGA and Transferred Pension Liabilities}
 \author{Diogo Ribeiro}
 \date{}
+
 \begin{document}
 \maketitle
+
 \begin{abstract}
-This manuscript is generated only after the repository evidence contract is satisfied.
+This draft reports only findings that pass the repository article-evidence gate. The current evidence supports several legal and accounting facts about Portugal's public pension financing and the 2011--2012 banking-sector pension transfers. It does not yet support definitive claims about employee remittance losses, employer underpayment amounts, post-2006 public-worker contribution reallocation, combined pension-balance signs, bank-transfer subsidies, or full lifecycle public-finance gains or losses.
 \end{abstract}
+
 \section{Introduction}
+\paragraph{[Interpretation]}
+The paper studies how pension obligations and financing flows move across institutional boundaries. The current draft is intentionally bounded: it treats unsupported suspicions as open hypotheses, not conclusions. In particular, the evidence available so far does not establish that either CGA financing practices or the 2011 banking-sector pension transfer harmed Social Security on a lifecycle basis.
+
+\paragraph{[Unresolved evidence]}
+The manuscript gate is defined by \texttt{evidence/article\_evidence.csv} and \texttt{paper/falsification\_report.md}. Any material claim without source IDs, raw values, a transformation, a processed dataset, and an output artifact remains outside the draft.
+
 \section{Institutional Architecture}
+\paragraph{[Legal fact]}
+The repository records the 2011 banking transfer as a legal mechanism through which specified pension responsibilities moved from private credit institutions into a public financing channel. The legal registry records the covered transfer perimeter, financing channel, valuation rate, asset-composition constraint, transfer schedule, and extinguishment rule for the covered responsibilities.
+
+\paragraph{[Unresolved evidence]}
+The legal mechanism does not by itself quantify bank-level net gains or losses. Those require bank-level liability values, surrendered asset values, retained responsibilities, and cash-flow schedules that are still missing from the registered evidence.
+
 \section{Definitions and Accounting Perimeters}
+\paragraph{[Accounting fact]}
+The same transaction can have different accounting presentations under different standards. The article evidence records that the 2011 banking pension-fund transfer reduced the ESA-95 headline deficit by about 3.5 percent of GDP, while the EC source classifies the same operation under ESA-2010 as a financial transaction with no direct deficit impact.
+
+% AE_BANK_FISCAL_001
+% AE_BANK_FISCAL_002
+\paragraph{[Interpretation]}
+This distinction is central to the paper's accounting design. A headline-deficit effect is not automatically evidence of a welfare gain, a bank subsidy, or an uncompensated Social Security cost. Those claims require stock-flow evidence that is not yet complete.
+
 \section{Data and Historical Reconstruction}
+\paragraph{[Accounting fact]}
+The current evidence base is strongest for a small set of extracted account values and legal classifications. Article-evidence rows map each supported number to a source ID, raw value, transformation, processed dataset, and output artifact.
+
+\paragraph{[Unresolved evidence]}
+Several requested series remain blocked: CGA component ledgers, payroll and contribution revenue splits, public-worker RGSS flows, FEFSS annual flows, bank pension cash-flow schedules, bank asset composition, investment income, and combined-balance series.
+
 \section{CGA Financing}
+\paragraph{[Accounting fact]}
+For 2011, the CGE source reports a CGA global balance of EUR 186.2 million, a PT pension-fund effect of EUR 476.7 million, and a CGA balance excluding that effect of EUR -290.6 million. The processed ledger checks this decomposition within one-decimal rounding.
+
+% AE_CGA_CGE_2011_001
+\paragraph{[Unresolved evidence]}
+This is not yet a full CGA financing reconstruction. The evidence gate blocks claims about historical employee remittance gaps, employer underpayment amounts, or State-transfer intent until detailed component ledgers and payroll/revenue splits are registered.
+
 \section{Contribution Remittance}
+\paragraph{[Unresolved evidence]}
+The falsification review leaves employee remittance claims unresolved. Apparent gaps could be timing artifacts, arrears corrections, base-definition differences, or perimeter effects. The necessary payroll withholding totals, CGA worker-quota receipts, timing adjustments, and arrears corrections are not yet available.
+
+\paragraph{[Unresolved evidence]}
+Employer contribution claims are also bounded. The legal-rate distinction is tracked, and the repository separates legal rates from economic benchmark rates. Quantifying an employer gap still requires payroll bases and recorded employer-revenue splits.
+
 \section{The 2006 Reform}
+\paragraph{[Unresolved evidence]}
+The current evidence records the CGA closure mechanism, but not the annual public-worker new-entrant cohorts, contribution bases, or RGSS contribution paths required to quantify the post-2006 reallocation. The manuscript therefore cannot state a magnitude for the 2006 effect.
+
 \section{Banking-Sector Pension Transfer}
+\paragraph{[Accounting fact]}
+The CGE and EC sources record the aggregate 2011 banking pension-fund transfer at EUR 5,993.2 million, equal to about 3.5 percent of GDP in the ESA-95 bridge. The CGE source also records EUR 3,263.1 million as the 2011 part of the credit-institution pension-fund asset title transfer booked as non-tax revenue.
+
+% AE_BANK_AL_2011_001
+% AE_BANK_AL_2011_002
+\paragraph{[Accounting fact]}
+For 2012, the official Social Security audit records EUR 516.0 million in banking substitute-regime pension expenditure and EUR 516.0 million in current-transfer financing. This reconciles the EC statement that transferred bank pensions added roughly EUR 0.5 billion of pension expenditure in 2012.
+
+% AE_BANK_COST_001
+\paragraph{[Legal fact]}
+The BPN 2012 case is separate from the main 2011 DL127 transfer perimeter. DL88/2012 required EUR 96.768004 million to be transferred from the BPN pension fund to CGA; the processed ledger reconciles this legal amount to the rounded official account value.
+
+% AE_BPN_2012_002
+\paragraph{[Interpretation]}
+The 2011 asset receipt created a financing or liquidity resource for the State, while the 2012 pension expenditure records an observed obligation cost. The bounded debt-financing ledger separates these sides and does not classify the operation as a consolidated public-finance gain or loss.
+
+% AE_BANK_DEBT_001
 \section{Balance Reconstruction}
+\paragraph{[Unresolved evidence]}
+The reported-versus-alternative combined pension-balance figure remains blocked. The current flow-of-funds matrix identifies consolidation boundaries and bridge components, but it does not yet contain the RGSS/previdential balance series, FEFSS annual flows, or complete CGA component flows required for a combined-balance sign claim.
+
 \section{Counterfactual Financing}
+\paragraph{[Counterfactual result]}
+No numerical counterfactual result is reported in this draft. The counterfactual regime table currently defines rules: funding substitution must preserve total cash financing, funded reserves must be treated as additional historical expenditure unless another source is explicitly reduced, and bank-transfer sensitivity must compare the full stream of assets, investment income, State financing, and pension expenditure.
+
+\paragraph{[Actuarial assumption]}
+The bank-liability present-value sensitivity grid records discount-rate scenarios from 2 percent to 6 percent, including the legal 4 percent reference. The values cannot be computed until pension cash-flow and demographic schedules are registered.
+
 \section{Implications for the 2026 Debate}
+\paragraph{[Interpretation]}
+The current evidence supports a narrower claim than the motivating public debate often suggests. It shows that accounting perimeters and one-off transfers can materially affect reported balances, and that the 2011 banking transfer had different ESA-95 and ESA-2010 presentations. It does not yet show whether CGA financing or the bank transfer was economically adverse once full legal financing, asset composition, investment income, and lifecycle pension payments are included.
+
 \section{Limitations}
+\paragraph{[Unresolved evidence]}
+The manuscript remains partial. Missing inputs include payroll withholding and contribution revenue splits, State-transfer classifications, public-worker RGSS flows, RGSS and FEFSS annual balances, bank-level asset and liability schedules, and full bank pension lifecycle cash flows. The falsification report requires these inputs before stronger causal or lifecycle-cost language can be used.
+
 \section{Conclusion}
+\paragraph{[Interpretation]}
+The current contribution is an evidence-controlled reconstruction scaffold rather than a final causal finding. It converts several official account values and legal classifications into checked article evidence, while preserving the possibility that the completed evidence could weaken, overturn, or materially qualify the initial suspicion about CGA financing and transferred bank pension liabilities.
+
 \end{document}
