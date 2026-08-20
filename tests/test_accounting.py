@@ -5,6 +5,7 @@ from portugal_pensions.accounting import (
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
+    validate_pension_flow_of_funds,
 )
 
 
@@ -45,6 +46,76 @@ def test_repository_cga_financing_ledger_is_valid() -> None:
     assert (
         validate_cga_financing_ledger(str(root / "data" / "processed" / "cga_financing_ledger.csv"))
         == []
+    )
+
+
+def test_repository_pension_flow_of_funds_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_pension_flow_of_funds(
+            str(root / "data" / "processed" / "pension_flow_of_funds_long.csv")
+        )
+        == []
+    )
+
+
+def test_pension_flow_of_funds_rejects_duplicate_bridge_components(tmp_path: Path) -> None:
+    matrix = tmp_path / "pension_flow_of_funds_long.csv"
+    matrix.write_text(
+        "record_id,year,transaction_id,from_entity,to_entity,flow_type,stock_flow,value,"
+        "unit,price_basis,accounting_basis,source_ids,consolidation_scope,"
+        "consolidates_in_general_government,bridge_definition_id,bridge_component,"
+        "bridge_sign,status,notes\n"
+        "R1,2011,T1,cga,consolidated_general_government,institutional_balance,balance,"
+        "186.2,EUR_million,current_prices,basis,SRC,scope,not_applicable,"
+        "cga_2011_balance_decomposition,reported_global_balance,1,"
+        "official_account_extract,notes\n"
+        "R2,2011,T2,private_pension_funds,cga,pension_fund_effect,flow,476.7,"
+        "EUR_million,current_prices,basis,SRC,scope,no,cga_2011_balance_decomposition,"
+        "pt_pension_fund_effect,1,official_account_extract,notes\n"
+        "R3,2011,T3,cga,consolidated_general_government,institutional_balance,balance,"
+        "-290.6,EUR_million,current_prices,basis,SRC,scope,not_applicable,"
+        "cga_2011_balance_decomposition,reported_global_balance_ex_pt_fund,1,"
+        "official_account_extract,notes\n"
+        "R4,2012,T4,state_budget_treasury,social_security,state_current_transfer_financing,"
+        "flow,516.0,EUR_million,current_prices,basis,SRC,scope,yes,"
+        "bank_2012_cash_identity,state_current_transfer_financing,1,"
+        "official_account_extract,notes\n"
+        "R5,2012,T5,social_security,households_workers,pension_payment_current_expenditure,"
+        "flow,516.0,EUR_million,current_prices,basis,SRC,scope,no,"
+        "bank_2012_cash_identity,pension_payment_current_expenditure,-1,"
+        "official_account_extract,notes\n"
+        "R6,2012,T6,state_budget_treasury,social_security,oe_financing_component,"
+        "flow,515.8,EUR_million,current_prices,basis,SRC,scope,yes,"
+        "bank_2012_financing_split,oe_financing_component,1,"
+        "official_account_extract,notes\n"
+        "R7,2012,T7,cga,social_security,cga_bpn_financing_component,flow,0.1359,"
+        "EUR_million,current_prices,basis,SRC,scope,yes,bank_2012_financing_split,"
+        "cga_bpn_financing_component,1,official_account_extract,notes\n"
+        "R8,2012,T8,private_pension_funds,state_budget_treasury,total_asset_transfer,"
+        "flow,5993.2,EUR_million,current_prices,basis,SRC,scope,no,"
+        "bank_2011_total_transfer_value,total_transfer_value,1,"
+        "official_account_extract,notes\n"
+        "R9,2012,T9,private_pension_funds,private_banks,sams_assets_returned_to_entities,"
+        "flow,7.3,EUR_million,current_prices,basis,SRC,scope,no,not_applicable,"
+        "not_applicable,,official_account_extract,notes\n"
+        "R10,2012,T10,public_employers,cga,employer_contribution,flow,,EUR_million,"
+        "current_prices,basis,SRC,scope,yes,not_applicable,not_applicable,,"
+        "blocked_missing_component_values,notes\n"
+        "R11,2025,T11,social_security,fefss,reserve_transfer_or_return,flow,,"
+        "EUR_million,current_prices,basis,,scope,yes,not_applicable,not_applicable,,"
+        "blocked_missing_component_values,notes\n"
+        "R12,2011,T12,cga,consolidated_general_government,institutional_balance,"
+        "balance,1.0,EUR_million,current_prices,basis,SRC,scope,not_applicable,"
+        "cga_2011_balance_decomposition,reported_global_balance,1,"
+        "official_account_extract,duplicate\n",
+        encoding="utf-8",
+    )
+
+    assert (
+        "Duplicate pension flow bridge component: "
+        "cga_2011_balance_decomposition reported_global_balance"
+        in validate_pension_flow_of_funds(str(matrix))
     )
 
 
