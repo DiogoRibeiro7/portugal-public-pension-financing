@@ -42,6 +42,19 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "counterfactual_registry.csv",
 )
 
+REQUIRED_FALSIFICATION_TESTS: frozenset[str] = frozenset(
+    {
+        "FALS_001",
+        "FALS_002",
+        "FALS_003",
+        "FALS_004",
+        "FALS_005",
+        "FALS_006",
+        "FALS_007",
+        "FALS_008",
+    }
+)
+
 TEXT_MANIFEST_SUFFIXES: frozenset[str] = frozenset(
     {
         ".cff",
@@ -175,6 +188,93 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 str(counterfactual_regimes),
             )
         )
+    falsification_review = evidence_dir.parent / "data" / "processed" / "falsification_review.csv"
+    if falsification_review.is_file():
+        errors.extend(validate_falsification_review(falsification_review))
+    return errors
+
+
+def validate_falsification_review(path: Path) -> list[str]:
+    """Return validation errors for the adversarial falsification review ledger."""
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    review = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "test_id",
+        "challenge",
+        "target_module",
+        "adversarial_hypothesis",
+        "evidence_required",
+        "current_evidence",
+        "result_class",
+        "decision",
+        "unit",
+        "source_ids",
+        "blocking_issue",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(review.columns))
+    if missing_columns:
+        return [f"Falsification review missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicated_ids = review[review.duplicated(subset=["test_id"], keep=False)]
+    for _, duplicate_row in duplicated_ids.iterrows():
+        errors.append(
+            f"Duplicate falsification review row: {_registry_field(duplicate_row, 'test_id')}"
+        )
+
+    observed_tests = set(review["test_id"].dropna().astype(str))
+    for test_id in sorted(REQUIRED_FALSIFICATION_TESTS.difference(observed_tests)):
+        errors.append(f"Missing required falsification test: {test_id}")
+    for test_id in sorted(observed_tests.difference(REQUIRED_FALSIFICATION_TESTS)):
+        errors.append(f"Unexpected falsification test: {test_id}")
+
+    allowed_result_classes = {
+        "not_testable_yet",
+        "bounded_no_overturn",
+        "partially_reconciled",
+        "overturned",
+    }
+    allowed_decisions = {
+        "unresolved_requires_sources",
+        "unresolved_quantification",
+        "not_overturned_bounded",
+        "overturned",
+    }
+    allowed_statuses = {
+        "blocked_missing_inputs",
+        "partial_bounded_review",
+        "complete",
+    }
+    for row_number, record in enumerate(review.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on falsification review row {row_number}")
+
+        result_class = _registry_field(record, "result_class")
+        if result_class and result_class not in allowed_result_classes:
+            errors.append(
+                f"Unexpected result_class on falsification review row {row_number}: {result_class}"
+            )
+
+        decision = _registry_field(record, "decision")
+        if decision and decision not in allowed_decisions:
+            errors.append(
+                f"Unexpected decision on falsification review row {row_number}: {decision}"
+            )
+
+        status = _registry_field(record, "status")
+        if status and status not in allowed_statuses:
+            errors.append(f"Unexpected status on falsification review row {row_number}: {status}")
+
+        if decision.startswith("unresolved") and not _registry_field(record, "blocking_issue"):
+            errors.append(f"Unresolved falsification row {row_number} must name blocking_issue")
+        if status == "complete" and result_class == "not_testable_yet":
+            errors.append(f"Complete falsification row {row_number} cannot be not_testable_yet")
+        if _registry_field(record, "unit") != "EUR_million":
+            errors.append(f"Falsification review row {row_number} must use EUR_million unit")
     return errors
 
 
@@ -255,7 +355,7 @@ def validate_source_registry(registry_path: Path, root: Path) -> list[str]:
     return errors
 
 
-def _registry_field(row: pd.Series, column: str) -> str:
+def _registry_field(row: Any, column: str) -> str:
     value = row[column]
     if pd.isna(value):
         return ""

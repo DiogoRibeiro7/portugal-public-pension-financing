@@ -2,6 +2,7 @@ from pathlib import Path
 
 from portugal_pensions.validation import (
     validate_evidence_directory,
+    validate_falsification_review,
     validate_manifest,
     validate_source_registry,
     validate_zenodo_metadata,
@@ -16,6 +17,27 @@ def test_repository_evidence_files_exist() -> None:
 def test_repository_zenodo_metadata_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert validate_zenodo_metadata(root / ".zenodo.json") == []
+
+
+def test_repository_falsification_review_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_falsification_review(root / "data" / "processed" / "falsification_review.csv")
+        == []
+    )
+
+
+def test_falsification_review_requires_all_challenges(tmp_path: Path) -> None:
+    review = tmp_path / "falsification_review.csv"
+    review.write_text(
+        "test_id,challenge,target_module,adversarial_hypothesis,evidence_required,"
+        "current_evidence,result_class,decision,unit,source_ids,blocking_issue,status,notes\n"
+        "FALS_001,Challenge,module,hypothesis,evidence,current,not_testable_yet,"
+        "unresolved_requires_sources,EUR_million,SRC,missing,blocked_missing_inputs,notes\n",
+        encoding="utf-8",
+    )
+
+    assert "Missing required falsification test: FALS_002" in validate_falsification_review(review)
 
 
 def test_manifest_validation_accepts_matching_hash(tmp_path: Path) -> None:
