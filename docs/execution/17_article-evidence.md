@@ -2,23 +2,25 @@
 
 Instruction file: `prompts/17_generate_article_evidence.md`
 Date: 2026-08-19
-Status: `blocked_by_source_work`
+Updated: 2026-08-20
+Status: `partial_bounded_reconstruction`
 
 ## Actions
 
-- Read the instruction file together with the master research guardrails.
-- Checked the current repository architecture, registries, tests, and validation commands.
-- Preserved existing validated outputs.
-- Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
+- Read the instruction file together with the claim registry, publication artifact registries and current manuscript scaffold.
+- Added `evidence/article_evidence.csv` and `evidence/article_evidence.md` mapping supported article numbers to source IDs, raw values, transformations, processed datasets and output artifacts.
+- Added evidence-level `figure_registry.csv` and `table_registry.csv` with article-use status for publication artifacts.
+- Added validation that material quantitative/accounting claims have article evidence and that blocking claim statuses cannot pass the article gate.
+- Added tests for repository article evidence and blocking-claim rejection.
 
 ## Result
 
-Recorded article-evidence gate requirements.
+Implemented a bounded article-evidence gate for currently supported extracted and replicated claims. The gate supports caveated article use only; it does not authorize unresolved lifecycle, causal or combined-balance claims.
 
 ## Current Stop Condition
 
-Completion beyond this record requires the registered primary sources and deterministic extraction chain needed by the task. Until those inputs exist, any quantitative result remains blocked or partial under the repository evidence rules.
+Completion beyond this bounded gate requires the still-missing processed series and source work recorded in the data-quality registry. Any future material claim with `to_replicate`, `unresolved` or missing provenance must block article generation.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran repository validation and full quality checks after regenerating `MANIFEST.sha256`.
