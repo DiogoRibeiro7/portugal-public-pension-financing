@@ -84,6 +84,11 @@ D. The principal effect was distributional: participating banks exchanged long-d
 
 E. Later public statements describing the funds as "exhausted" may reflect the expected drawdown of a transferred asset pool rather than proof, by itself, of an original loss; the correct test is assets + financing + realised costs under the legal contract.
 
+`data/processed/bank_benefit_risk_distribution.csv` separates these channels from a
+net-subsidy claim. The current ledger records legal risk movement and aggregate public-account
+extracts, but bank-level net positions remain blocked until liability, asset and retained-benefit
+values are acquired for each participating institution.
+
 ## Accounting-standard issue
 
 The repository must replicate both treatments:
