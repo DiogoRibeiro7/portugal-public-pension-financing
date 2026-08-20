@@ -40,6 +40,9 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "reconciliation_log.csv",
     "data_quality_registry.csv",
     "counterfactual_registry.csv",
+    "article_evidence.csv",
+    "figure_registry.csv",
+    "table_registry.csv",
 )
 
 REQUIRED_FALSIFICATION_TESTS: frozenset[str] = frozenset(
@@ -68,6 +71,22 @@ REQUIRED_PUBLICATION_FIGURES: frozenset[str] = frozenset(
         "FIG09",
         "FIG10",
         "FIG11",
+    }
+)
+
+ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
+    {
+        "published_quantitative_claim",
+        "published_account_extract",
+        "legal_quantitative_fact",
+        "accounting_treatment",
+    }
+)
+
+ARTICLE_EVIDENCE_BLOCKING_STATUSES: frozenset[str] = frozenset(
+    {
+        "to_replicate",
+        "unresolved",
     }
 )
 
@@ -213,6 +232,23 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_publication_artifacts(figure_registry, table_registry, evidence_dir.parent)
         )
+    article_evidence = evidence_dir / "article_evidence.csv"
+    article_figure_registry = evidence_dir / "figure_registry.csv"
+    article_table_registry = evidence_dir / "table_registry.csv"
+    if (
+        article_evidence.is_file()
+        and article_figure_registry.is_file()
+        and article_table_registry.is_file()
+    ):
+        errors.extend(
+            validate_article_evidence(
+                article_evidence,
+                evidence_dir / "claim_registry.csv",
+                article_figure_registry,
+                article_table_registry,
+                evidence_dir.parent,
+            )
+        )
     return errors
 
 
@@ -337,6 +373,181 @@ def validate_publication_artifacts(
             source_must_be_processed=False,
         ),
     ]
+    return errors
+
+
+def validate_article_evidence(
+    article_evidence_path: Path,
+    claim_registry_path: Path,
+    figure_registry_path: Path,
+    table_registry_path: Path,
+    root: Path,
+) -> list[str]:
+    """Return validation errors for article evidence provenance gates."""
+    for name, path in (
+        ("article_evidence_path", article_evidence_path),
+        ("claim_registry_path", claim_registry_path),
+        ("figure_registry_path", figure_registry_path),
+        ("table_registry_path", table_registry_path),
+        ("root", root),
+    ):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+
+    evidence = pd.read_csv(article_evidence_path, dtype=str)
+    claims = pd.read_csv(claim_registry_path, dtype=str)
+    figure_registry = pd.read_csv(figure_registry_path, dtype=str)
+    table_registry = pd.read_csv(table_registry_path, dtype=str)
+
+    required_columns = {
+        "evidence_id",
+        "claim_id",
+        "manuscript_section",
+        "claim_status",
+        "source_ids",
+        "raw_value",
+        "transformation",
+        "processed_dataset",
+        "output_artifact",
+        "unit",
+        "provenance_status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(evidence.columns))
+    if missing_columns:
+        return [f"Article evidence missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = evidence[evidence.duplicated(subset=["evidence_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate article evidence row: {_registry_field(duplicate_row, 'evidence_id')}"
+        )
+
+    claim_records = {
+        _registry_field(record, "claim_id"): record for record in claims.to_dict("records")
+    }
+    material_claim_ids = {
+        _registry_field(record, "claim_id")
+        for record in claims.to_dict("records")
+        if _registry_field(record, "claim_type") in ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES
+        and _registry_field(record, "status") not in {"source_registered", "source_acquired"}
+    }
+    evidence_claim_ids = set(evidence["claim_id"].dropna().astype(str))
+    for claim_id in sorted(material_claim_ids.difference(evidence_claim_ids)):
+        errors.append(f"Material claim missing article evidence: {claim_id}")
+
+    figure_outputs = set(figure_registry["companion_csv"].dropna().astype(str))
+    table_outputs = set(table_registry["companion_csv"].dropna().astype(str))
+    allowed_outputs = figure_outputs.union(table_outputs).union({"evidence/article_evidence.md"})
+    allowed_provenance_statuses = {"ready_for_bounded_article_use", "bounded_only"}
+
+    for row_number, record in enumerate(evidence.to_dict("records"), start=2):
+        evidence_id = _registry_field(record, "evidence_id") or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on article evidence row {row_number}")
+
+        claim_id = _registry_field(record, "claim_id")
+        claim = claim_records.get(claim_id)
+        if claim is None:
+            errors.append(f"Article evidence {evidence_id} references unknown claim: {claim_id}")
+        else:
+            claim_status = _registry_field(claim, "status")
+            if claim_status in ARTICLE_EVIDENCE_BLOCKING_STATUSES:
+                errors.append(
+                    f"Article evidence {evidence_id} uses blocking claim status: {claim_status}"
+                )
+            if claim_status != _registry_field(record, "claim_status"):
+                errors.append(
+                    f"Article evidence {evidence_id} claim_status does not match registry"
+                )
+            if not _registry_field(claim, "falsification_condition"):
+                errors.append(f"Article evidence {evidence_id} claim lacks falsification condition")
+
+        processed_dataset = _registry_field(record, "processed_dataset")
+        if processed_dataset:
+            if Path(processed_dataset).is_absolute() or ".." in Path(processed_dataset).parts:
+                errors.append(f"Article evidence {evidence_id} has unsafe processed_dataset")
+            elif not (root / processed_dataset).is_file():
+                errors.append(
+                    f"Article evidence {evidence_id} processed_dataset is missing: "
+                    f"{processed_dataset}"
+                )
+
+        output_artifact = _registry_field(record, "output_artifact")
+        if output_artifact and output_artifact not in allowed_outputs:
+            errors.append(f"Article evidence {evidence_id} output_artifact is not registered")
+        if output_artifact and not (root / output_artifact).is_file():
+            errors.append(f"Article evidence {evidence_id} output_artifact is missing")
+
+        provenance_status = _registry_field(record, "provenance_status")
+        if provenance_status and provenance_status not in allowed_provenance_statuses:
+            errors.append(
+                f"Unexpected provenance_status on article evidence row {row_number}: "
+                f"{provenance_status}"
+            )
+
+    errors.extend(
+        _validate_evidence_level_artifact_registry(
+            figure_registry,
+            root,
+            registry_name="evidence figure registry",
+            id_column="figure_id",
+            required_ids=REQUIRED_PUBLICATION_FIGURES,
+        )
+    )
+    errors.extend(
+        _validate_evidence_level_artifact_registry(
+            table_registry,
+            root,
+            registry_name="evidence table registry",
+            id_column="table_id",
+            required_ids=None,
+        )
+    )
+    return errors
+
+
+def _validate_evidence_level_artifact_registry(
+    registry: pd.DataFrame,
+    root: Path,
+    *,
+    registry_name: str,
+    id_column: str,
+    required_ids: frozenset[str] | None,
+) -> list[str]:
+    required_columns = {
+        id_column,
+        "title",
+        "companion_csv",
+        "source_datasets",
+        "publication_status",
+        "article_use_status",
+        "notes",
+    }
+    if registry_name == "evidence figure registry":
+        required_columns.add("primary_blocker")
+    missing_columns = sorted(required_columns.difference(registry.columns))
+    if missing_columns:
+        return [f"{registry_name} missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    observed_ids = set(registry[id_column].dropna().astype(str))
+    if required_ids is not None:
+        for missing_id in sorted(required_ids.difference(observed_ids)):
+            errors.append(f"Missing required article figure registry row: {missing_id}")
+    for row_number, record in enumerate(registry.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on {registry_name} row {row_number}")
+        companion = _registry_field(record, "companion_csv")
+        if companion and not (root / companion).is_file():
+            errors.append(f"Missing companion CSV on {registry_name} row {row_number}: {companion}")
+        publication_status = _registry_field(record, "publication_status")
+        article_use_status = _registry_field(record, "article_use_status")
+        if publication_status == "blocked" and article_use_status != "blocked_article_use":
+            errors.append(f"Blocked artifact row {row_number} must block article use")
     return errors
 
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from portugal_pensions.validation import (
+    validate_article_evidence,
     validate_evidence_directory,
     validate_falsification_review,
     validate_manifest,
@@ -38,6 +39,72 @@ def test_repository_publication_artifacts_are_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_article_evidence_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_article_evidence(
+            root / "evidence" / "article_evidence.csv",
+            root / "evidence" / "claim_registry.csv",
+            root / "evidence" / "figure_registry.csv",
+            root / "evidence" / "table_registry.csv",
+            root,
+        )
+        == []
+    )
+
+
+def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
+    evidence_dir = tmp_path / "evidence"
+    data_dir = tmp_path / "data" / "processed"
+    figure_dir = tmp_path / "paper" / "figures" / "data"
+    evidence_dir.mkdir()
+    data_dir.mkdir(parents=True)
+    figure_dir.mkdir(parents=True)
+    dataset = data_dir / "dataset.csv"
+    dataset.write_text("value\n1\n", encoding="utf-8")
+    companion = figure_dir / "fig.csv"
+    companion.write_text("figure_id,value,status\nFIG01,1,ready_partial\n", encoding="utf-8")
+    claim_registry = evidence_dir / "claim_registry.csv"
+    claim_registry.write_text(
+        "claim_id,topic,claim_text,claim_type,source_id,status,"
+        "falsification_condition,manuscript_section\n"
+        "CLAIM,topic,text,published_quantitative_claim,SRC,to_replicate,"
+        "condition,1\n",
+        encoding="utf-8",
+    )
+    article = evidence_dir / "article_evidence.csv"
+    article.write_text(
+        "evidence_id,claim_id,manuscript_section,claim_status,source_ids,raw_value,"
+        "transformation,processed_dataset,output_artifact,unit,provenance_status,notes\n"
+        "AE,CLAIM,1,to_replicate,SRC,1,copy,data/processed/dataset.csv,"
+        "paper/figures/data/fig.csv,EUR_million,ready_for_bounded_article_use,notes\n",
+        encoding="utf-8",
+    )
+    figure_registry = evidence_dir / "figure_registry.csv"
+    figure_registry.write_text(
+        "figure_id,title,companion_csv,source_datasets,publication_status,"
+        "primary_blocker,article_use_status,notes\n"
+        "FIG01,Title,paper/figures/data/fig.csv,data/processed/dataset.csv,"
+        "ready_partial,none,bounded_article_use,notes\n",
+        encoding="utf-8",
+    )
+    table_registry = evidence_dir / "table_registry.csv"
+    table_registry.write_text(
+        "table_id,title,companion_csv,source_datasets,publication_status,"
+        "article_use_status,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_article_evidence(
+        article,
+        claim_registry,
+        figure_registry,
+        table_registry,
+        tmp_path,
+    )
+    assert "Article evidence AE uses blocking claim status: to_replicate" in errors
 
 
 def test_publication_artifacts_require_all_figures(tmp_path: Path) -> None:
