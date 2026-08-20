@@ -62,6 +62,124 @@ def funding_substitution(
     return effective_employer, adjusted_state
 
 
+def validate_counterfactual_financing_regimes(
+    registry_path: str,
+    regimes_path: str,
+) -> list[str]:
+    """Return validation errors for preregistered counterfactual regime rules."""
+    registry = pd.read_csv(registry_path, dtype=str)
+    regimes = pd.read_csv(regimes_path, dtype=str)
+    required_registry_columns = {
+        "scenario_id",
+        "name",
+        "description",
+        "legal_or_economic",
+        "assumptions",
+        "status",
+    }
+    required_regime_columns = {
+        "scenario_id",
+        "scenario_name",
+        "component",
+        "year_start",
+        "year_end",
+        "perimeter",
+        "stock_flow_treatment",
+        "financing_source_adjustment",
+        "required_input_dataset",
+        "implemented_function",
+        "value",
+        "unit",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    errors = [
+        *_missing_columns(registry, required_registry_columns, "counterfactual registry"),
+        *_missing_columns(regimes, required_regime_columns, "counterfactual financing regimes"),
+    ]
+    if errors:
+        return errors
+
+    registered_ids = set(registry["scenario_id"].astype(str))
+    implemented_ids = set(regimes["scenario_id"].astype(str))
+    for scenario_id in sorted(registered_ids.difference(implemented_ids)):
+        errors.append(f"Registered counterfactual scenario is missing from regimes: {scenario_id}")
+    for scenario_id in sorted(implemented_ids.difference(registered_ids)):
+        errors.append(f"Unregistered counterfactual scenario in regimes: {scenario_id}")
+
+    duplicates = regimes[regimes.duplicated(subset=["scenario_id", "component"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate counterfactual regime row: "
+            f"{_field(duplicate_row, 'scenario_id')} {_field(duplicate_row, 'component')}"
+        )
+
+    allowed_units = {"EUR_million", "not_applicable"}
+    allowed_status_prefixes = (
+        "blocked",
+        "rule_implemented_requires_inputs",
+        "complete",
+        "partial",
+    )
+    implemented_functions = {
+        "not_applicable",
+        "funding_substitution",
+        "compound_reserve",
+        "present_value",
+    }
+    for row_number, record in enumerate(regimes.to_dict("records"), start=2):
+        for column in required_regime_columns.difference({"value"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on counterfactual regime row {row_number}")
+
+        unit = _field(record, "unit")
+        if unit and unit not in allowed_units:
+            errors.append(f"Unexpected unit on counterfactual regime row {row_number}: {unit}")
+
+        implemented_function = _field(record, "implemented_function")
+        if implemented_function and implemented_function not in implemented_functions:
+            errors.append(
+                f"Unexpected implemented_function on counterfactual regime row {row_number}: "
+                f"{implemented_function}"
+            )
+
+        status = _field(record, "status")
+        if status and not status.startswith(allowed_status_prefixes):
+            errors.append(f"Unexpected counterfactual regime status on row {row_number}: {status}")
+
+        value = _field(record, "value")
+        if value:
+            _finite(float(value), "value")
+        elif status == "complete":
+            errors.append(f"Complete counterfactual regime row {row_number} missing value")
+
+    by_id = {record["scenario_id"]: record for record in regimes.to_dict("records")}
+    if "CF2" in by_id:
+        adjustment = _field(by_id["CF2"], "financing_source_adjustment").lower().replace("_", "-")
+        if "substitutes-one-for-one" not in adjustment:
+            errors.append("CF2 must preserve one-for-one financing substitution")
+    if "CF3" in by_id:
+        treatment = (
+            _field(by_id["CF3"], "stock_flow_treatment")
+            + " "
+            + _field(by_id["CF3"], "financing_source_adjustment")
+            + " "
+            + _field(by_id["CF3"], "notes")
+        ).lower()
+        if "additional" not in treatment or "expenditure" not in treatment:
+            errors.append("CF3 must record funded-reserve contributions as additional expenditure")
+    if "CF4" in by_id:
+        bank_notes = (
+            _field(by_id["CF4"], "required_input_dataset") + " " + _field(by_id["CF4"], "notes")
+        ).lower()
+        for required_phrase in ("cash-flow", "assets", "investment income", "state financing"):
+            if required_phrase not in bank_notes:
+                errors.append(f"CF4 must require {required_phrase}")
+
+    return errors
+
+
 def validate_public_worker_reallocation(
     cohort_path: str,
     contribution_path: str,
@@ -123,6 +241,17 @@ def validate_public_worker_reallocation(
         if years != list(range(2006, 2026)):
             errors.append(f"{table_name} table must cover every year from 2006 to 2025")
     return errors
+
+
+def _missing_columns(
+    table: pd.DataFrame,
+    required_columns: set[str],
+    table_name: str,
+) -> list[str]:
+    missing_columns = sorted(required_columns.difference(table.columns))
+    if missing_columns:
+        return [f"{table_name} missing columns: {', '.join(missing_columns)}"]
+    return []
 
 
 def _validate_reallocation_table(
