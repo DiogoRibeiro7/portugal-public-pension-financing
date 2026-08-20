@@ -2,23 +2,26 @@
 
 Instruction file: `prompts/16_generate_figures_and_tables.md`
 Date: 2026-08-19
-Status: `blocked_by_source_work`
+Updated: 2026-08-20
+Status: `partial_bounded_reconstruction`
 
 ## Actions
 
-- Read the instruction file together with the master research guardrails.
-- Checked the current repository architecture, registries, tests, and validation commands.
-- Preserved existing validated outputs.
-- Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
+- Read the instruction file together with available processed CSVs, paper artifacts and repository validation code.
+- Added one companion CSV for each of the eleven required figure candidates under `paper/figures/data/`.
+- Added `paper/figures/figure_registry.csv` to record source datasets, publication status and blockers.
+- Added publication table companions for falsification status and open data-quality blockers.
+- Added validation that all required figure candidates are represented, companion CSVs exist and ready figures use processed source datasets.
+- Added tests for repository publication artifacts and required figure coverage.
 
 ## Result
 
-Recorded figure data prerequisites.
+Created a checked publication artifact layer. Four figure candidates are currently drawable only as partial figures; seven remain blocked because the required processed series are missing or incomplete.
 
 ## Current Stop Condition
 
-Completion beyond this record requires the registered primary sources and deterministic extraction chain needed by the task. Until those inputs exist, any quantitative result remains blocked or partial under the repository evidence rules.
+Completion beyond this bounded artifact layer requires processed inputs for the legal-rate timeline, CGA counts, employee and employer contribution comparisons, public-worker reallocation, bank PV sensitivity and combined-balance series.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran repository validation and full quality checks after regenerating `MANIFEST.sha256`.

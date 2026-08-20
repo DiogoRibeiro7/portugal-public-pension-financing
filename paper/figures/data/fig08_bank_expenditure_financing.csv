@@ -1,0 +1,5 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG08,2012,state_specific_transfer,516.0,EUR_million,data/processed/bank_transfer_long_run.csv,TC_AEO_2013_SS_2012;EC_EXPOST_PAEF;DR_DL127_2011;DR_DL88_2012,ready_partial,Official 2012 financing amount for transferred bank pensions
+FIG08,2012,pension_expenditure,516.0,EUR_million,data/processed/bank_transfer_long_run.csv,TC_AEO_2013_SS_2012;EC_EXPOST_PAEF;DR_DL127_2011;DR_DL88_2012,ready_partial,Official 2012 pension expenditure amount for transferred bank pensions
+FIG08,2013,state_specific_transfer,,EUR_million,data/processed/bank_transfer_long_run.csv,DR_DL127_2011,blocked_missing_official_annual_components,Annual components after 2012 remain missing
+FIG08,2013,pension_expenditure,,EUR_million,data/processed/bank_transfer_long_run.csv,DR_DL127_2011,blocked_missing_official_annual_components,Annual components after 2012 remain missing

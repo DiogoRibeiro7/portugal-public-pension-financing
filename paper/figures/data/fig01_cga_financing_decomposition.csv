@@ -1,0 +1,5 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG01,2011,reported_global_balance,186.2,EUR_million,data/processed/cga_financing_ledger.csv,DGO_CGE_2011,ready_partial,CGA global balance reported in CGE 2011
+FIG01,2011,pt_pension_fund_effect,476.7,EUR_million,data/processed/cga_financing_ledger.csv,DGO_CGE_2011,ready_partial,PT pension-fund effect reported in CGE 2011
+FIG01,2011,reported_global_balance_ex_pt_fund,-290.6,EUR_million,data/processed/cga_financing_ledger.csv,DGO_CGE_2011,ready_partial,CGA balance excluding PT pension-fund effect
+FIG01,2011,component_gap,,EUR_million,data/processed/cga_financing_ledger.csv,DGO_CGE_2011,blocked_missing_component_values,Contribution transfer expenditure and count components remain unavailable

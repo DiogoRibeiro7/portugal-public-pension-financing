@@ -1,0 +1,3 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG06,2006,employee_contributions_central,,EUR_million,data/processed/public_worker_rgss_contributions_2006_2025.csv,DR_LEI60_2005,blocked_missing_public_employment_payroll,Public-worker cohort count contribution base and applicable rates are missing
+FIG06,2025,employee_contributions_central,,EUR_million,data/processed/public_worker_rgss_contributions_2006_2025.csv,DR_LEI60_2005,blocked_missing_public_employment_payroll,Public-worker cohort count contribution base and applicable rates are missing

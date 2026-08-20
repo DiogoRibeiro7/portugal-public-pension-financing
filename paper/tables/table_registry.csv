@@ -1,0 +1,3 @@
+table_id,title,companion_csv,source_datasets,publication_status,notes
+TAB01,Falsification review status,paper/tables/table01_falsification_status.csv,data/processed/falsification_review.csv,ready,Adversarial test status table
+TAB02,Open data-quality blockers,paper/tables/table02_data_quality_blockers.csv,evidence/data_quality_registry.csv,ready,Open blocker summary for manuscript gating

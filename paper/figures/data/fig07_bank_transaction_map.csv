@@ -1,0 +1,5 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG07,2011,total_transfer_value,5993.2,EUR_million,data/processed/pension_flow_of_funds_long.csv,DGO_CGE_2011;EC_EXPOST_PAEF;DR_DL127_2011,ready_partial,Aggregate banking pension-fund transfer value
+FIG07,2011,recorded_asset_receipt,3263.1,EUR_million,data/processed/pension_flow_of_funds_long.csv,DGO_CGE_2011;DR_DL127_2011,ready_partial,Recorded 2011 asset-title transfer receipt
+FIG07,2011,covered_liabilities_extinguished,,EUR_million,data/processed/bank_benefit_risk_distribution.csv,DR_DL127_2011,blocked_missing_bank_level_values,Legal channel identified but liability value is missing
+FIG07,2012,retained_bank_responsibilities,,EUR_million,data/processed/bank_benefit_risk_distribution.csv,DR_DL127_2011,blocked_missing_bank_level_values,Retained responsibility categories are identified but values are missing
