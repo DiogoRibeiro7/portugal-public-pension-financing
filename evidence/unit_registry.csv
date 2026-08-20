@@ -1,1 +1,2 @@
 unit_id,currency,scale,price_basis,base_year,flow_or_stock,accounting_basis,conversion_rule,notes
+EUR_million_current_budgetary_flow,EUR,million,current_prices,,flow,budgetary_public_accounts,none,Nominal annual budgetary flow in millions of euros

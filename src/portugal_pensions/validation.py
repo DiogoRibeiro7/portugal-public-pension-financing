@@ -14,7 +14,11 @@ from .accounting import (
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
 )
-from .banking import validate_bank_asset_liability_outputs, validate_bank_pension_transfer_registry
+from .banking import (
+    validate_bank_asset_liability_outputs,
+    validate_bank_pension_transfer_registry,
+    validate_bank_special_regime_annual,
+)
 from .counterfactuals import validate_public_worker_reallocation
 from .legal import validate_legal_contribution_registry
 
@@ -76,6 +80,12 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_bank_pension_transfer_registry(
                 str(evidence_dir / "bank_pension_transfer_registry.csv")
+            )
+        )
+    if (evidence_dir / "bank_special_regime_annual.csv").is_file():
+        errors.extend(
+            validate_bank_special_regime_annual(
+                str(evidence_dir / "bank_special_regime_annual.csv")
             )
         )
     bank_asset_liability = (

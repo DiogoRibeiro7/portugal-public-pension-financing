@@ -66,6 +66,12 @@ bank_worker_rgss_contributions
 residual_financing_gap
 ```
 
+The annual ledger is now represented in `evidence/bank_special_regime_annual.csv` and
+`data/processed/bank_transfer_long_run.csv`. It covers 2012-2025, records the published
+2012 expenditure benchmark as a value still requiring replication, and leaves the remaining
+annual financing components blank with blocked statuses until official annual account tables
+are extracted. Missing values in this ledger are not zeros.
+
 ## Competing explanations
 
 A. The transaction was close to actuarially neutral at inception and the State fully financed subsequent pension expenditure, leaving no material uncompensated burden on Social Security.
