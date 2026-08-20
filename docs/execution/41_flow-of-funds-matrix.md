@@ -2,23 +2,26 @@
 
 Instruction file: `prompts/41_cross_entity_flow_of_funds_matrix.md`
 Date: 2026-08-19
-Status: `blocked_by_source_work`
+Updated: 2026-08-20
+Status: `partial_bounded_reconstruction`
 
 ## Actions
 
-- Read the instruction file together with the master research guardrails.
-- Checked the current repository architecture, registries, tests, and validation commands.
-- Preserved existing validated outputs.
-- Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
+- Read the instruction file together with the existing accounting ledgers and validation code.
+- Replaced the empty long-form matrix with observed rows from registered CGA, banking-transfer, 2012 banking-cost, debt-financing and BPN sources.
+- Marked State Budget to Social Security, CGA to Social Security and public-private asset-transfer rows by whether they disappear under general-government consolidation.
+- Kept institutional balances, asset-transfer flows and pension-payment flows in separate `stock_flow` categories.
+- Added bridge identifiers and components for the CGA 2011 balance decomposition, 2011 bank asset-transfer values, the 2012 banking cash identity and BPN 2012 rows.
+- Added repository validation and tests for schema coverage, duplicate bridge components and core bridge reconciliations.
 
 ## Result
 
-Recorded cross-entity matrix requirements.
+Created `data/processed/pension_flow_of_funds_long.csv` as a checked long-form matrix. The current matrix is still partial because several component ledgers remain unavailable, but available combined-balance and banking-transfer calculations are now tied to explicit selectable rows instead of free-text notes.
 
 ## Current Stop Condition
 
-Completion beyond this record requires the registered primary sources and deterministic extraction chain needed by the task. Until those inputs exist, any quantitative result remains blocked or partial under the repository evidence rules.
+Completion beyond the bounded matrix requires detailed CGA component accounts, RGSS/previdential annual ledgers, FEFSS annual flow data and bank-level transfer schedules. Those quantities remain blocked and are not filled with estimates.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran targeted accounting tests before registry updates. Full quality validation is recorded in the pull request.

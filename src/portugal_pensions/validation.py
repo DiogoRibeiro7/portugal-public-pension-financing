@@ -13,6 +13,7 @@ from .accounting import (
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
+    validate_pension_flow_of_funds,
 )
 from .banking import (
     validate_bank_asset_liability_outputs,
@@ -130,6 +131,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
+    pension_flow_matrix = (
+        evidence_dir.parent / "data" / "processed" / "pension_flow_of_funds_long.csv"
+    )
+    if pension_flow_matrix.is_file():
+        errors.extend(validate_pension_flow_of_funds(str(pension_flow_matrix)))
     employee_remittance = (
         evidence_dir.parent / "data" / "processed" / "employee_remittance_audit.csv"
     )
