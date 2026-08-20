@@ -11,6 +11,7 @@ from portugal_pensions.banking import (
     validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
+    validate_bank_transfer_debt_financing_effects,
 )
 
 
@@ -152,6 +153,51 @@ def test_bank_pension_cost_2012_checks_financing_residual(tmp_path: Path) -> Non
 
     errors = validate_bank_pension_cost_2012(str(cost))
     assert "Bank pension cost financing residual identity fails" in errors
+
+
+def test_repository_bank_transfer_debt_financing_effects_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_transfer_debt_financing_effects(
+            str(root / "data" / "processed" / "bank_transfer_debt_financing_effects.csv")
+        )
+        == []
+    )
+
+
+def test_bank_transfer_debt_financing_effects_checks_interest_identity(
+    tmp_path: Path,
+) -> None:
+    debt = tmp_path / "bank_transfer_debt_financing_effects.csv"
+    debt.write_text(
+        "record_id,year,perimeter,channel,asset_financing_effect_eur_million,"
+        "pension_obligation_cost_eur_million,interest_rate,interest_cost_effect_eur_million,"
+        "unit,price_basis,accounting_basis,source_ids,status,notes\n"
+        "R1,2011,perimeter,recorded_2011_asset_receipt,3263.1,,,0.0,EUR_million,"
+        "current_prices,budgetary_public_accounts,SRC,official_account_extract,notes\n"
+        "R2,2011,perimeter,total_transfer_value,5993.2,,,0.0,EUR_million,"
+        "current_prices,budgetary_public_accounts,SRC,aggregate_transfer_registered,notes\n"
+        "R3,2011,perimeter,gross_debt_classification_gap,,,,,EUR_million,"
+        "current_prices,public_debt_classification,SRC,blocked_missing_asset_composition,notes\n"
+        "R4,2012,perimeter,pension_payment_cost,,516.0,,0.0,EUR_million,"
+        "current_prices,budgetary_public_accounts,SRC,official_account_extract,notes\n"
+        "R5,2012,perimeter,budgetary_financing_and_pension_payment,516.0,516.0,,0.0,"
+        "EUR_million,current_prices,budgetary_public_accounts,SRC,reconciled_same_report,"
+        "notes\n"
+        "R6,2012,perimeter,interest_sensitivity_2011_receipt_programme_loan_rate,100.0,,"
+        "0.026,-1.0,EUR_million,current_prices,sensitivity_observed_public_borrowing_cost,"
+        "SRC,sensitivity_observed_rate,notes\n"
+        "R7,2012,perimeter,interest_sensitivity_2011_receipt_implicit_debt_rate,100.0,,"
+        "0.037,-3.7,EUR_million,current_prices,sensitivity_observed_public_borrowing_cost,"
+        "SRC,sensitivity_observed_rate,notes\n"
+        "R8,2012,perimeter,interest_sensitivity_2011_receipt_10y_treasury_yield,100.0,,"
+        "0.073,-7.3,EUR_million,current_prices,sensitivity_observed_public_borrowing_cost,"
+        "SRC,sensitivity_observed_rate,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_transfer_debt_financing_effects(str(debt))
+    assert "Bank debt-financing interest identity fails on row 7" in errors
 
 
 def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: Path) -> None:

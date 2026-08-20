@@ -423,6 +423,119 @@ def validate_bank_pension_cost_2012(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_transfer_debt_financing_effects(path: str) -> list[str]:
+    """Return validation errors for bank-transfer debt and financing-cost effects."""
+    debt = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "record_id",
+        "year",
+        "perimeter",
+        "channel",
+        "asset_financing_effect_eur_million",
+        "pension_obligation_cost_eur_million",
+        "interest_rate",
+        "interest_cost_effect_eur_million",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(debt.columns))
+    if missing_columns:
+        return [
+            f"Bank transfer debt-financing effects missing columns: {', '.join(missing_columns)}"
+        ]
+
+    errors: list[str] = []
+    duplicates = debt[debt.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate bank transfer debt-financing record_id: "
+            f"{_field(duplicate_row, 'record_id')}"
+        )
+
+    allowed_statuses = {
+        "official_account_extract",
+        "aggregate_transfer_registered",
+        "reconciled_same_report",
+        "sensitivity_observed_rate",
+        "blocked_missing_asset_composition",
+    }
+    required_channels = {
+        "recorded_2011_asset_receipt",
+        "total_transfer_value",
+        "gross_debt_classification_gap",
+        "pension_payment_cost",
+        "budgetary_financing_and_pension_payment",
+        "interest_sensitivity_2011_receipt_programme_loan_rate",
+        "interest_sensitivity_2011_receipt_implicit_debt_rate",
+        "interest_sensitivity_2011_receipt_10y_treasury_yield",
+    }
+
+    for row_number, record in enumerate(debt.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {
+                "asset_financing_effect_eur_million",
+                "pension_obligation_cost_eur_million",
+                "interest_rate",
+                "interest_cost_effect_eur_million",
+            }
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank debt-financing row {row_number}")
+        if _field(record, "unit") != "EUR_million":
+            errors.append(f"Unexpected bank debt-financing unit on row {row_number}")
+        if _field(record, "price_basis") != "current_prices":
+            errors.append(f"Unexpected bank debt-financing price_basis on row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank debt-financing status on row {row_number}: {status}")
+
+        asset = _field(record, "asset_financing_effect_eur_million")
+        pension_cost = _field(record, "pension_obligation_cost_eur_million")
+        rate = _field(record, "interest_rate")
+        interest_effect = _field(record, "interest_cost_effect_eur_million")
+        for value, column in (
+            (asset, "asset_financing_effect_eur_million"),
+            (pension_cost, "pension_obligation_cost_eur_million"),
+            (rate, "interest_rate"),
+        ):
+            if value:
+                _nonnegative(value, column)
+        if interest_effect:
+            _numeric(interest_effect, "interest_cost_effect_eur_million")
+
+        channel = _field(record, "channel")
+        if channel.startswith("interest_sensitivity"):
+            if not asset or not rate or not interest_effect:
+                errors.append(f"Interest sensitivity row {row_number} has missing inputs")
+            else:
+                expected_effect = -float(asset) * float(rate)
+                if not math.isclose(
+                    expected_effect,
+                    float(interest_effect),
+                    rel_tol=0.0,
+                    abs_tol=0.0001,
+                ):
+                    errors.append(
+                        f"Bank debt-financing interest identity fails on row {row_number}"
+                    )
+        if (
+            channel == "budgetary_financing_and_pension_payment"
+            and asset
+            and pension_cost
+            and not math.isclose(float(asset), float(pension_cost), rel_tol=0.0, abs_tol=0.05)
+        ):
+            errors.append("Bank debt-financing 2012 payment and financing mismatch")
+
+    channels = set(debt["channel"].dropna().astype(str))
+    for channel in sorted(required_channels.difference(channels)):
+        errors.append(f"Missing bank debt-financing channel: {channel}")
+    return errors
+
+
 def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
     """Return validation errors for bank-transfer benefit and risk distribution outputs."""
     distribution = pd.read_csv(path, dtype=str)
