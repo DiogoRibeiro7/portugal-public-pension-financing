@@ -2,8 +2,13 @@
 
 Use releases to mark reproducible research snapshots.
 
+Run `data/processed/release_reproducibility_audit.csv` and
+`docs/reproducibility_report.md` as the readiness gate before creating a tag. A readiness audit may
+pass partially while the project remains unsuitable for a public report.
+
 1. Run `make quality`.
-2. Regenerate derived outputs and notebook artifacts that are part of the release.
+2. Regenerate derived outputs and notebook artifacts that are part of the release and archive a
+   clean sequential notebook execution log.
 3. Update `CHANGELOG.md` with source, evidence, code, and manuscript changes.
 4. Update `CITATION.cff` and `.zenodo.json` with the release version.
 5. Regenerate `MANIFEST.sha256`.

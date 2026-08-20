@@ -74,6 +74,20 @@ REQUIRED_PUBLICATION_FIGURES: frozenset[str] = frozenset(
     }
 )
 
+REQUIRED_RELEASE_READINESS_CHECKS: frozenset[str] = frozenset(
+    {
+        "REL_ARCHIVE_MANIFEST",
+        "REL_DATA_GAPS_DOCUMENTED",
+        "REL_FIGURE_COMPANIONS",
+        "REL_GENERATED_EVIDENCE_POLICY",
+        "REL_MANUSCRIPT_EVIDENCE_MATCH",
+        "REL_NOTEBOOK_SEQUENCE",
+        "REL_PINNED_ENVIRONMENT",
+        "REL_QUALITY_GATE",
+        "REL_SOURCE_HASHES",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -232,6 +246,13 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if internal_replication.is_file() and article_evidence.is_file():
         errors.extend(validate_internal_replication_review(internal_replication, article_evidence))
+    release_readiness = (
+        evidence_dir.parent / "data" / "processed" / "release_reproducibility_audit.csv"
+    )
+    if release_readiness.is_file():
+        errors.extend(
+            validate_release_reproducibility_audit(release_readiness, evidence_dir.parent)
+        )
     figure_registry = evidence_dir.parent / "paper" / "figures" / "figure_registry.csv"
     table_registry = evidence_dir.parent / "paper" / "tables" / "table_registry.csv"
     if figure_registry.is_file() and table_registry.is_file():
@@ -692,6 +713,91 @@ def validate_internal_replication_review(
     article_claim_ids = set(article_evidence["claim_id"].dropna().astype(str))
     for claim_id in sorted(article_claim_ids.difference(covered_claim_ids)):
         errors.append(f"Article evidence claim missing replication review: {claim_id}")
+
+    return errors
+
+
+def validate_release_reproducibility_audit(
+    audit_path: Path,
+    root: Path,
+) -> list[str]:
+    """Return validation errors for the release-readiness audit ledger."""
+    if not isinstance(audit_path, Path):
+        raise TypeError("audit_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    audit = pd.read_csv(audit_path, dtype=str)
+    required_columns = {
+        "check_id",
+        "release_area",
+        "input_artifacts",
+        "command_or_gate",
+        "period",
+        "unit",
+        "perimeter",
+        "accounting_basis",
+        "result",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(audit.columns))
+    if missing_columns:
+        return [f"Release reproducibility audit missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    observed_checks = set(audit["check_id"].dropna().astype(str))
+    for check_id in sorted(REQUIRED_RELEASE_READINESS_CHECKS.difference(observed_checks)):
+        errors.append(f"Missing release reproducibility check: {check_id}")
+
+    duplicates = audit[audit.duplicated(subset=["check_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate release reproducibility check: {_registry_field(duplicate_row, 'check_id')}"
+        )
+
+    allowed_statuses = {"blocked_missing_inputs", "ready", "ready_partial"}
+    for row_number, record in enumerate(audit.to_dict("records"), start=2):
+        check_id = _registry_field(record, "check_id") or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on release reproducibility row {row_number}")
+
+        status = _registry_field(record, "status")
+        if status and status not in allowed_statuses:
+            errors.append(
+                f"Unexpected status on release reproducibility row {row_number}: {status}"
+            )
+
+        blocking_issue = _registry_field(record, "blocking_issue")
+        if status == "blocked_missing_inputs" and blocking_issue in {"", "none"}:
+            errors.append(f"Blocked release reproducibility row {check_id} must name a blocker")
+        if status == "ready" and blocking_issue != "none":
+            errors.append(f"Ready release reproducibility row {check_id} must not name a blocker")
+
+        for artifact in _registry_field(record, "input_artifacts").split(";"):
+            artifact_path = Path(artifact)
+            if artifact_path.is_absolute() or ".." in artifact_path.parts:
+                errors.append(f"Unsafe input artifact on release reproducibility row {check_id}")
+                continue
+            if not (root / artifact_path).exists():
+                errors.append(
+                    f"Missing input artifact on release reproducibility row {check_id}: {artifact}"
+                )
+
+    requirement_path = root / "requirements-release.txt"
+    if not requirement_path.is_file():
+        errors.append("Missing requirements-release.txt")
+    else:
+        for line_number, line in enumerate(
+            requirement_path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "==" not in stripped:
+                errors.append(f"Unpinned release requirement on line {line_number}: {stripped}")
 
     return errors
 

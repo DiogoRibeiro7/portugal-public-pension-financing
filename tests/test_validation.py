@@ -8,6 +8,7 @@ from portugal_pensions.validation import (
     validate_manifest,
     validate_manuscript_draft,
     validate_publication_artifacts,
+    validate_release_reproducibility_audit,
     validate_source_registry,
     validate_zenodo_metadata,
 )
@@ -79,6 +80,17 @@ def test_repository_internal_replication_review_is_valid() -> None:
     )
 
 
+def test_repository_release_reproducibility_audit_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_release_reproducibility_audit(
+            root / "data" / "processed" / "release_reproducibility_audit.csv",
+            root,
+        )
+        == []
+    )
+
+
 def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -> None:
     manuscript = tmp_path / "manuscript.tex"
     article = tmp_path / "article_evidence.csv"
@@ -127,6 +139,23 @@ def test_internal_replication_review_requires_article_claim_coverage(tmp_path: P
 
     errors = validate_internal_replication_review(review, article)
     assert "Article evidence claim missing replication review: CLAIM_REQUIRED" in errors
+
+
+def test_release_reproducibility_audit_requires_pinned_requirements(tmp_path: Path) -> None:
+    audit = tmp_path / "release_reproducibility_audit.csv"
+    artifact = tmp_path / "artifact.txt"
+    artifact.write_text("ok\n", encoding="utf-8")
+    (tmp_path / "requirements-release.txt").write_text("pandas>=2\n", encoding="utf-8")
+    audit.write_text(
+        "check_id,release_area,input_artifacts,command_or_gate,period,unit,perimeter,"
+        "accounting_basis,result,status,blocking_issue,notes\n"
+        "REL_QUALITY_GATE,quality,artifact.txt,gate,none,none,repo,basis,result,"
+        "ready,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_release_reproducibility_audit(audit, tmp_path)
+    assert "Unpinned release requirement on line 1: pandas>=2" in errors
 
 
 def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
