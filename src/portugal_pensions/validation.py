@@ -88,6 +88,18 @@ REQUIRED_RELEASE_READINESS_CHECKS: frozenset[str] = frozenset(
     }
 )
 
+REQUIRED_SUBMISSION_PACKAGE_ITEMS: frozenset[str] = frozenset(
+    {
+        "SUB_ARCHIVE_MANIFEST",
+        "SUB_ARTICLE_EVIDENCE",
+        "SUB_AVAILABILITY",
+        "SUB_MANUSCRIPT",
+        "SUB_METHODS_APPENDIX",
+        "SUB_RELEASE_AUDIT",
+        "SUB_REPLICATION_GUIDE",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -253,6 +265,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_release_reproducibility_audit(release_readiness, evidence_dir.parent)
         )
+    submission_package = (
+        evidence_dir.parent / "data" / "processed" / "submission_package_manifest.csv"
+    )
+    if submission_package.is_file():
+        errors.extend(validate_submission_package(submission_package, evidence_dir.parent))
     figure_registry = evidence_dir.parent / "paper" / "figures" / "figure_registry.csv"
     table_registry = evidence_dir.parent / "paper" / "tables" / "table_registry.csv"
     if figure_registry.is_file() and table_registry.is_file():
@@ -798,6 +815,105 @@ def validate_release_reproducibility_audit(
                 continue
             if "==" not in stripped:
                 errors.append(f"Unpinned release requirement on line {line_number}: {stripped}")
+
+    return errors
+
+
+def validate_submission_package(
+    manifest_path: Path,
+    root: Path,
+) -> list[str]:
+    """Return validation errors for the bounded submission package manifest."""
+    if not isinstance(manifest_path, Path):
+        raise TypeError("manifest_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    package = pd.read_csv(manifest_path, dtype=str)
+    required_columns = {
+        "item_id",
+        "artifact_path",
+        "artifact_role",
+        "required_for_submission",
+        "current_status",
+        "blocking_issue",
+        "validation_gate",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(package.columns))
+    if missing_columns:
+        return [f"Submission package manifest missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    observed_items = set(package["item_id"].dropna().astype(str))
+    for item_id in sorted(REQUIRED_SUBMISSION_PACKAGE_ITEMS.difference(observed_items)):
+        errors.append(f"Missing submission package item: {item_id}")
+
+    duplicates = package[package.duplicated(subset=["item_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate submission package item: {_registry_field(duplicate_row, 'item_id')}"
+        )
+
+    allowed_statuses = {"partial_bounded", "ready"}
+    required_phrases = {
+        root / "paper" / "data_code_availability.md": {
+            "bounded research snapshot",
+            "evidence/article_evidence.csv",
+            "evidence/data_quality_registry.csv",
+        },
+        root / "paper" / "reviewer_methods_appendix.md": {
+            "definitions",
+            "accounting perimeters",
+            "robustness variants",
+            "current limitations",
+        },
+        root / "docs" / "replication_guide.md": {
+            "make quality",
+            "clean sequential notebook",
+            "data/processed/submission_package_manifest.csv",
+        },
+    }
+
+    for row_number, record in enumerate(package.to_dict("records"), start=2):
+        item_id = _registry_field(record, "item_id") or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on submission package row {row_number}")
+
+        artifact = Path(_registry_field(record, "artifact_path"))
+        if artifact.is_absolute() or ".." in artifact.parts:
+            errors.append(f"Unsafe artifact path on submission package row {item_id}")
+            continue
+        if not (root / artifact).is_file():
+            errors.append(f"Missing submission package artifact for {item_id}: {artifact}")
+
+        current_status = _registry_field(record, "current_status")
+        if current_status and current_status not in allowed_statuses:
+            errors.append(
+                f"Unexpected submission package status on row {row_number}: {current_status}"
+            )
+
+        required_for_submission = _registry_field(record, "required_for_submission")
+        if required_for_submission != "yes":
+            errors.append(f"Submission package row {item_id} must be required for submission")
+
+        blocking_issue = _registry_field(record, "blocking_issue")
+        if current_status == "ready" and blocking_issue != "none":
+            errors.append(f"Ready submission package row {item_id} must not name a blocker")
+        if current_status == "partial_bounded" and blocking_issue in {"", "none"}:
+            errors.append(f"Partial submission package row {item_id} must name a blocker")
+
+    for artifact_path, phrases in required_phrases.items():
+        if not artifact_path.is_file():
+            continue
+        text = artifact_path.read_text(encoding="utf-8").lower()
+        for phrase in phrases:
+            if phrase.lower() not in text:
+                errors.append(
+                    f"Submission package artifact {artifact_path.relative_to(root)} "
+                    f"missing phrase: {phrase}"
+                )
 
     return errors
 

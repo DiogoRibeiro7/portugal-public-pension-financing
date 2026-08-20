@@ -10,6 +10,7 @@ from portugal_pensions.validation import (
     validate_publication_artifacts,
     validate_release_reproducibility_audit,
     validate_source_registry,
+    validate_submission_package,
     validate_zenodo_metadata,
 )
 
@@ -91,6 +92,17 @@ def test_repository_release_reproducibility_audit_is_valid() -> None:
     )
 
 
+def test_repository_submission_package_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_submission_package(
+            root / "data" / "processed" / "submission_package_manifest.csv",
+            root,
+        )
+        == []
+    )
+
+
 def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -> None:
     manuscript = tmp_path / "manuscript.tex"
     article = tmp_path / "article_evidence.csv"
@@ -156,6 +168,21 @@ def test_release_reproducibility_audit_requires_pinned_requirements(tmp_path: Pa
 
     errors = validate_release_reproducibility_audit(audit, tmp_path)
     assert "Unpinned release requirement on line 1: pandas>=2" in errors
+
+
+def test_submission_package_requires_bounded_status_blocker(tmp_path: Path) -> None:
+    artifact = tmp_path / "artifact.md"
+    artifact.write_text("bounded research snapshot\n", encoding="utf-8")
+    manifest = tmp_path / "submission_package_manifest.csv"
+    manifest.write_text(
+        "item_id,artifact_path,artifact_role,required_for_submission,current_status,"
+        "blocking_issue,validation_gate,notes\n"
+        "SUB_REPLICATION_GUIDE,artifact.md,guide,yes,partial_bounded,none,gate,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_submission_package(manifest, tmp_path)
+    assert "Partial submission package row SUB_REPLICATION_GUIDE must name a blocker" in errors
 
 
 def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
