@@ -302,6 +302,96 @@ def validate_bank_special_regime_annual(path: str, *, end_year: int = 2025) -> l
     return errors
 
 
+def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
+    """Return validation errors for bank-transfer benefit and risk distribution outputs."""
+    distribution = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "record_id",
+        "year",
+        "institution",
+        "channel",
+        "value",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "bank_effect",
+        "public_sector_effect",
+        "risk_holder_after_transfer",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(distribution.columns))
+    if missing_columns:
+        return [f"Bank benefit-risk distribution missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = distribution[distribution.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank benefit-risk record_id: {_field(duplicate_row, 'record_id')}"
+        )
+
+    allowed_channels = {
+        "balance_sheet_relief",
+        "liquidity_effect",
+        "actuarial_risk_transfer",
+        "retained_bank_responsibilities",
+        "fiscal_accounting_effect",
+        "demonstrable_net_subsidy",
+        "bank_level_net_position",
+    }
+    allowed_statuses = {
+        "legal_channel_identified",
+        "partial_aggregate_extract",
+        "accounting_treatment_to_replicate",
+        "blocked_no_subsidy_classification",
+        "blocked_missing_bank_level_values",
+        "complete",
+    }
+
+    for row_number, record in enumerate(distribution.to_dict("records"), start=2):
+        for column in required_columns.difference({"value"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank benefit-risk row {row_number}")
+        channel = _field(record, "channel")
+        if channel not in allowed_channels:
+            errors.append(f"Unexpected bank benefit-risk channel on row {row_number}: {channel}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank benefit-risk status on row {row_number}: {status}")
+        if _field(record, "unit") != "EUR_million":
+            errors.append(f"Unexpected unit on bank benefit-risk row {row_number}")
+        if _field(record, "price_basis") != "current_prices":
+            errors.append(f"Unexpected price_basis on bank benefit-risk row {row_number}")
+        value = _field(record, "value")
+        if value:
+            _nonnegative(value, "value")
+
+    bank_level = distribution[distribution["channel"].astype(str) == "bank_level_net_position"]
+    if len(bank_level) != 18:
+        errors.append(f"Expected 18 bank-level net-position rows, found {len(bank_level)}")
+    bank_level_statuses = set(bank_level["status"].dropna().astype(str))
+    if bank_level_statuses.difference({"blocked_missing_bank_level_values"}):
+        errors.append("Bank-level net-position rows must remain blocked until values are acquired")
+
+    required_channels = allowed_channels.difference({"bank_level_net_position"})
+    channels = set(distribution["channel"].dropna().astype(str))
+    for channel in sorted(required_channels.difference(channels)):
+        errors.append(f"Missing bank benefit-risk channel: {channel}")
+
+    subsidy = distribution[distribution["channel"].astype(str) == "demonstrable_net_subsidy"]
+    if subsidy.empty:
+        errors.append("Missing demonstrable net-subsidy classification row")
+    else:
+        for _, subsidy_record in subsidy.iterrows():
+            if _field(subsidy_record, "value"):
+                errors.append("Demonstrable net-subsidy row must not have a value while blocked")
+            if _field(subsidy_record, "status") != "blocked_no_subsidy_classification":
+                errors.append("Demonstrable net-subsidy row must remain blocked")
+    return errors
+
+
 def _validate_bank_asset_liability_audit(audit: pd.DataFrame) -> list[str]:
     required_columns = {
         "audit_id",

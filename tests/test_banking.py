@@ -6,6 +6,7 @@ from portugal_pensions.banking import (
     bank_transfer_balance,
     present_value,
     validate_bank_asset_liability_outputs,
+    validate_bank_benefit_risk_distribution,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
 )
@@ -76,6 +77,32 @@ def test_repository_bank_special_regime_annual_is_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_bank_benefit_risk_distribution_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_benefit_risk_distribution(
+            str(root / "data" / "processed" / "bank_benefit_risk_distribution.csv")
+        )
+        == []
+    )
+
+
+def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: Path) -> None:
+    distribution = tmp_path / "bank_benefit_risk_distribution.csv"
+    distribution.write_text(
+        "record_id,year,institution,channel,value,unit,price_basis,accounting_basis,"
+        "bank_effect,public_sector_effect,risk_holder_after_transfer,source_ids,status,notes\n"
+        "R1,2011,aggregate,demonstrable_net_subsidy,10,EUR_million,current_prices,"
+        "economic_valuation,bank,public,unclassified,SRC,complete,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_benefit_risk_distribution(str(distribution))
+    assert "Expected 18 bank-level net-position rows, found 0" in errors
+    assert "Demonstrable net-subsidy row must not have a value while blocked" in errors
+    assert "Demonstrable net-subsidy row must remain blocked" in errors
 
 
 def test_bank_special_regime_annual_checks_residual_identity(tmp_path: Path) -> None:

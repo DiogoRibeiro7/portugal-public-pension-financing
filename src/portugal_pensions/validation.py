@@ -16,6 +16,7 @@ from .accounting import (
 )
 from .banking import (
     validate_bank_asset_liability_outputs,
+    validate_bank_benefit_risk_distribution,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
 )
@@ -103,6 +104,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 str(bank_sensitivity),
             )
         )
+    bank_benefit_risk = (
+        evidence_dir.parent / "data" / "processed" / "bank_benefit_risk_distribution.csv"
+    )
+    if bank_benefit_risk.is_file():
+        errors.extend(validate_bank_benefit_risk_distribution(str(bank_benefit_risk)))
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
