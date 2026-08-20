@@ -114,6 +114,17 @@ python -m portugal_pensions.cli validate-all
 
 The notebooks are designed to be run in numerical order only after the corresponding source-acquisition prompt has been completed.
 
+## Known Data Gaps
+
+The current repository is release-ready only as a bounded research snapshot. Open blockers are
+tracked in `evidence/data_quality_registry.csv` and include incomplete CGA component ledgers,
+payroll withholding and contribution revenue splits, public-worker RGSS cohort flows, bank-level
+transfer schedules, actuarial pension cash-flow paths, post-2012 State-specific bank-pension
+financing, and combined-balance inputs.
+
+Do not interpret the current manuscript as a final public report until the blocked evidence rows
+are resolved and a clean sequential notebook execution log is archived.
+
 ## Quality gate
 
 The professional development gate is:
