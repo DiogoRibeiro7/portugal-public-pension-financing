@@ -25,7 +25,10 @@ from .banking import (
     validate_bank_transfer_debt_financing_effects,
     validate_bpn_2012_pension_transfer,
 )
-from .counterfactuals import validate_public_worker_reallocation
+from .counterfactuals import (
+    validate_counterfactual_financing_regimes,
+    validate_public_worker_reallocation,
+)
 from .legal import validate_legal_contribution_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
@@ -160,6 +163,16 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_public_worker_reallocation(
                 str(public_worker_cohorts),
                 str(public_worker_contributions),
+            )
+        )
+    counterfactual_regimes = (
+        evidence_dir.parent / "data" / "processed" / "counterfactual_financing_regimes.csv"
+    )
+    if counterfactual_regimes.is_file():
+        errors.extend(
+            validate_counterfactual_financing_regimes(
+                str(evidence_dir / "counterfactual_registry.csv"),
+                str(counterfactual_regimes),
             )
         )
     return errors
