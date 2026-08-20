@@ -1,0 +1,8 @@
+item_id,artifact_path,artifact_role,required_for_submission,current_status,blocking_issue,validation_gate,notes
+SUB_REPLICATION_GUIDE,docs/replication_guide.md,reviewer_workflow,yes,partial_bounded,missing_clean_notebook_execution_log,validate-submission-package,Describes current validation workflow and explicitly blocks final notebook-regenerated claims
+SUB_AVAILABILITY,paper/data_code_availability.md,data_code_availability_statement,yes,partial_bounded,registered_sources_without_raw_files,validate-submission-package,Separates public raw sources registered-only sources derived files and generated outputs
+SUB_METHODS_APPENDIX,paper/reviewer_methods_appendix.md,reviewer_methods_appendix,yes,partial_bounded,open_data_quality_blockers,validate-submission-package,Lists definitions accounting perimeters robustness variants and unresolved limitations
+SUB_RELEASE_AUDIT,data/processed/release_reproducibility_audit.csv,readiness_audit,yes,partial_bounded,missing_release_completion_inputs,validate-evidence,Machine-readable release-readiness gate
+SUB_ARCHIVE_MANIFEST,MANIFEST.sha256,archive_manifest,yes,ready,none,validate-manifest,Checksum manifest for tracked source state
+SUB_ARTICLE_EVIDENCE,evidence/article_evidence.csv,article_evidence_gate,yes,partial_bounded,missing_final_manuscript_inputs,validate-evidence,Maps current manuscript claims to source transformations and output artifacts
+SUB_MANUSCRIPT,paper/manuscript.tex,bounded_manuscript,yes,partial_bounded,missing_final_manuscript_inputs,validate-evidence,Current manuscript is bounded and not a final public report
