@@ -8,6 +8,7 @@ from portugal_pensions.banking import (
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
+    validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
 )
@@ -119,6 +120,38 @@ def test_bank_esa_treatment_bridge_checks_percent_identity(tmp_path: Path) -> No
 
     errors = validate_bank_esa_treatment_bridge(str(bridge))
     assert "Bank ESA bridge percent identity fails on row 2" in errors
+
+
+def test_repository_bank_pension_cost_2012_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_pension_cost_2012(
+            str(root / "data" / "processed" / "bank_pension_cost_2012.csv")
+        )
+        == []
+    )
+
+
+def test_bank_pension_cost_2012_checks_financing_residual(tmp_path: Path) -> None:
+    cost = tmp_path / "bank_pension_cost_2012.csv"
+    cost.write_text(
+        "record_id,year,perimeter,measure,value_eur_million,benchmark_eur_million,"
+        "residual_vs_benchmark_eur_million,unit,price_basis,accounting_basis,source_ids,"
+        "status,notes\n"
+        "R1,2012,perimeter,transfer_current_expenditure_pensions,516.0,500.0,16.0,"
+        "EUR_million,current_prices,budgetary_public_accounts,SRC,"
+        "official_account_reconciles_ec_approximation,notes\n"
+        "R2,2012,perimeter,state_current_transfer_financing,515.0,,,EUR_million,"
+        "current_prices,budgetary_public_accounts,SRC,official_account_extracted,notes\n"
+        "R3,2012,perimeter,pension_expenditure_less_state_transfer,0.0,,,EUR_million,"
+        "current_prices,budgetary_public_accounts,SRC,reconciled_same_report,notes\n"
+        "R4,2012,perimeter,unresolved_component_split,,,,EUR_million,current_prices,"
+        "budgetary_public_accounts,SRC,blocked_missing_component_split,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_pension_cost_2012(str(cost))
+    assert "Bank pension cost financing residual identity fails" in errors
 
 
 def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: Path) -> None:

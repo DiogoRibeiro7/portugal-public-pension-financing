@@ -302,6 +302,127 @@ def validate_bank_special_regime_annual(path: str, *, end_year: int = 2025) -> l
     return errors
 
 
+def validate_bank_pension_cost_2012(path: str) -> list[str]:
+    """Return validation errors for the 2012 transferred-bank pension cost bridge."""
+    cost = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "record_id",
+        "year",
+        "perimeter",
+        "measure",
+        "value_eur_million",
+        "benchmark_eur_million",
+        "residual_vs_benchmark_eur_million",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "source_ids",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(cost.columns))
+    if missing_columns:
+        return [f"Bank pension cost 2012 bridge missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = cost[cost.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank pension cost record_id: {_field(duplicate_row, 'record_id')}"
+        )
+
+    allowed_measures = {
+        "transfer_current_expenditure_pensions",
+        "state_current_transfer_financing",
+        "oe_financing_component",
+        "cga_bpn_financing_component",
+        "administrative_personnel_execution",
+        "administrative_goods_services_execution",
+        "pension_expenditure_less_state_transfer",
+        "unresolved_component_split",
+    }
+    allowed_statuses = {
+        "official_account_reconciles_ec_approximation",
+        "official_account_extracted",
+        "reconciled_same_report",
+        "blocked_missing_component_split",
+    }
+
+    for row_number, record in enumerate(cost.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {"value_eur_million", "benchmark_eur_million", "residual_vs_benchmark_eur_million"}
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank pension cost row {row_number}")
+        if _field(record, "year") != "2012":
+            errors.append(f"Bank pension cost row {row_number} must use year 2012")
+        if _field(record, "measure") not in allowed_measures:
+            errors.append(f"Unexpected bank pension cost measure on row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank pension cost status on row {row_number}: {status}")
+        if _field(record, "unit") != "EUR_million":
+            errors.append(f"Unexpected bank pension cost unit on row {row_number}")
+        if _field(record, "price_basis") != "current_prices":
+            errors.append(f"Unexpected bank pension cost price_basis on row {row_number}")
+        if _field(record, "accounting_basis") != "budgetary_public_accounts":
+            errors.append(f"Unexpected bank pension cost accounting_basis on row {row_number}")
+
+        value = _field(record, "value_eur_million")
+        benchmark = _field(record, "benchmark_eur_million")
+        residual = _field(record, "residual_vs_benchmark_eur_million")
+        for numeric_value, column in (
+            (value, "value_eur_million"),
+            (benchmark, "benchmark_eur_million"),
+        ):
+            if numeric_value:
+                _nonnegative(numeric_value, column)
+        if residual:
+            _numeric(residual, "residual_vs_benchmark_eur_million")
+        if value and benchmark and residual:
+            expected_residual = float(value) - float(benchmark)
+            if not math.isclose(
+                expected_residual,
+                float(residual),
+                rel_tol=0.0,
+                abs_tol=0.05,
+            ):
+                errors.append(f"Bank pension cost benchmark residual fails on row {row_number}")
+
+    measures = set(cost["measure"].dropna().astype(str))
+    for measure in {
+        "transfer_current_expenditure_pensions",
+        "state_current_transfer_financing",
+        "pension_expenditure_less_state_transfer",
+        "unresolved_component_split",
+    }:
+        if measure not in measures:
+            errors.append(f"Missing bank pension cost measure: {measure}")
+
+    values_by_measure = {
+        _field(record, "measure"): _field(record, "value_eur_million")
+        for record in cost.to_dict("records")
+    }
+    expenditure = values_by_measure.get("transfer_current_expenditure_pensions", "")
+    financing = values_by_measure.get("state_current_transfer_financing", "")
+    residual = values_by_measure.get("pension_expenditure_less_state_transfer", "")
+    if expenditure and financing and residual:
+        expected_residual = float(expenditure) - float(financing)
+        if not math.isclose(expected_residual, float(residual), rel_tol=0.0, abs_tol=0.05):
+            errors.append("Bank pension cost financing residual identity fails")
+
+    official_expenditure = cost[
+        cost["measure"].astype(str) == "transfer_current_expenditure_pensions"
+    ]
+    if official_expenditure.empty:
+        errors.append("Missing official 2012 bank pension expenditure row")
+    else:
+        value = _field(official_expenditure.iloc[0], "value_eur_million")
+        if not value or not math.isclose(float(value), 516.0, rel_tol=0.0, abs_tol=0.05):
+            errors.append(f"Unexpected official 2012 bank pension expenditure: {value}")
+    return errors
+
+
 def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
     """Return validation errors for bank-transfer benefit and risk distribution outputs."""
     distribution = pd.read_csv(path, dtype=str)
