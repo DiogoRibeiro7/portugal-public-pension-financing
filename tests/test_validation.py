@@ -4,6 +4,7 @@ from portugal_pensions.validation import (
     validate_evidence_directory,
     validate_falsification_review,
     validate_manifest,
+    validate_publication_artifacts,
     validate_source_registry,
     validate_zenodo_metadata,
 )
@@ -25,6 +26,47 @@ def test_repository_falsification_review_is_valid() -> None:
         validate_falsification_review(root / "data" / "processed" / "falsification_review.csv")
         == []
     )
+
+
+def test_repository_publication_artifacts_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_publication_artifacts(
+            root / "paper" / "figures" / "figure_registry.csv",
+            root / "paper" / "tables" / "table_registry.csv",
+            root,
+        )
+        == []
+    )
+
+
+def test_publication_artifacts_require_all_figures(tmp_path: Path) -> None:
+    figure_dir = tmp_path / "paper" / "figures"
+    table_dir = tmp_path / "paper" / "tables"
+    figure_data = figure_dir / "data"
+    figure_data.mkdir(parents=True)
+    table_dir.mkdir(parents=True)
+    companion = figure_data / "fig01.csv"
+    companion.write_text(
+        "figure_id,series,value,status\nFIG01,series,1.0,ready_partial\n",
+        encoding="utf-8",
+    )
+    figure_registry = figure_dir / "figure_registry.csv"
+    figure_registry.write_text(
+        "figure_id,title,companion_csv,source_datasets,publication_status,"
+        "primary_blocker,notes\n"
+        "FIG01,Title,paper/figures/data/fig01.csv,data/processed/source.csv,"
+        "ready_partial,none,notes\n",
+        encoding="utf-8",
+    )
+    table_registry = table_dir / "table_registry.csv"
+    table_registry.write_text(
+        "table_id,title,companion_csv,source_datasets,publication_status,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_publication_artifacts(figure_registry, table_registry, tmp_path)
+    assert "Missing required publication figure: FIG02" in errors
 
 
 def test_falsification_review_requires_all_challenges(tmp_path: Path) -> None:

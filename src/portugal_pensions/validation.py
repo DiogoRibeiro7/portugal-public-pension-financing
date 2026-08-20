@@ -55,6 +55,22 @@ REQUIRED_FALSIFICATION_TESTS: frozenset[str] = frozenset(
     }
 )
 
+REQUIRED_PUBLICATION_FIGURES: frozenset[str] = frozenset(
+    {
+        "FIG01",
+        "FIG02",
+        "FIG03",
+        "FIG04",
+        "FIG05",
+        "FIG06",
+        "FIG07",
+        "FIG08",
+        "FIG09",
+        "FIG10",
+        "FIG11",
+    }
+)
+
 TEXT_MANIFEST_SUFFIXES: frozenset[str] = frozenset(
     {
         ".cff",
@@ -191,6 +207,12 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     falsification_review = evidence_dir.parent / "data" / "processed" / "falsification_review.csv"
     if falsification_review.is_file():
         errors.extend(validate_falsification_review(falsification_review))
+    figure_registry = evidence_dir.parent / "paper" / "figures" / "figure_registry.csv"
+    table_registry = evidence_dir.parent / "paper" / "tables" / "table_registry.csv"
+    if figure_registry.is_file() and table_registry.is_file():
+        errors.extend(
+            validate_publication_artifacts(figure_registry, table_registry, evidence_dir.parent)
+        )
     return errors
 
 
@@ -275,6 +297,143 @@ def validate_falsification_review(path: Path) -> list[str]:
             errors.append(f"Complete falsification row {row_number} cannot be not_testable_yet")
         if _registry_field(record, "unit") != "EUR_million":
             errors.append(f"Falsification review row {row_number} must use EUR_million unit")
+    return errors
+
+
+def validate_publication_artifacts(
+    figure_registry_path: Path,
+    table_registry_path: Path,
+    root: Path,
+) -> list[str]:
+    """Return validation errors for publication figure and table companion CSVs."""
+    if not isinstance(figure_registry_path, Path):
+        raise TypeError("figure_registry_path must be pathlib.Path")
+    if not isinstance(table_registry_path, Path):
+        raise TypeError("table_registry_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    figure_registry = pd.read_csv(figure_registry_path, dtype=str)
+    table_registry = pd.read_csv(table_registry_path, dtype=str)
+    errors = [
+        *_validate_publication_registry(
+            figure_registry,
+            root,
+            id_column="figure_id",
+            required_ids=REQUIRED_PUBLICATION_FIGURES,
+            registry_name="figure registry",
+            companion_column="companion_csv",
+            allowed_statuses={"ready", "ready_partial", "blocked"},
+            source_must_be_processed=True,
+        ),
+        *_validate_publication_registry(
+            table_registry,
+            root,
+            id_column="table_id",
+            required_ids=None,
+            registry_name="table registry",
+            companion_column="companion_csv",
+            allowed_statuses={"ready", "ready_partial", "blocked"},
+            source_must_be_processed=False,
+        ),
+    ]
+    return errors
+
+
+def _validate_publication_registry(
+    registry: pd.DataFrame,
+    root: Path,
+    *,
+    id_column: str,
+    required_ids: frozenset[str] | None,
+    registry_name: str,
+    companion_column: str,
+    allowed_statuses: set[str],
+    source_must_be_processed: bool,
+) -> list[str]:
+    required_columns = {
+        id_column,
+        "title",
+        companion_column,
+        "source_datasets",
+        "publication_status",
+        "notes",
+    }
+    if registry_name == "figure registry":
+        required_columns.add("primary_blocker")
+    missing_columns = sorted(required_columns.difference(registry.columns))
+    if missing_columns:
+        return [f"{registry_name} missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = registry[registry.duplicated(subset=[id_column], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(f"Duplicate {registry_name} row: {_registry_field(duplicate_row, id_column)}")
+
+    observed_ids = set(registry[id_column].dropna().astype(str))
+    if required_ids is not None:
+        for missing_id in sorted(required_ids.difference(observed_ids)):
+            errors.append(f"Missing required publication figure: {missing_id}")
+        for unexpected_id in sorted(observed_ids.difference(required_ids)):
+            errors.append(f"Unexpected publication figure: {unexpected_id}")
+
+    for row_number, record in enumerate(registry.to_dict("records"), start=2):
+        artifact_id = _registry_field(record, id_column) or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on {registry_name} row {row_number}")
+
+        status = _registry_field(record, "publication_status")
+        if status and status not in allowed_statuses:
+            errors.append(
+                f"Unexpected publication_status on {registry_name} row {row_number}: {status}"
+            )
+
+        companion = Path(_registry_field(record, companion_column))
+        if companion.is_absolute() or ".." in companion.parts:
+            errors.append(f"Unsafe companion path for {artifact_id}: {companion}")
+            continue
+        companion_path = root / companion
+        if not companion_path.is_file():
+            errors.append(f"Missing companion CSV for {artifact_id}: {companion}")
+            continue
+        errors.extend(_validate_publication_companion(companion_path, artifact_id, id_column))
+
+        source_datasets = _registry_field(record, "source_datasets")
+        if source_must_be_processed and status != "blocked":
+            for source_dataset in source_datasets.split(";"):
+                if not source_dataset.startswith("data/processed/"):
+                    errors.append(f"Ready figure {artifact_id} must use processed source datasets")
+                elif not (root / source_dataset).is_file():
+                    errors.append(f"Ready figure {artifact_id} source is missing: {source_dataset}")
+        if status == "blocked" and not _registry_field(record, "primary_blocker"):
+            errors.append(f"Blocked figure {artifact_id} must name primary_blocker")
+    return errors
+
+
+def _validate_publication_companion(
+    companion_path: Path,
+    artifact_id: str,
+    id_column: str,
+) -> list[str]:
+    companion = pd.read_csv(companion_path, dtype=str)
+    if id_column not in companion.columns:
+        return [f"Companion CSV for {artifact_id} missing {id_column}"]
+    errors: list[str] = []
+    companion_ids = set(companion[id_column].dropna().astype(str))
+    if companion_ids != {artifact_id}:
+        errors.append(f"Companion CSV for {artifact_id} has mismatched IDs")
+    if "status" in companion.columns:
+        has_value_column = "value" in companion.columns
+        for row_number, record in enumerate(companion.to_dict("records"), start=2):
+            status = _registry_field(record, "status")
+            value = _registry_field(record, "value") if has_value_column else ""
+            if status.startswith("ready") and not value:
+                errors.append(f"Ready companion row {row_number} for {artifact_id} missing value")
+            if status.startswith("blocked") and value:
+                errors.append(
+                    f"Blocked companion row {row_number} for {artifact_id} must not have value"
+                )
     return errors
 
 

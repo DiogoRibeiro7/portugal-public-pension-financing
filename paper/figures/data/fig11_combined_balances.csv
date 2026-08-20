@@ -1,0 +1,3 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG11,2025,reported_combined_balance,,EUR_million,data/processed/combined_balance_replication_2026.csv,,blocked_missing_combined_balance_inputs,Combined-balance replication table has no validated values yet
+FIG11,2025,alternative_perimeter_balance,,EUR_million,data/processed/combined_balance_replication_2026.csv,,blocked_missing_combined_balance_inputs,Alternative combined-balance perimeters remain blocked by missing RGSS FEFSS and component bridge data

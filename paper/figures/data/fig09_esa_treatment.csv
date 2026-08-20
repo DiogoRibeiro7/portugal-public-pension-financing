@@ -1,0 +1,4 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG09,2011,esa95_deficit_effect,3.5,percent_GDP,data/processed/bank_esa_treatment_bridge.csv,EC_EXPOST_PAEF;DGO_CGE_2011,ready_partial,ESA-95 deficit-decreasing effect reported and reconciled
+FIG09,2011,esa2010_direct_deficit_effect,0.0,percent_GDP,data/processed/bank_esa_treatment_bridge.csv,EC_EXPOST_PAEF,ready_partial,ESA-2010 classification has no direct deficit impact
+FIG09,2011,accounts_restatement_gap,,percent_GDP,data/processed/bank_esa_treatment_bridge.csv,EC_EXPOST_PAEF,blocked_missing_machine_readable_accounts,Machine-readable restatement remains missing

@@ -1,0 +1,2 @@
+figure_id,period_start,period_end,series,value,unit,source_dataset,source_ids,status,notes
+FIG02,2006-01-01,2014-12-31,processed_timeline_available,,rate,not_available,TC_ACORDAO_255_2020;TC_ACORDAO_362_2016;DR_EA_CONSOLIDATED,blocked_no_processed_figure_input,Legal rates are validated in evidence/legal_contribution_registry.csv but have not yet been materialized as a processed figure input

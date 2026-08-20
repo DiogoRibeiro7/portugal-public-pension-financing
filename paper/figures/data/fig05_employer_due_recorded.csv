@@ -1,0 +1,3 @@
+figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
+FIG05,2011,legal_due,,EUR_million,data/processed/employer_contribution_audit.csv,TC_ACORDAO_362_2016;DGO_CGE_2011,blocked_missing_employer_reconciliation_inputs,Payroll bases and legal due amounts are missing
+FIG05,2011,recorded_cga_employer_revenue,,EUR_million,data/processed/employer_contribution_audit.csv,TC_ACORDAO_362_2016;DGO_CGE_2011,blocked_missing_employer_reconciliation_inputs,Recorded CGA employer revenue split is missing

@@ -1,0 +1,6 @@
+figure_id,discount_rate,series,value,unit,source_dataset,source_ids,status,notes
+FIG10,0.02,liability_pv,,EUR_million,data/processed/bank_asset_liability_sensitivity.csv,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Pension cash-flow and demographic schedules are missing
+FIG10,0.03,liability_pv,,EUR_million,data/processed/bank_asset_liability_sensitivity.csv,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Pension cash-flow and demographic schedules are missing
+FIG10,0.04,liability_pv,,EUR_million,data/processed/bank_asset_liability_sensitivity.csv,DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Legal discount-rate scenario cannot be recomputed without pension cash-flow schedules
+FIG10,0.05,liability_pv,,EUR_million,data/processed/bank_asset_liability_sensitivity.csv,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Pension cash-flow and demographic schedules are missing
+FIG10,0.06,liability_pv,,EUR_million,data/processed/bank_asset_liability_sensitivity.csv,DGO_CGE_2011;DR_DL127_2011,blocked_missing_cashflow_and_demographic_inputs,Pension cash-flow and demographic schedules are missing
