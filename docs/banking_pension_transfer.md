@@ -67,10 +67,12 @@ residual_financing_gap
 ```
 
 The annual ledger is now represented in `evidence/bank_special_regime_annual.csv` and
-`data/processed/bank_transfer_long_run.csv`. It covers 2012-2025, records the published
-2012 expenditure benchmark as a value still requiring replication, and leaves the remaining
-annual financing components blank with blocked statuses until official annual account tables
-are extracted. Missing values in this ledger are not zeros.
+`data/processed/bank_transfer_long_run.csv`. It covers 2012-2025. For 2012,
+`data/processed/bank_pension_cost_2012.csv` reconciles the European Commission's
+rounded EUR 0.5bn benchmark to the official EUR 516.0m banking substitute-regime
+pension-payment execution reported by Tribunal de Contas. Later annual financing
+components remain blank with blocked statuses until official annual account tables are
+extracted. Missing values in this ledger are not zeros.
 
 ## Competing explanations
 

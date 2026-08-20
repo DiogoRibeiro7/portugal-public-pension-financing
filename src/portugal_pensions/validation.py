@@ -18,6 +18,7 @@ from .banking import (
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
+    validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
 )
@@ -113,6 +114,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     bank_esa_bridge = evidence_dir.parent / "data" / "processed" / "bank_esa_treatment_bridge.csv"
     if bank_esa_bridge.is_file():
         errors.extend(validate_bank_esa_treatment_bridge(str(bank_esa_bridge)))
+    bank_pension_cost = evidence_dir.parent / "data" / "processed" / "bank_pension_cost_2012.csv"
+    if bank_pension_cost.is_file():
+        errors.extend(validate_bank_pension_cost_2012(str(bank_pension_cost)))
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
