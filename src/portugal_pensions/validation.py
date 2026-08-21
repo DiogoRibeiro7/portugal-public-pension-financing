@@ -38,6 +38,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "analysis_protocol_hash.csv",
     "concept_registry.csv",
     "source_registry.csv",
+    "source_coverage_matrix.csv",
     "claim_registry.csv",
     "legal_contribution_registry.csv",
     "bank_pension_transfer_registry.csv",
@@ -293,6 +294,49 @@ LITERATURE_INCLUSION_DECISIONS: frozenset[str] = frozenset(
     }
 )
 
+SOURCE_COVERAGE_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "variable_id",
+        "year",
+        "source_id",
+        "coverage_status",
+        "format",
+        "granularity",
+        "definition_break",
+        "revision_status",
+        "notes",
+    }
+)
+
+SOURCE_COVERAGE_CORE_VARIABLES: frozenset[str] = frozenset(
+    {
+        "bank_asset_liability_transfer_schedules",
+        "bank_pension_transfer_legal",
+        "cga_employee_employer_revenue_split",
+        "cga_reports_accounts",
+        "cga_subscriber_pensioner_counts",
+        "cge_public_accounts",
+        "esa_pension_transfer_treatment",
+        "legal_contribution_rules",
+        "public_employment_counts",
+        "public_worker_cohort_inputs",
+        "social_security_accounts",
+        "state_budget_documents",
+    }
+)
+
+SOURCE_COVERAGE_STATUSES: frozenset[str] = frozenset(
+    {
+        "definition-break",
+        "not-applicable",
+        "observed",
+        "revision-conflict",
+        "unavailable",
+    }
+)
+
+SOURCE_COVERAGE_YEARS: frozenset[int] = frozenset(range(1977, 2026))
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -345,6 +389,14 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "source_coverage_matrix.csv").is_file():
+        errors.extend(
+            validate_source_coverage_matrix(
+                evidence_dir / "source_coverage_matrix.csv",
+                evidence_dir / "source_registry.csv",
+                evidence_dir.parent / "docs" / "historical_data_gap_map.md",
+            )
         )
     if (evidence_dir / "concept_registry.csv").is_file():
         errors.extend(
@@ -515,6 +567,100 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def validate_source_coverage_matrix(
+    matrix_path: Path,
+    source_registry_path: Path,
+    gap_map_path: Path,
+) -> list[str]:
+    """Return validation errors for the historical source coverage matrix."""
+    if not isinstance(matrix_path, Path):
+        raise TypeError("matrix_path must be pathlib.Path")
+    if not isinstance(source_registry_path, Path):
+        raise TypeError("source_registry_path must be pathlib.Path")
+    if not isinstance(gap_map_path, Path):
+        raise TypeError("gap_map_path must be pathlib.Path")
+
+    matrix = pd.read_csv(matrix_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(SOURCE_COVERAGE_REQUIRED_COLUMNS.difference(matrix.columns))
+    if missing_columns:
+        return [f"Source coverage matrix missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    matrix["year_int"] = pd.to_numeric(matrix["year"], errors="coerce")
+    invalid_year_rows = matrix[matrix["year_int"].isna()]
+    for row_number in invalid_year_rows.index:
+        errors.append(f"Source coverage row {row_number + 2} has invalid year")
+
+    matrix = matrix[matrix["year_int"].notna()].copy()
+    matrix["year_int"] = matrix["year_int"].astype(int)
+
+    duplicate_rows = matrix[
+        matrix.duplicated(subset=["variable_id", "year_int"], keep=False)
+    ].sort_values(["variable_id", "year_int"])
+    for row in duplicate_rows.to_dict("records"):
+        errors.append(f"Duplicate source coverage row: {row['variable_id']} {row['year_int']}")
+
+    observed_variables = set(matrix["variable_id"])
+    for variable_id in sorted(SOURCE_COVERAGE_CORE_VARIABLES.difference(observed_variables)):
+        errors.append(f"Missing source coverage variable: {variable_id}")
+
+    required_pairs = {
+        (variable_id, year)
+        for variable_id in SOURCE_COVERAGE_CORE_VARIABLES
+        for year in SOURCE_COVERAGE_YEARS
+    }
+    observed_pairs = set(zip(matrix["variable_id"], matrix["year_int"], strict=False))
+    for variable_id, year in sorted(required_pairs.difference(observed_pairs)):
+        errors.append(f"Missing source coverage row: {variable_id} {year}")
+
+    extra_years = sorted(set(matrix["year_int"]).difference(SOURCE_COVERAGE_YEARS))
+    for year in extra_years:
+        errors.append(f"Source coverage matrix contains out-of-horizon year: {year}")
+
+    extra_variables = sorted(observed_variables.difference(SOURCE_COVERAGE_CORE_VARIABLES))
+    for variable_id in extra_variables:
+        errors.append(f"Source coverage matrix contains unknown variable: {variable_id}")
+
+    source_ids: set[str] = set()
+    if source_registry_path.is_file():
+        source_registry = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+        if "source_id" in source_registry.columns:
+            source_ids = set(source_registry["source_id"])
+
+    for row in matrix.to_dict("records"):
+        variable_id = row["variable_id"]
+        year = row["year_int"]
+        status = row["coverage_status"].strip()
+        if status not in SOURCE_COVERAGE_STATUSES:
+            errors.append(f"Source coverage row {variable_id} {year} has invalid status: {status}")
+
+        for column in ("format", "granularity", "definition_break", "revision_status", "notes"):
+            if not row[column].strip():
+                errors.append(f"Source coverage row {variable_id} {year} has empty {column}")
+
+        sources = _split_registry_values(row["source_id"])
+        if status in {"observed", "definition-break", "revision-conflict"} and not sources:
+            errors.append(f"Source coverage row {variable_id} {year} must include source_id")
+        for source_id in sources:
+            if source_id != "none" and source_ids and source_id not in source_ids:
+                errors.append(
+                    f"Source coverage row {variable_id} {year} references unknown source_id: "
+                    f"{source_id}"
+                )
+
+    if not gap_map_path.is_file():
+        errors.append(f"Missing historical data gap map: {gap_map_path}")
+    else:
+        text = gap_map_path.read_text(encoding="utf-8")
+        for variable_id in sorted(SOURCE_COVERAGE_CORE_VARIABLES):
+            if variable_id not in text:
+                errors.append(f"Historical data gap map does not mention {variable_id}")
+        if "Secondary estimates" not in text:
+            errors.append("Historical data gap map must state the secondary-estimate rule")
+
     return errors
 
 

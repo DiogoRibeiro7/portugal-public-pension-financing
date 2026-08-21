@@ -13,6 +13,7 @@ from portugal_pensions.validation import (
     validate_manuscript_draft,
     validate_publication_artifacts,
     validate_release_reproducibility_audit,
+    validate_source_coverage_matrix,
     validate_source_registry,
     validate_submission_package,
     validate_zenodo_metadata,
@@ -52,6 +53,18 @@ def test_repository_literature_map_is_valid() -> None:
             root / "evidence" / "literature_map.csv",
             root / "docs" / "literature_search_protocol.md",
             root / "docs" / "related_work_synthesis.md",
+        )
+        == []
+    )
+
+
+def test_repository_source_coverage_matrix_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_source_coverage_matrix(
+            root / "evidence" / "source_coverage_matrix.csv",
+            root / "evidence" / "source_registry.csv",
+            root / "docs" / "historical_data_gap_map.md",
         )
         == []
     )
@@ -250,6 +263,42 @@ def test_literature_map_rejects_unsupported_novelty_language(tmp_path: Path) -> 
 
     errors = validate_literature_map(literature, protocol, synthesis)
     assert "Literature row LIT_TEST uses unsupported novelty language" in errors
+
+
+def test_source_coverage_matrix_requires_complete_horizon(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    docs = tmp_path / "docs"
+    evidence.mkdir()
+    docs.mkdir()
+    source_registry = evidence / "source_registry.csv"
+    source_registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2026,https://example.test,https://example.test,"
+        "2026-08-21,1977-2025,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+    gap_map = docs / "historical_data_gap_map.md"
+    gap_map.write_text(
+        "Secondary estimates\n"
+        "bank_asset_liability_transfer_schedules bank_pension_transfer_legal "
+        "cga_employee_employer_revenue_split cga_reports_accounts "
+        "cga_subscriber_pensioner_counts cge_public_accounts "
+        "esa_pension_transfer_treatment legal_contribution_rules "
+        "public_employment_counts public_worker_cohort_inputs social_security_accounts "
+        "state_budget_documents\n",
+        encoding="utf-8",
+    )
+    matrix = evidence / "source_coverage_matrix.csv"
+    matrix.write_text(
+        "variable_id,year,source_id,coverage_status,format,granularity,definition_break,"
+        "revision_status,notes\n"
+        "cge_public_accounts,1977,SRC,observed,pdf,annual,none,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_source_coverage_matrix(matrix, source_registry, gap_map)
+    assert "Missing source coverage row: cge_public_accounts 1978" in errors
 
 
 def test_internal_replication_review_requires_article_claim_coverage(tmp_path: Path) -> None:
