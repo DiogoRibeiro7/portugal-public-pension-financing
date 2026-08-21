@@ -46,9 +46,24 @@ def test_financing_identity_keeps_residual_uninterpreted() -> None:
 def test_repository_cga_financing_ledger_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
-        validate_cga_financing_ledger(str(root / "data" / "processed" / "cga_financing_ledger.csv"))
+        validate_cga_financing_ledger(
+            str(root / "data" / "processed" / "cga_financing_ledger.csv"),
+            str(root / "evidence" / "source_registry.csv"),
+        )
         == []
     )
+
+
+def test_repository_cga_financing_ledger_covers_study_years() -> None:
+    root = Path(__file__).resolve().parents[1]
+    years = {
+        int(row.split(",", maxsplit=1)[0])
+        for row in (root / "data" / "processed" / "cga_financing_ledger.csv")
+        .read_text(encoding="utf-8-sig")
+        .splitlines()[1:]
+    }
+
+    assert years == set(range(1977, 2026))
 
 
 def test_repository_cga_closed_scheme_decomposition_is_valid() -> None:
@@ -154,14 +169,38 @@ def test_complete_cga_financing_ledger_requires_components(tmp_path: Path) -> No
         "investment_income,pension_expenditure,other_benefits,administration,"
         "contributor_count,pensioner_count,contribution_base_payroll,"
         "published_additional_state_transfer,reported_global_balance,pt_pension_fund_effect,"
-        "reported_global_balance_ex_pt_fund,identity_residual,status,notes\n"
+        "reported_global_balance_ex_pt_fund,identity_residual,full_identity_status,"
+        "balance_decomposition_residual,missing_components,status,notes\n"
         "2011,SRC,EUR_million,current,basis,perimeter,,,,,,,,,,,,,186.2,476.7,"
-        "-290.6,,complete,notes\n",
+        "-290.6,,blocked_missing_components,0.1,,complete,notes\n",
         encoding="utf-8",
     )
 
     errors = validate_cga_financing_ledger(str(ledger))
     assert "Complete CGA ledger row 2 missing employee_quotations" in errors
+
+
+def test_cga_financing_ledger_checks_balance_decomposition_residual(tmp_path: Path) -> None:
+    ledger = tmp_path / "cga_financing_ledger.csv"
+    ledger.write_text(
+        "year,source_id,unit,price_basis,accounting_basis,perimeter,employee_quotations,"
+        "employer_contributions,state_budget_transfers,other_public_transfers,"
+        "investment_income,pension_expenditure,other_benefits,administration,"
+        "contributor_count,pensioner_count,contribution_base_payroll,"
+        "published_additional_state_transfer,reported_global_balance,pt_pension_fund_effect,"
+        "reported_global_balance_ex_pt_fund,identity_residual,full_identity_status,"
+        "balance_decomposition_residual,missing_components,status,notes\n"
+        "2011,SRC,EUR_million,current,basis,perimeter,,,,,,,,,,,,,186.2,476.7,"
+        "-290.6,,blocked_missing_components,9.9,employee_quotations;"
+        "employer_contributions;state_budget_transfers;other_public_transfers;"
+        "investment_income;pension_expenditure;other_benefits;administration;"
+        "contributor_count;pensioner_count;contribution_base_payroll,"
+        "partial_cge_extract,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_cga_financing_ledger(str(ledger))
+    assert "CGA balance decomposition residual fails on row 2" in errors
 
 
 def test_repository_employee_remittance_audit_is_valid() -> None:
