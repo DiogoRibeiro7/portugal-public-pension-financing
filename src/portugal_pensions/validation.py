@@ -762,7 +762,12 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         evidence_dir.parent / "data" / "processed" / "employee_remittance_audit.csv"
     )
     if employee_remittance.is_file():
-        errors.extend(validate_employee_remittance_audit(str(employee_remittance)))
+        errors.extend(
+            validate_employee_remittance_audit(
+                str(employee_remittance),
+                str(evidence_dir / "source_registry.csv"),
+            )
+        )
     employer_contribution = (
         evidence_dir.parent / "data" / "processed" / "employer_contribution_audit.csv"
     )

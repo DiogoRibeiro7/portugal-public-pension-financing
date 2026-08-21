@@ -136,6 +136,30 @@ def reconcile_financing_identity(
     )
 
 
+def employee_remittance_gap(
+    *,
+    withheld_from_payroll: float,
+    recorded_cga_worker_revenue: float,
+    timing_adjustments: float,
+    arrears_corrections: float,
+    base_definition_adjustment: float,
+    perimeter_adjustment: float,
+) -> float:
+    """Return an unexplained employee remittance gap after explicit adjustments."""
+    withheld = _finite_nonnegative(withheld_from_payroll, "withheld_from_payroll")
+    recorded = _finite_nonnegative(
+        recorded_cga_worker_revenue,
+        "recorded_cga_worker_revenue",
+    )
+    adjustments = (
+        _numeric_adjustment(timing_adjustments, "timing_adjustments")
+        + _numeric_adjustment(arrears_corrections, "arrears_corrections")
+        + _numeric_adjustment(base_definition_adjustment, "base_definition_adjustment")
+        + _numeric_adjustment(perimeter_adjustment, "perimeter_adjustment")
+    )
+    return withheld - recorded + adjustments
+
+
 def validate_cga_financing_ledger(
     path: str,
     source_registry_path: str | None = None,
@@ -541,9 +565,12 @@ def _bridge_values(matrix: pd.DataFrame, bridge_id: str) -> dict[str, float]:
     }
 
 
-def validate_employee_remittance_audit(path: str) -> list[str]:
+def validate_employee_remittance_audit(
+    path: str,
+    source_registry_path: str | None = None,
+) -> list[str]:
     """Return validation errors for the employee remittance audit table."""
-    audit = pd.read_csv(path, dtype=str)
+    audit = pd.read_csv(path, dtype=str, keep_default_na=False)
     required_columns = {
         "year",
         "perimeter",
@@ -560,6 +587,9 @@ def validate_employee_remittance_audit(path: str) -> list[str]:
         "perimeter_adjustment",
         "unexplained_remittance_gap",
         "source_ids",
+        "legal_rate_basis",
+        "missing_inputs",
+        "claim_permitted",
         "status",
         "notes",
     }
@@ -568,6 +598,14 @@ def validate_employee_remittance_audit(path: str) -> list[str]:
         return [f"Employee remittance audit missing columns: {', '.join(missing_columns)}"]
 
     errors: list[str] = []
+    observed_years = {int(year) for year in audit["year"] if str(year).isdigit()}
+    missing_years = sorted(set(range(1977, 2026)).difference(observed_years))
+    if missing_years:
+        errors.append(
+            "Employee remittance audit missing years: "
+            f"{', '.join(str(year) for year in missing_years)}"
+        )
+
     duplicates = audit[audit.duplicated(subset=["year", "perimeter"], keep=False)]
     for _, duplicate_row in duplicates.iterrows():
         errors.append(
@@ -575,6 +613,16 @@ def validate_employee_remittance_audit(path: str) -> list[str]:
             f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'perimeter')}"
         )
 
+    source_ids = _source_ids(source_registry_path)
+    allowed_statuses = {
+        "blocked_missing_legal_payroll_and_revenue_data",
+        "blocked_missing_payroll_and_revenue_data",
+        "complete",
+    }
+    allowed_legal_rate_basis = {
+        "blocked_missing_primary_law_rate_history",
+        "bounded_legal_registry_worker_total",
+    }
     complete_fields = {
         "legal_worker_liability",
         "withheld_from_payroll",
@@ -585,16 +633,69 @@ def validate_employee_remittance_audit(path: str) -> list[str]:
         "perimeter_adjustment",
         "unexplained_remittance_gap",
     }
+    required_blocked_inputs = {
+        "base_definition_adjustment",
+        "perimeter_adjustment",
+        "recorded_cga_worker_revenue",
+        "timing_adjustments",
+        "withheld_from_payroll",
+    }
     for row_number, record in enumerate(audit.to_dict("records"), start=2):
         for column in required_columns.difference(complete_fields):
+            if (
+                column == "legal_worker_rate_total"
+                and _field(record, "status") == "blocked_missing_legal_payroll_and_revenue_data"
+            ):
+                continue
             if not _field(record, column):
                 errors.append(f"Missing {column} on employee remittance audit row {row_number}")
+
+        for source_id in _field(record, "source_ids").split(";"):
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    "Employee remittance row "
+                    f"{row_number} references unknown source_id: {source_id}"
+                )
+
+        rate_basis = _field(record, "legal_rate_basis")
+        if rate_basis and rate_basis not in allowed_legal_rate_basis:
+            errors.append(
+                f"Unexpected employee remittance legal_rate_basis on row {row_number}: {rate_basis}"
+            )
+
+        claim_permitted = _field(record, "claim_permitted")
+        if claim_permitted not in {"no", "yes"}:
+            errors.append(f"Employee remittance row {row_number} must use yes/no claim flag")
+
         status = _field(record, "status")
         if status == "complete":
             for column in complete_fields:
                 if not _field(record, column):
                     errors.append(f"Complete employee remittance row {row_number} missing {column}")
-        elif not status.startswith("blocked"):
+            if claim_permitted != "yes":
+                errors.append(f"Complete employee remittance row {row_number} must permit claim")
+            if all(_field(record, column) for column in complete_fields):
+                errors.extend(_validate_employee_remittance_gap(record, row_number))
+        elif status in allowed_statuses:
+            if claim_permitted != "no":
+                errors.append(
+                    f"Incomplete employee remittance row {row_number} cannot permit claim"
+                )
+            missing_inputs = set(_field(record, "missing_inputs").split(";"))
+            for missing_input in sorted(required_blocked_inputs.difference(missing_inputs)):
+                errors.append(
+                    f"Incomplete employee remittance row {row_number} missing blocker for "
+                    f"{missing_input}"
+                )
+            if status == "blocked_missing_payroll_and_revenue_data" and not _field(
+                record,
+                "legal_worker_rate_total",
+            ):
+                errors.append(
+                    f"Employee remittance row {row_number} has payroll/revenue blocker "
+                    "but no legal rate"
+                )
+        else:
             errors.append(
                 f"Unexpected employee remittance audit status on row {row_number}: {status}"
             )
@@ -603,6 +704,13 @@ def validate_employee_remittance_audit(path: str) -> list[str]:
             value = _field(record, column)
             if value:
                 _numeric(value, column)
+        notes = _field(record, "notes").lower()
+        if status.startswith("blocked") and not any(
+            guard in notes for guard in ("no remittance gap", "not separately extracted")
+        ):
+            errors.append(
+                f"Blocked employee remittance row {row_number} must avoid remittance-gap claims"
+            )
     return errors
 
 
@@ -853,6 +961,36 @@ def _validate_cga_complete_identity(row: Any, row_number: int) -> list[str]:
     if not math.isclose(result.residual, recorded_residual, rel_tol=0.0, abs_tol=0.11):
         return [f"CGA complete financing identity residual fails on row {row_number}"]
     return []
+
+
+def _validate_employee_remittance_gap(row: Any, row_number: int) -> list[str]:
+    expected_gap = employee_remittance_gap(
+        withheld_from_payroll=_numeric(row["withheld_from_payroll"], "withheld_from_payroll"),
+        recorded_cga_worker_revenue=_numeric(
+            row["recorded_cga_worker_revenue"],
+            "recorded_cga_worker_revenue",
+        ),
+        timing_adjustments=_numeric(row["timing_adjustments"], "timing_adjustments"),
+        arrears_corrections=_numeric(row["arrears_corrections"], "arrears_corrections"),
+        base_definition_adjustment=_numeric(
+            row["base_definition_adjustment"],
+            "base_definition_adjustment",
+        ),
+        perimeter_adjustment=_numeric(row["perimeter_adjustment"], "perimeter_adjustment"),
+    )
+    recorded_gap = _numeric(row["unexplained_remittance_gap"], "unexplained_remittance_gap")
+    if not math.isclose(expected_gap, recorded_gap, rel_tol=0.0, abs_tol=0.11):
+        return [f"Employee remittance gap residual fails on row {row_number}"]
+    return []
+
+
+def _numeric_adjustment(value: float, name: str) -> float:
+    if not isinstance(value, (int, float)):
+        raise TypeError(f"{name} must be numeric")
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        raise ValueError(f"{name} must be finite")
+    return numeric
 
 
 def _numeric(value: str, name: str) -> float:
