@@ -2,6 +2,7 @@ from pathlib import Path
 
 from portugal_pensions.accounting import (
     reconcile_financing_identity,
+    validate_cga_closed_scheme_decomposition,
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
@@ -47,6 +48,31 @@ def test_repository_cga_financing_ledger_is_valid() -> None:
         validate_cga_financing_ledger(str(root / "data" / "processed" / "cga_financing_ledger.csv"))
         == []
     )
+
+
+def test_repository_cga_closed_scheme_decomposition_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_cga_closed_scheme_decomposition(
+            str(root / "data" / "processed" / "cga_closed_scheme_decomposition.csv")
+        )
+        == []
+    )
+
+
+def test_cga_closed_scheme_blocks_incomplete_causality(tmp_path: Path) -> None:
+    ledger = tmp_path / "cga_closed_scheme_decomposition.csv"
+    ledger.write_text(
+        "record_id,year,driver,identity_role,observed_value,counterfactual_value,"
+        "balance_effect_value,unit,price_basis,accounting_basis,perimeter,source_ids,"
+        "status,blocking_issue,causal_claim_permitted,notes\n"
+        "ROW,2006-2025,contributor_count,driver,,,,count,not_applicable,basis,"
+        "perimeter,SRC,blocked_missing_inputs,missing_counts,yes,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_cga_closed_scheme_decomposition(str(ledger))
+    assert "Incomplete CGA closed-scheme row ROW cannot permit causality" in errors
 
 
 def test_repository_pension_flow_of_funds_is_valid() -> None:

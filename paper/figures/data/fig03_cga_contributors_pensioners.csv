@@ -1,3 +1,4 @@
 figure_id,year,series,value,unit,source_dataset,source_ids,status,notes
-FIG03,2011,contributor_count,,count,data/processed/cga_financing_ledger.csv,DGO_CGE_2011,blocked_missing_component_values,CGA contributor count is not available in the processed ledger
-FIG03,2011,pensioner_count,,count,data/processed/cga_financing_ledger.csv,DGO_CGE_2011,blocked_missing_component_values,CGA pensioner count is not available in the processed ledger
+FIG03,2006-2025,contributor_count,,count,data/processed/cga_closed_scheme_decomposition.csv,DR_LEI60_2005;DGO_CGE_2011,blocked_missing_component_values,CGA annual contributor counts are required before drawing the closed-scheme dependency path
+FIG03,2006-2025,pensioner_count,,count,data/processed/cga_closed_scheme_decomposition.csv,DGO_CGE_2011,blocked_missing_component_values,CGA annual pensioner and survivor counts are required before drawing the closed-scheme dependency path
+FIG03,2006-2025,dependency_ratio,,ratio,data/processed/cga_closed_scheme_decomposition.csv,DR_LEI60_2005;DGO_CGE_2011,blocked_missing_component_values,Dependency ratio cannot be computed until contributor pensioner and survivor counts are registered

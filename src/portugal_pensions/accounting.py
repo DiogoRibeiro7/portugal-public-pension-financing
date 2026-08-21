@@ -171,6 +171,91 @@ def validate_cga_financing_ledger(path: str) -> list[str]:
     return errors
 
 
+def validate_cga_closed_scheme_decomposition(path: str) -> list[str]:
+    """Return validation errors for the CGA closed-scheme decomposition ledger."""
+    ledger = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "record_id",
+        "year",
+        "driver",
+        "identity_role",
+        "observed_value",
+        "counterfactual_value",
+        "balance_effect_value",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "perimeter",
+        "source_ids",
+        "status",
+        "blocking_issue",
+        "causal_claim_permitted",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(ledger.columns))
+    if missing_columns:
+        return [f"CGA closed-scheme decomposition missing columns: {', '.join(missing_columns)}"]
+
+    required_drivers = {
+        "average_pension_and_survivor_benefit",
+        "closed_scheme_cash_balance",
+        "contribution_base_payroll",
+        "contributor_count",
+        "pensioner_count",
+        "policy_contribution_rate",
+        "residual_attribution_boundary",
+        "state_and_other_transfers",
+    }
+    observed_drivers = set(ledger["driver"].dropna().astype(str))
+    errors: list[str] = []
+    for driver in sorted(required_drivers.difference(observed_drivers)):
+        errors.append(f"Missing CGA closed-scheme driver: {driver}")
+
+    duplicates = ledger[ledger.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(f"Duplicate CGA closed-scheme row: {_field(duplicate_row, 'record_id')}")
+
+    allowed_statuses = {
+        "blocked_missing_inputs",
+        "complete",
+        "identity_registered",
+        "partial_bounded_reconstruction",
+    }
+    allowed_units = {"EUR_million", "count", "not_applicable", "percent", "ratio"}
+    for row_number, record in enumerate(ledger.to_dict("records"), start=2):
+        record_id = _field(record, "record_id") or f"row {row_number}"
+        for column in required_columns.difference(
+            {"observed_value", "counterfactual_value", "balance_effect_value"}
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on CGA closed-scheme row {row_number}")
+
+        status = _field(record, "status")
+        if status and status not in allowed_statuses:
+            errors.append(f"Unexpected CGA closed-scheme status on row {row_number}: {status}")
+        if status.startswith("blocked") and _field(record, "blocking_issue") in {"", "none"}:
+            errors.append(f"Blocked CGA closed-scheme row {record_id} must name a blocker")
+
+        causal_claim = _field(record, "causal_claim_permitted")
+        if causal_claim not in {"no", "yes"}:
+            errors.append(f"CGA closed-scheme row {record_id} must use yes/no causal claim flag")
+        if status != "complete" and causal_claim != "no":
+            errors.append(f"Incomplete CGA closed-scheme row {record_id} cannot permit causality")
+
+        unit = _field(record, "unit")
+        if unit and unit not in allowed_units:
+            errors.append(f"Unexpected CGA closed-scheme unit on row {row_number}: {unit}")
+
+        for column in ("observed_value", "counterfactual_value", "balance_effect_value"):
+            value = _field(record, column)
+            if value:
+                _numeric(value, column)
+        if status == "complete" and not _field(record, "balance_effect_value"):
+            errors.append(f"Complete CGA closed-scheme row {record_id} missing balance effect")
+
+    return errors
+
+
 def validate_pension_flow_of_funds(path: str) -> list[str]:
     """Return validation errors for the long-form pension flow-of-funds matrix."""
     matrix = pd.read_csv(path, dtype=str)
