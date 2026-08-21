@@ -31,6 +31,7 @@ from .banking import (
 from .counterfactuals import (
     validate_counterfactual_financing_regimes,
     validate_public_worker_reallocation,
+    validate_public_worker_reallocation_bridge,
 )
 from .extraction import parse_accounting_number
 from .legal import (
@@ -792,6 +793,16 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_public_worker_reallocation(
                 str(public_worker_cohorts),
                 str(public_worker_contributions),
+            )
+        )
+    public_worker_bridge = (
+        evidence_dir.parent / "data" / "processed" / "public_worker_reallocation_bridge.csv"
+    )
+    if public_worker_bridge.is_file():
+        errors.extend(
+            validate_public_worker_reallocation_bridge(
+                str(public_worker_bridge),
+                str(evidence_dir / "source_registry.csv"),
             )
         )
     counterfactual_regimes = (

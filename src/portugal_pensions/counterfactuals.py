@@ -62,6 +62,29 @@ def funding_substitution(
     return effective_employer, adjusted_state
 
 
+def public_worker_reallocation_flow(
+    contribution_base: float,
+    worker_rate: float,
+    employer_rate: float,
+) -> tuple[float, float, float]:
+    """Compute the mechanical RGSS contribution flow for a post-2006 public cohort."""
+    base = _finite(contribution_base, "contribution_base")
+    worker = _finite(worker_rate, "worker_rate")
+    employer = _finite(employer_rate, "employer_rate")
+    if base < 0.0:
+        raise ValueError("contribution_base must be non-negative")
+    for name, rate in (("worker_rate", worker), ("employer_rate", employer)):
+        if rate < 0.0 or rate > 1.0:
+            raise ValueError(f"{name} must be between 0 and 1")
+    employee_contributions = base * worker
+    employer_contributions = base * employer
+    return (
+        employee_contributions,
+        employer_contributions,
+        employee_contributions + employer_contributions,
+    )
+
+
 def validate_counterfactual_financing_regimes(
     registry_path: str,
     regimes_path: str,
@@ -243,6 +266,209 @@ def validate_public_worker_reallocation(
     return errors
 
 
+def validate_public_worker_reallocation_bridge(
+    bridge_path: str,
+    source_registry_path: str | None = None,
+) -> list[str]:
+    """Return validation errors for the post-2006 public-worker flow bridge."""
+    bridge = pd.read_csv(bridge_path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "year",
+        "mechanism",
+        "flow_component",
+        "worker_count",
+        "contribution_base",
+        "worker_rate",
+        "employer_rate",
+        "employee_contributions",
+        "employer_contributions",
+        "total_contributions",
+        "unit",
+        "price_basis",
+        "accounting_basis",
+        "excluded_effects",
+        "source_ids",
+        "status",
+        "missing_inputs",
+        "claim_permitted",
+        "notes",
+    }
+    value_columns = {
+        "worker_count",
+        "contribution_base",
+        "worker_rate",
+        "employer_rate",
+        "employee_contributions",
+        "employer_contributions",
+        "total_contributions",
+    }
+    errors = _missing_columns(bridge, required_columns, "public worker reallocation bridge")
+    if errors:
+        return errors
+
+    duplicates = bridge[
+        bridge.duplicated(subset=["year", "mechanism", "flow_component"], keep=False)
+    ]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate public worker reallocation bridge row for "
+            f"year {_field(duplicate_row, 'year')}"
+        )
+
+    years: list[int] = []
+    source_ids = _registered_source_ids(source_registry_path)
+    required_missing_inputs = {
+        "public_worker_new_entrant_counts",
+        "contribution_base_payroll",
+        "applicable_rgss_worker_rate",
+        "applicable_rgss_employer_rate",
+    }
+    excluded_effects = {
+        "demographic_change",
+        "wage_growth",
+        "general_labour_market_effects",
+    }
+
+    for row_number, record in enumerate(bridge.to_dict("records"), start=2):
+        year_text = _field(record, "year")
+        try:
+            years.append(int(year_text))
+        except ValueError:
+            errors.append(f"Invalid year on public worker reallocation bridge row {row_number}")
+
+        for column in required_columns.difference(value_columns):
+            if not _field(record, column):
+                errors.append(
+                    f"Missing {column} on public worker reallocation bridge row {row_number}"
+                )
+        if _field(record, "mechanism") != "post_2006_cga_closure_new_entrants_to_rgss":
+            errors.append(
+                f"Unexpected mechanism on public worker reallocation bridge row {row_number}"
+            )
+        if _field(record, "flow_component") != "mechanical_reallocation":
+            errors.append(
+                "public worker reallocation bridge must isolate mechanical_reallocation "
+                f"on row {row_number}"
+            )
+        observed_exclusions = {
+            value.strip()
+            for value in _field(record, "excluded_effects").split(";")
+            if value.strip()
+        }
+        if not excluded_effects.issubset(observed_exclusions):
+            errors.append(
+                "public worker reallocation bridge must exclude demographic wage and "
+                f"labour-market effects on row {row_number}"
+            )
+
+        status = _field(record, "status")
+        if not (status.startswith("blocked") or status in {"estimated", "complete"}):
+            errors.append(
+                f"Unexpected public worker reallocation bridge status on row {row_number}: {status}"
+            )
+        missing_inputs = {
+            value.strip() for value in _field(record, "missing_inputs").split(";") if value.strip()
+        }
+        if status.startswith("blocked"):
+            if _field(record, "claim_permitted") != "no":
+                errors.append(
+                    "Blocked public worker reallocation bridge rows must not permit claims "
+                    f"on row {row_number}"
+                )
+            if not required_missing_inputs.issubset(missing_inputs):
+                errors.append(
+                    "Blocked public worker reallocation bridge row is missing required "
+                    f"input blockers on row {row_number}"
+                )
+
+        numeric_values: dict[str, float] = {}
+        for column in value_columns:
+            value = _field(record, column)
+            if not value:
+                continue
+            try:
+                numeric_value = _finite(float(value), column)
+            except ValueError:
+                errors.append(
+                    f"{column} must be numeric on public worker reallocation bridge row "
+                    f"{row_number}"
+                )
+                continue
+            if numeric_value < 0.0:
+                errors.append(
+                    f"{column} must be non-negative on public worker reallocation bridge "
+                    f"row {row_number}"
+                )
+            if column in {"worker_rate", "employer_rate"} and numeric_value > 1.0:
+                errors.append(
+                    f"{column} must be at most 1 on public worker reallocation bridge "
+                    f"row {row_number}"
+                )
+            numeric_values[column] = numeric_value
+
+        if status == "complete":
+            missing_numeric = sorted(value_columns.difference(numeric_values))
+            for column in missing_numeric:
+                errors.append(
+                    f"Missing {column} on complete public worker reallocation bridge row "
+                    f"{row_number}"
+                )
+        formula_columns = {
+            "contribution_base",
+            "worker_rate",
+            "employer_rate",
+            "employee_contributions",
+            "employer_contributions",
+            "total_contributions",
+        }
+        if formula_columns.issubset(numeric_values):
+            try:
+                employee, employer, total = public_worker_reallocation_flow(
+                    numeric_values["contribution_base"],
+                    numeric_values["worker_rate"],
+                    numeric_values["employer_rate"],
+                )
+            except ValueError as error:
+                errors.append(
+                    "Invalid contribution-flow inputs on public worker reallocation bridge "
+                    f"row {row_number}: {error}"
+                )
+                continue
+            if not math.isclose(
+                numeric_values["employee_contributions"], employee, rel_tol=0.0, abs_tol=0.01
+            ):
+                errors.append(
+                    "Employee contribution residual on public worker reallocation bridge "
+                    f"row {row_number}"
+                )
+            if not math.isclose(
+                numeric_values["employer_contributions"], employer, rel_tol=0.0, abs_tol=0.01
+            ):
+                errors.append(
+                    "Employer contribution residual on public worker reallocation bridge "
+                    f"row {row_number}"
+                )
+            if not math.isclose(
+                numeric_values["total_contributions"], total, rel_tol=0.0, abs_tol=0.01
+            ):
+                errors.append(
+                    "Total contribution residual on public worker reallocation bridge "
+                    f"row {row_number}"
+                )
+
+        for source_id in _field(record, "source_ids").split(";"):
+            source_id = source_id.strip()
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    f"Unknown source_id on public worker reallocation bridge row "
+                    f"{row_number}: {source_id}"
+                )
+
+    if sorted(years) != list(range(2006, 2026)):
+        errors.append("public worker reallocation bridge must cover every year from 2006 to 2025")
+    return errors
+
+
 def _missing_columns(
     table: pd.DataFrame,
     required_columns: set[str],
@@ -290,3 +516,12 @@ def _field(row: Any, column: str) -> str:
     if pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def _registered_source_ids(source_registry_path: str | None) -> set[str] | None:
+    if source_registry_path is None:
+        return None
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    if "source_id" not in sources.columns:
+        return set()
+    return set(sources["source_id"])

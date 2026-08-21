@@ -5,8 +5,10 @@ import pytest
 from portugal_pensions.counterfactuals import (
     compound_reserve,
     funding_substitution,
+    public_worker_reallocation_flow,
     validate_counterfactual_financing_regimes,
     validate_public_worker_reallocation,
+    validate_public_worker_reallocation_bridge,
 )
 
 
@@ -20,12 +22,30 @@ def test_funding_substitution_does_not_create_extra_cash() -> None:
     assert employer + state == pytest.approx(100.0)
 
 
+def test_public_worker_reallocation_flow_identity() -> None:
+    employee, employer, total = public_worker_reallocation_flow(1000.0, 0.11, 0.2375)
+    assert employee == pytest.approx(110.0)
+    assert employer == pytest.approx(237.5)
+    assert total == pytest.approx(347.5)
+
+
 def test_repository_public_worker_reallocation_files_are_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
         validate_public_worker_reallocation(
             str(root / "data" / "processed" / "public_worker_rgss_cohorts.csv"),
             str(root / "data" / "processed" / "public_worker_rgss_contributions_2006_2025.csv"),
+        )
+        == []
+    )
+
+
+def test_repository_public_worker_reallocation_bridge_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_public_worker_reallocation_bridge(
+            str(root / "data" / "processed" / "public_worker_reallocation_bridge.csv"),
+            str(root / "evidence" / "source_registry.csv"),
         )
         == []
     )
@@ -108,3 +128,50 @@ def test_public_worker_reallocation_requires_full_year_coverage(tmp_path: Path) 
 
     errors = validate_public_worker_reallocation(str(cohorts), str(contributions))
     assert "public worker cohort table must cover every year from 2006 to 2025" in errors
+
+
+def test_public_worker_reallocation_bridge_blocks_claims_without_inputs(tmp_path: Path) -> None:
+    source_registry = tmp_path / "source_registry.csv"
+    source_registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2006,url,url,2026-08-21,2006,cash,,,,notes\n",
+        encoding="utf-8",
+    )
+    bridge = tmp_path / "bridge.csv"
+    bridge.write_text(
+        "year,mechanism,flow_component,worker_count,contribution_base,worker_rate,"
+        "employer_rate,employee_contributions,employer_contributions,total_contributions,"
+        "unit,price_basis,accounting_basis,excluded_effects,source_ids,status,"
+        "missing_inputs,claim_permitted,notes\n"
+        "2006,post_2006_cga_closure_new_entrants_to_rgss,mechanical_reallocation,"
+        ",,,,,,,EUR_million,current_prices,cash_contribution_flow,"
+        "demographic_change;wage_growth;general_labour_market_effects,SRC,"
+        "blocked_missing_public_employment_payroll,"
+        "public_worker_new_entrant_counts;contribution_base_payroll;"
+        "applicable_rgss_worker_rate;applicable_rgss_employer_rate,yes,missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_public_worker_reallocation_bridge(str(bridge), str(source_registry))
+    assert (
+        "Blocked public worker reallocation bridge rows must not permit claims on row 2" in errors
+    )
+
+
+def test_public_worker_reallocation_bridge_checks_arithmetic_residual(tmp_path: Path) -> None:
+    bridge = tmp_path / "bridge.csv"
+    bridge.write_text(
+        "year,mechanism,flow_component,worker_count,contribution_base,worker_rate,"
+        "employer_rate,employee_contributions,employer_contributions,total_contributions,"
+        "unit,price_basis,accounting_basis,excluded_effects,source_ids,status,"
+        "missing_inputs,claim_permitted,notes\n"
+        "2006,post_2006_cga_closure_new_entrants_to_rgss,mechanical_reallocation,"
+        "10,1000,0.11,0.2375,110,237.5,300,EUR_million,current_prices,"
+        "cash_contribution_flow,demographic_change;wage_growth;"
+        "general_labour_market_effects,SRC,complete,,yes,complete\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_public_worker_reallocation_bridge(str(bridge))
+    assert "Total contribution residual on public worker reallocation bridge row 2" in errors
