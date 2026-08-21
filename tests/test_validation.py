@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from portugal_pensions.validation import (
+    validate_analysis_protocol,
     validate_article_evidence,
     validate_claim_language_audit,
     validate_evidence_directory,
@@ -24,6 +25,17 @@ def test_repository_evidence_files_exist() -> None:
 def test_repository_zenodo_metadata_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert validate_zenodo_metadata(root / ".zenodo.json") == []
+
+
+def test_repository_analysis_protocol_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_analysis_protocol(
+            root / "evidence" / "analysis_protocol.csv",
+            root / "evidence" / "analysis_protocol_hash.csv",
+        )
+        == []
+    )
 
 
 def test_repository_falsification_review_is_valid() -> None:
@@ -139,6 +151,31 @@ def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -
     assert (
         "Manuscript does not reference article evidence row: AE_REQUIRED"
         in validate_manuscript_draft(manuscript, article)
+    )
+
+
+def test_analysis_protocol_rejects_hash_mismatch(tmp_path: Path) -> None:
+    protocol = tmp_path / "analysis_protocol.csv"
+    hash_file = tmp_path / "analysis_protocol_hash.csv"
+    protocol.write_text(
+        "hypothesis_id,estimand_id,formula,numerator,denominator,population,period,unit,"
+        "accounting_basis,perimeter,primary_sources,tolerance_rule,materiality_rule,"
+        "falsification_rule,exploratory_or_confirmatory,counterfactual_class,"
+        "alternative_perimeter_set,required_source_class,protocol_version,status\n"
+        "H1,E,formula,num,den,pop,period,unit,basis,perimeter,sources,tolerance,"
+        "material if threshold exceeded,falsification,confirmatory,not_applicable,"
+        "not_applicable,sources,0.3.0,defined_requires_sources\n",
+        encoding="utf-8",
+    )
+    hash_file.write_text(
+        "protocol_version,artifact_path,sha256,status,notes\n"
+        f"0.3.0,evidence/analysis_protocol.csv,{'0' * 64},protocol_frozen,notes\n",
+        encoding="utf-8",
+    )
+
+    assert (
+        "Analysis protocol hash does not match analysis_protocol.csv"
+        in validate_analysis_protocol(protocol, hash_file)
     )
 
 
