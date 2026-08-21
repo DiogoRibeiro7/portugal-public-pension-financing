@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -98,6 +99,22 @@ REQUIRED_SUBMISSION_PACKAGE_ITEMS: frozenset[str] = frozenset(
         "SUB_METHODS_APPENDIX",
         "SUB_RELEASE_AUDIT",
         "SUB_REPLICATION_GUIDE",
+    }
+)
+
+REQUIRED_CLAIM_LANGUAGE_TERMS: frozenset[str] = frozenset(
+    {
+        "artificial",
+        "debt",
+        "deficit",
+        "diverted",
+        "harmful",
+        "loss",
+        "losses",
+        "subsidy",
+        "surplus",
+        "sustainable",
+        "underfunded",
     }
 )
 
@@ -299,6 +316,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     manuscript = evidence_dir.parent / "paper" / "manuscript.tex"
     if manuscript.is_file() and article_evidence.is_file():
         errors.extend(validate_manuscript_draft(manuscript, article_evidence))
+    language_audit = (
+        evidence_dir.parent / "data" / "processed" / "manuscript_claim_language_audit.csv"
+    )
+    if language_audit.is_file() and manuscript.is_file():
+        errors.extend(validate_claim_language_audit(language_audit, manuscript))
     return errors
 
 
@@ -918,6 +940,92 @@ def validate_submission_package(
                     f"Submission package artifact {artifact_path.relative_to(root)} "
                     f"missing phrase: {phrase}"
                 )
+
+    return errors
+
+
+def validate_claim_language_audit(
+    audit_path: Path,
+    manuscript_path: Path,
+) -> list[str]:
+    """Return validation errors for the manuscript loaded-language audit."""
+    if not isinstance(audit_path, Path):
+        raise TypeError("audit_path must be pathlib.Path")
+    if not isinstance(manuscript_path, Path):
+        raise TypeError("manuscript_path must be pathlib.Path")
+
+    audit = pd.read_csv(audit_path, dtype=str)
+    manuscript = manuscript_path.read_text(encoding="utf-8").lower()
+    required_columns = {
+        "term",
+        "occurrence_count",
+        "concept_mapping",
+        "boundary_status",
+        "claim_ids",
+        "evidence_ids",
+        "allowed_context",
+        "prohibited_inference",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(audit.columns))
+    if missing_columns:
+        return [f"Claim language audit missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    observed_terms = set(audit["term"].dropna().astype(str))
+    for term in sorted(REQUIRED_CLAIM_LANGUAGE_TERMS.difference(observed_terms)):
+        errors.append(f"Missing claim language audit term: {term}")
+
+    duplicates = audit[audit.duplicated(subset=["term"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate claim language audit term: {_registry_field(duplicate_row, 'term')}"
+        )
+
+    allowed_statuses = {"blocked_absent", "blocked_negated", "bounded_use"}
+    for row_number, record in enumerate(audit.to_dict("records"), start=2):
+        term = _registry_field(record, "term") or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on claim language audit row {row_number}")
+
+        status = _registry_field(record, "boundary_status")
+        if status and status not in allowed_statuses:
+            errors.append(f"Unexpected claim language status on row {row_number}: {status}")
+
+        count_text = _registry_field(record, "occurrence_count")
+        try:
+            recorded_count = int(count_text)
+        except ValueError:
+            errors.append(f"Claim language audit term {term} has noninteger occurrence_count")
+            continue
+        actual_count = len(re.findall(rf"(?<![a-z]){re.escape(term.lower())}(?![a-z])", manuscript))
+        if recorded_count != actual_count:
+            errors.append(
+                f"Claim language audit term {term} count mismatch: "
+                f"recorded {recorded_count}, actual {actual_count}"
+            )
+
+        if recorded_count > 0 and status == "blocked_absent":
+            errors.append(f"Present claim language term {term} cannot be blocked_absent")
+        if recorded_count == 0 and status != "blocked_absent":
+            errors.append(f"Absent claim language term {term} must be blocked_absent")
+        if recorded_count > 0 and _registry_field(record, "claim_ids") == "not_applicable":
+            errors.append(f"Present claim language term {term} must map to a claim")
+        if recorded_count > 0 and _registry_field(record, "evidence_ids") == "not_applicable":
+            errors.append(f"Present claim language term {term} must map to evidence or blocker")
+
+    unsupported_phrases = {
+        "was diverted",
+        "were diverted",
+        "was underfunded",
+        "bank-transfer subsidy.",
+        "social security surplus is artificial",
+        "proves sustainability",
+    }
+    for phrase in sorted(unsupported_phrases):
+        if phrase in manuscript:
+            errors.append(f"Manuscript contains unsupported loaded phrase: {phrase}")
 
     return errors
 
