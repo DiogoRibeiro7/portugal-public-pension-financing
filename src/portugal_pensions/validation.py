@@ -32,7 +32,7 @@ from .counterfactuals import (
     validate_public_worker_reallocation,
 )
 from .extraction import parse_accounting_number
-from .legal import validate_legal_contribution_registry
+from .legal import validate_employer_perimeter_registry, validate_legal_contribution_registry
 from .units import load_unit_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
@@ -45,6 +45,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "unit_registry.csv",
     "claim_registry.csv",
     "legal_contribution_registry.csv",
+    "employer_perimeter_registry.csv",
     "bank_pension_transfer_registry.csv",
     "bank_special_regime_annual.csv",
     "extraction_audit.csv",
@@ -664,6 +665,14 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_legal_contribution_registry(
                 str(evidence_dir / "legal_contribution_registry.csv"),
                 str(evidence_dir / "source_registry.csv"),
+            )
+        )
+    if (evidence_dir / "employer_perimeter_registry.csv").is_file():
+        errors.extend(
+            validate_employer_perimeter_registry(
+                str(evidence_dir / "employer_perimeter_registry.csv"),
+                str(evidence_dir / "source_registry.csv"),
+                str(evidence_dir / "legal_contribution_registry.csv"),
             )
         )
     if (evidence_dir / "bank_pension_transfer_registry.csv").is_file():
