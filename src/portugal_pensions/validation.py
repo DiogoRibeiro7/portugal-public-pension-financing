@@ -51,6 +51,8 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "reconciliation_log.csv",
     "data_quality_registry.csv",
     "counterfactual_registry.csv",
+    "source_conflict_registry.csv",
+    "uncertainty_registry.csv",
     "article_evidence.csv",
     "literature_map.csv",
     "figure_registry.csv",
@@ -441,6 +443,71 @@ UNIT_REGISTRY_CONVERSION_RULES: frozenset[str] = frozenset(
     }
 )
 
+SOURCE_CONFLICT_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "conflict_id",
+        "concept_id",
+        "period",
+        "source_id_a",
+        "value_a",
+        "source_id_b",
+        "value_b",
+        "unit",
+        "difference_type",
+        "tolerance_rule",
+        "materiality_rule",
+        "resolution",
+        "status",
+        "uncertainty_id",
+        "notes",
+    }
+)
+
+SOURCE_CONFLICT_DIFFERENCE_TYPES: frozenset[str] = frozenset(
+    {
+        "accounting_basis",
+        "perimeter_and_accounting_item",
+        "rounding",
+        "rounding_and_component_split",
+        "rounding_approximation",
+        "timing",
+        "transcription",
+        "unresolved",
+    }
+)
+
+SOURCE_CONFLICT_STATUSES: frozenset[str] = frozenset(
+    {
+        "documented_not_same_quantity",
+        "reconciled_approximation",
+        "reconciled_by_estimand",
+        "reconciled_rounding",
+        "unresolved_range",
+    }
+)
+
+UNCERTAINTY_REGISTRY_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "estimate_id",
+        "source_or_model",
+        "lower",
+        "central",
+        "upper",
+        "unit",
+        "uncertainty_reason",
+        "method",
+        "status",
+    }
+)
+
+UNCERTAINTY_STATUSES: frozenset[str] = frozenset(
+    {
+        "reconciled_bounded",
+        "reconciled_rounding",
+        "unresolved_range",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -497,6 +564,18 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "unit_registry.csv").is_file():
         errors.extend(
             validate_unit_registry(evidence_dir / "unit_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "source_conflict_registry.csv").is_file() and (
+        evidence_dir / "uncertainty_registry.csv"
+    ).is_file():
+        errors.extend(
+            validate_conflict_and_uncertainty_registries(
+                evidence_dir / "source_conflict_registry.csv",
+                evidence_dir / "uncertainty_registry.csv",
+                evidence_dir / "source_registry.csv",
+                evidence_dir / "concept_registry.csv",
+                evidence_dir / "unit_registry.csv",
+            )
         )
     if (evidence_dir / "source_acquisition_log.csv").is_file():
         errors.extend(
@@ -690,6 +769,126 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def validate_conflict_and_uncertainty_registries(
+    conflict_path: Path,
+    uncertainty_path: Path,
+    source_registry_path: Path,
+    concept_registry_path: Path,
+    unit_registry_path: Path,
+) -> list[str]:
+    """Return validation errors for conflict and uncertainty registries."""
+    for path, name in (
+        (conflict_path, "conflict_path"),
+        (uncertainty_path, "uncertainty_path"),
+        (source_registry_path, "source_registry_path"),
+        (concept_registry_path, "concept_registry_path"),
+        (unit_registry_path, "unit_registry_path"),
+    ):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+
+    conflicts = pd.read_csv(conflict_path, dtype=str, keep_default_na=False)
+    uncertainty = pd.read_csv(uncertainty_path, dtype=str, keep_default_na=False)
+    missing_conflict_columns = sorted(
+        SOURCE_CONFLICT_REQUIRED_COLUMNS.difference(conflicts.columns)
+    )
+    if missing_conflict_columns:
+        return [f"Source conflict registry missing columns: {', '.join(missing_conflict_columns)}"]
+    missing_uncertainty_columns = sorted(
+        UNCERTAINTY_REGISTRY_REQUIRED_COLUMNS.difference(uncertainty.columns)
+    )
+    if missing_uncertainty_columns:
+        return [f"Uncertainty registry missing columns: {', '.join(missing_uncertainty_columns)}"]
+
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    concepts = pd.read_csv(concept_registry_path, dtype=str, keep_default_na=False)
+    units = pd.read_csv(unit_registry_path, dtype=str, keep_default_na=False)
+    source_ids = set(sources["source_id"])
+    concept_ids = set(concepts["concept_id"])
+    unit_ids = set(units["unit_id"])
+    uncertainty_ids = set(uncertainty["estimate_id"])
+
+    errors: list[str] = []
+    duplicate_conflicts = sorted(
+        conflicts.loc[conflicts["conflict_id"].duplicated(), "conflict_id"].dropna().unique()
+    )
+    for conflict_id in duplicate_conflicts:
+        errors.append(f"Duplicate source conflict row: {conflict_id}")
+
+    duplicate_uncertainty = sorted(
+        uncertainty.loc[uncertainty["estimate_id"].duplicated(), "estimate_id"].dropna().unique()
+    )
+    for estimate_id in duplicate_uncertainty:
+        errors.append(f"Duplicate uncertainty row: {estimate_id}")
+
+    if len(conflicts) < 5:
+        errors.append("Source conflict registry must contain at least 5 bounded conflict rows")
+    if len(uncertainty) < 5:
+        errors.append("Uncertainty registry must contain at least 5 bounded uncertainty rows")
+
+    for row in conflicts.to_dict("records"):
+        conflict_id = row["conflict_id"].strip()
+        if not conflict_id:
+            errors.append("Source conflict registry contains a row with empty conflict_id")
+            continue
+        for column in SOURCE_CONFLICT_REQUIRED_COLUMNS:
+            if not row[column].strip():
+                errors.append(f"Source conflict row {conflict_id} has empty {column}")
+        if row["concept_id"] not in concept_ids:
+            errors.append(f"Source conflict {conflict_id} references unknown concept_id")
+        for source_id in (row["source_id_a"], row["source_id_b"]):
+            if source_id not in source_ids:
+                errors.append(
+                    f"Source conflict {conflict_id} references unknown source_id: {source_id}"
+                )
+        if row["unit"] not in unit_ids:
+            errors.append(f"Source conflict {conflict_id} references unknown unit")
+        if row["difference_type"] not in SOURCE_CONFLICT_DIFFERENCE_TYPES:
+            errors.append(
+                f"Source conflict {conflict_id} has invalid difference_type: "
+                f"{row['difference_type']}"
+            )
+        if row["status"] not in SOURCE_CONFLICT_STATUSES:
+            errors.append(f"Source conflict {conflict_id} has invalid status: {row['status']}")
+        if row["uncertainty_id"] not in uncertainty_ids:
+            errors.append(f"Source conflict {conflict_id} references unknown uncertainty_id")
+        if row["status"] == "unresolved_range" and "range" not in row["resolution"].lower():
+            errors.append(f"Unresolved conflict {conflict_id} must document a range")
+        try:
+            float(row["value_a"])
+            float(row["value_b"])
+        except ValueError:
+            errors.append(f"Source conflict {conflict_id} has non-numeric conflict value")
+
+    for row in uncertainty.to_dict("records"):
+        estimate_id = row["estimate_id"].strip()
+        if not estimate_id:
+            errors.append("Uncertainty registry contains a row with empty estimate_id")
+            continue
+        for column in UNCERTAINTY_REGISTRY_REQUIRED_COLUMNS.difference({"central"}):
+            if not row[column].strip():
+                errors.append(f"Uncertainty row {estimate_id} has empty {column}")
+        if row["unit"] not in unit_ids:
+            errors.append(f"Uncertainty row {estimate_id} references unknown unit")
+        if row["status"] not in UNCERTAINTY_STATUSES:
+            errors.append(f"Uncertainty row {estimate_id} has invalid status: {row['status']}")
+        try:
+            lower = float(row["lower"])
+            upper = float(row["upper"])
+            central = float(row["central"]) if row["central"].strip() else None
+        except ValueError:
+            errors.append(f"Uncertainty row {estimate_id} has non-numeric bounds")
+            continue
+        if lower > upper:
+            errors.append(f"Uncertainty row {estimate_id} lower bound exceeds upper bound")
+        if central is not None and not lower <= central <= upper:
+            errors.append(f"Uncertainty row {estimate_id} central value outside bounds")
+        if row["status"] == "unresolved_range" and row["central"].strip():
+            errors.append(f"Unresolved uncertainty row {estimate_id} must leave central empty")
+
     return errors
 
 
