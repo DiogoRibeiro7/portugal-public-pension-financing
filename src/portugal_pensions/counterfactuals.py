@@ -238,10 +238,18 @@ def validate_public_worker_reallocation(
                 "employer_contributions_lower",
                 "employer_contributions_central",
                 "employer_contributions_upper",
+                "aggregate_rgss_contributions",
                 "unit",
+                "aggregate_unit",
                 "source_ids",
                 "observation_type",
+                "estimation_method",
+                "pension_related_basis",
+                "uncertainty_basis",
+                "aggregate_cap_status",
                 "status",
+                "missing_inputs",
+                "claim_permitted",
                 "notes",
             },
             table_name="public worker contribution",
@@ -252,9 +260,11 @@ def validate_public_worker_reallocation(
                 "employer_contributions_lower",
                 "employer_contributions_central",
                 "employer_contributions_upper",
+                "aggregate_rgss_contributions",
             },
             duplicate_columns=["year"],
         ),
+        *_validate_public_worker_contribution_rules(contributions),
     ]
     for table_name, table in (
         ("public worker cohort", cohorts),
@@ -263,6 +273,106 @@ def validate_public_worker_reallocation(
         years = sorted(int(_field(record, "year")) for record in table.to_dict("records"))
         if years != list(range(2006, 2026)):
             errors.append(f"{table_name} table must cover every year from 2006 to 2025")
+    return errors
+
+
+def _validate_public_worker_contribution_rules(contributions: pd.DataFrame) -> list[str]:
+    errors: list[str] = []
+    if _missing_columns(
+        contributions,
+        {
+            "employee_contributions_lower",
+            "employee_contributions_central",
+            "employee_contributions_upper",
+            "employer_contributions_lower",
+            "employer_contributions_central",
+            "employer_contributions_upper",
+            "aggregate_rgss_contributions",
+            "estimation_method",
+            "pension_related_basis",
+            "uncertainty_basis",
+            "aggregate_cap_status",
+            "status",
+            "missing_inputs",
+            "claim_permitted",
+        },
+        "public worker contribution",
+    ):
+        return errors
+
+    for row_number, record in enumerate(contributions.to_dict("records"), start=2):
+        status = _field(record, "status")
+        method = _field(record, "estimation_method")
+        cap_status = _field(record, "aggregate_cap_status")
+        pension_basis = _field(record, "pension_related_basis")
+        if status.startswith("blocked"):
+            if method != "blocked_source_gap":
+                errors.append(
+                    "Blocked public worker contribution rows must use blocked_source_gap "
+                    f"on row {row_number}"
+                )
+            if _field(record, "claim_permitted") != "no":
+                errors.append(
+                    "Blocked public worker contribution rows must not permit claims "
+                    f"on row {row_number}"
+                )
+            missing_inputs = {
+                value.strip()
+                for value in _field(record, "missing_inputs").split(";")
+                if value.strip()
+            }
+            for required_input in (
+                "public_worker_new_entrant_counts",
+                "contribution_base_payroll",
+                "applicable_rgss_worker_rate",
+                "applicable_rgss_employer_rate",
+                "aggregate_rgss_contribution_revenue",
+            ):
+                if required_input not in missing_inputs:
+                    errors.append(
+                        "Blocked public worker contribution row is missing required "
+                        f"input blocker {required_input} on row {row_number}"
+                    )
+        else:
+            if method not in {"direct_observation", "reconstruction"}:
+                errors.append(
+                    "Estimated public worker contribution rows must identify direct "
+                    f"observation or reconstruction on row {row_number}"
+                )
+            if pension_basis in {"", "blocked_not_decomposed"}:
+                errors.append(
+                    "Estimated public worker contribution rows must state pension-related "
+                    f"basis on row {row_number}"
+                )
+            if not _field(record, "uncertainty_basis"):
+                errors.append(
+                    "Estimated public worker contribution rows must state uncertainty basis "
+                    f"on row {row_number}"
+                )
+            if cap_status != "checked_against_aggregate_rgss_revenue":
+                errors.append(
+                    "Estimated public worker contribution rows must be checked against "
+                    f"aggregate RGSS revenue on row {row_number}"
+                )
+
+        employee_bounds = _bounds(record, "employee_contributions")
+        employer_bounds = _bounds(record, "employer_contributions")
+        for label, bounds in (("employee", employee_bounds), ("employer", employer_bounds)):
+            if bounds is not None:
+                lower, central, upper = bounds
+                if lower > central or central > upper:
+                    errors.append(
+                        f"{label} contribution bounds must satisfy lower <= central <= upper "
+                        f"on row {row_number}"
+                    )
+
+        aggregate = _optional_float(record, "aggregate_rgss_contributions")
+        central_total = _central_total(record)
+        if aggregate is not None and central_total is not None and central_total > aggregate + 0.01:
+            errors.append(
+                "Public worker contribution estimate exceeds aggregate RGSS revenue "
+                f"on row {row_number}"
+            )
     return errors
 
 
@@ -516,6 +626,34 @@ def _field(row: Any, column: str) -> str:
     if pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def _optional_float(row: Any, column: str) -> float | None:
+    value = _field(row, column)
+    if not value:
+        return None
+    return _finite(float(value), column)
+
+
+def _bounds(row: Any, prefix: str) -> tuple[float, float, float] | None:
+    values = tuple(
+        _optional_float(row, f"{prefix}_{suffix}") for suffix in ("lower", "central", "upper")
+    )
+    if any(value is None for value in values):
+        return None
+    lower, central, upper = values
+    assert lower is not None
+    assert central is not None
+    assert upper is not None
+    return lower, central, upper
+
+
+def _central_total(row: Any) -> float | None:
+    employee = _optional_float(row, "employee_contributions_central")
+    employer = _optional_float(row, "employer_contributions_central")
+    if employee is None or employer is None:
+        return None
+    return employee + employer
 
 
 def _registered_source_ids(source_registry_path: str | None) -> set[str] | None:

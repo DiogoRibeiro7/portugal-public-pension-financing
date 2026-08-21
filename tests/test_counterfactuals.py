@@ -120,14 +120,87 @@ def test_public_worker_reallocation_requires_full_year_coverage(tmp_path: Path) 
     contributions.write_text(
         "year,employee_contributions_lower,employee_contributions_central,"
         "employee_contributions_upper,employer_contributions_lower,"
-        "employer_contributions_central,employer_contributions_upper,unit,source_ids,"
-        "observation_type,status,notes\n"
-        "2006,,,,,,,EUR_million,SRC,mechanical_reallocation,blocked,missing\n",
+        "employer_contributions_central,employer_contributions_upper,"
+        "aggregate_rgss_contributions,unit,aggregate_unit,source_ids,"
+        "observation_type,estimation_method,pension_related_basis,uncertainty_basis,"
+        "aggregate_cap_status,status,missing_inputs,claim_permitted,notes\n"
+        "2006,,,,,,,,EUR_million,EUR_million,SRC,mechanical_reallocation,"
+        "blocked_source_gap,blocked_not_decomposed,missing,"
+        "aggregate_cap_not_reconstructed,blocked,"
+        "public_worker_new_entrant_counts;contribution_base_payroll;"
+        "applicable_rgss_worker_rate;applicable_rgss_employer_rate;"
+        "aggregate_rgss_contribution_revenue,no,missing\n",
         encoding="utf-8",
     )
 
     errors = validate_public_worker_reallocation(str(cohorts), str(contributions))
     assert "public worker cohort table must cover every year from 2006 to 2025" in errors
+
+
+def test_public_worker_contributions_require_estimation_method(tmp_path: Path) -> None:
+    cohorts = tmp_path / "cohorts.csv"
+    contributions = tmp_path / "contributions.csv"
+    cohorts.write_text(
+        "year,cohort,lower,central,upper,unit,source_ids,status,notes\n"
+        + "".join(
+            f"{year},cohort,1,1,1,workers,SRC,complete,observed\n" for year in range(2006, 2026)
+        ),
+        encoding="utf-8",
+    )
+    contributions.write_text(
+        "year,employee_contributions_lower,employee_contributions_central,"
+        "employee_contributions_upper,employer_contributions_lower,"
+        "employer_contributions_central,employer_contributions_upper,"
+        "aggregate_rgss_contributions,unit,aggregate_unit,source_ids,"
+        "observation_type,estimation_method,pension_related_basis,uncertainty_basis,"
+        "aggregate_cap_status,status,missing_inputs,claim_permitted,notes\n"
+        + "".join(
+            f"{year},1,1,1,1,1,1,10,EUR_million,EUR_million,SRC,"
+            "mechanical_reallocation,model,pension_related_rate,base_assumption,"
+            "checked_against_aggregate_rgss_revenue,estimated,,yes,estimate\n"
+            for year in range(2006, 2026)
+        ),
+        encoding="utf-8",
+    )
+
+    errors = validate_public_worker_reallocation(str(cohorts), str(contributions))
+    assert (
+        "Estimated public worker contribution rows must identify direct observation or "
+        "reconstruction on row 2" in errors
+    )
+
+
+def test_public_worker_contributions_cannot_exceed_aggregate_rgss_revenue(
+    tmp_path: Path,
+) -> None:
+    cohorts = tmp_path / "cohorts.csv"
+    contributions = tmp_path / "contributions.csv"
+    cohorts.write_text(
+        "year,cohort,lower,central,upper,unit,source_ids,status,notes\n"
+        + "".join(
+            f"{year},cohort,1,1,1,workers,SRC,complete,observed\n" for year in range(2006, 2026)
+        ),
+        encoding="utf-8",
+    )
+    contributions.write_text(
+        "year,employee_contributions_lower,employee_contributions_central,"
+        "employee_contributions_upper,employer_contributions_lower,"
+        "employer_contributions_central,employer_contributions_upper,"
+        "aggregate_rgss_contributions,unit,aggregate_unit,source_ids,"
+        "observation_type,estimation_method,pension_related_basis,uncertainty_basis,"
+        "aggregate_cap_status,status,missing_inputs,claim_permitted,notes\n"
+        + "".join(
+            f"{year},4,5,6,4,5,6,9,EUR_million,EUR_million,SRC,"
+            "mechanical_reallocation,reconstruction,pension_related_rate,"
+            "base_assumption,checked_against_aggregate_rgss_revenue,estimated,,yes,"
+            "estimate\n"
+            for year in range(2006, 2026)
+        ),
+        encoding="utf-8",
+    )
+
+    errors = validate_public_worker_reallocation(str(cohorts), str(contributions))
+    assert "Public worker contribution estimate exceeds aggregate RGSS revenue on row 2" in errors
 
 
 def test_public_worker_reallocation_bridge_blocks_claims_without_inputs(tmp_path: Path) -> None:

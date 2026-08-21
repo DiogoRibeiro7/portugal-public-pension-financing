@@ -25,6 +25,8 @@ The current registered evidence does not yet provide:
 
 The processed files contain year-level records from 2006 through 2025 with blank quantitative fields and `blocked_missing_public_employment_payroll` status.
 
+`public_worker_rgss_contributions_2006_2025.csv` includes method, pension-basis, uncertainty, aggregate-cap and claim-permission fields. These fields prevent a future estimate from entering the analysis unless it is labelled as either a direct observation or a reconstruction and checked against aggregate RGSS contribution revenue.
+
 `public_worker_reallocation_bridge.csv` records the mechanical flow identity:
 
 `contribution_base * worker_rate + contribution_base * employer_rate = total_contributions`
