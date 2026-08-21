@@ -4,6 +4,7 @@ from portugal_pensions.validation import (
     validate_analysis_protocol,
     validate_article_evidence,
     validate_claim_language_audit,
+    validate_concept_registry,
     validate_evidence_directory,
     validate_falsification_review,
     validate_internal_replication_review,
@@ -36,6 +37,11 @@ def test_repository_analysis_protocol_is_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_concept_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert validate_concept_registry(root / "evidence" / "concept_registry.csv", root) == []
 
 
 def test_repository_falsification_review_is_valid() -> None:
@@ -177,6 +183,34 @@ def test_analysis_protocol_rejects_hash_mismatch(tmp_path: Path) -> None:
         "Analysis protocol hash does not match analysis_protocol.csv"
         in validate_analysis_protocol(protocol, hash_file)
     )
+
+
+def test_concept_registry_requires_material_column_mapping(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    processed = tmp_path / "data" / "processed"
+    evidence.mkdir()
+    processed.mkdir(parents=True)
+    (processed / "cga_financing_ledger.csv").write_text(
+        "state_budget_transfers\n1\n",
+        encoding="utf-8",
+    )
+    registry = evidence / "concept_registry.csv"
+    registry.write_text(
+        "concept_id,source_label,canonical_name,concept_class,definition,valid_from,valid_to,"
+        "institutional_perimeter,accounting_basis,source_id,source_definition_status,"
+        "sign_convention,internal_variable_names,material_flow_columns,ambiguous_label_guard,"
+        "notes\n"
+        "STATE_TRANSFER,transfer,state_budget_transfer,flow,definition,1977,,perimeter,basis,,"
+        "working_definition_requires_source,positive_inflow_to_recipient,state_budget_transfers,"
+        "none,guard,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_concept_registry(registry, tmp_path)
+    assert (
+        "Missing concept mapping for material column: "
+        "data/processed/cga_financing_ledger.csv:state_budget_transfers"
+    ) in errors
 
 
 def test_internal_replication_review_requires_article_claim_coverage(tmp_path: Path) -> None:

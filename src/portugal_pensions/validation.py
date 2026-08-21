@@ -36,6 +36,7 @@ from .legal import validate_legal_contribution_registry
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "analysis_protocol.csv",
     "analysis_protocol_hash.csv",
+    "concept_registry.csv",
     "source_registry.csv",
     "claim_registry.csv",
     "legal_contribution_registry.csv",
@@ -137,6 +138,118 @@ REQUIRED_ANALYSIS_PROTOCOL_HYPOTHESES: frozenset[str] = frozenset(
     }
 )
 
+CONCEPT_REGISTRY_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "concept_id",
+        "source_label",
+        "canonical_name",
+        "concept_class",
+        "definition",
+        "valid_from",
+        "valid_to",
+        "institutional_perimeter",
+        "accounting_basis",
+        "source_id",
+        "source_definition_status",
+        "sign_convention",
+        "internal_variable_names",
+        "material_flow_columns",
+        "ambiguous_label_guard",
+        "notes",
+    }
+)
+
+REQUIRED_CONCEPT_IDS: frozenset[str] = frozenset(
+    {
+        "ADMINISTRATION_COST",
+        "ASSET_DRAWDOWN",
+        "BANK_ASSET_TRANSFER",
+        "CGA",
+        "ECONOMIC_BENCHMARK_GAP",
+        "EMPLOYEE_CONTRIBUTION",
+        "EMPLOYER_CONTRIBUTION",
+        "ESA_DEFICIT",
+        "FINANCING_RESIDUAL",
+        "INVESTMENT_INCOME",
+        "LEGAL_GAP",
+        "OTHER_BENEFIT_EXPENSE",
+        "OTHER_FINANCING",
+        "OTHER_PUBLIC_TRANSFER",
+        "PENSION_EXPENDITURE",
+        "PENSION_LIABILITY",
+        "PREVIDENTIAL",
+        "RGSS",
+        "STATE_TRANSFER",
+        "TIMING_ADJUSTMENT",
+    }
+)
+
+CONCEPT_SOURCE_DEFINITION_STATUSES: frozenset[str] = frozenset(
+    {
+        "derived_accounting_bridge",
+        "source_defined",
+        "working_definition_requires_source",
+    }
+)
+
+CONCEPT_SIGN_CONVENTIONS: frozenset[str] = frozenset(
+    {
+        "negative_expenditure_for_balance",
+        "negative_for_deficit_increase",
+        "not_applicable",
+        "positive_asset_received_by_public_sector",
+        "positive_financing_source",
+        "positive_inflow_to_recipient",
+        "positive_liability_stock",
+        "positive_revenue_when_received",
+        "signed_reconciliation_adjustment",
+        "signed_reconciliation_residual",
+    }
+)
+
+REQUIRED_MATERIAL_FLOW_MAPPINGS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("data/processed/bank_asset_liability_audit.csv", "assets_transferred_total"),
+        ("data/processed/bank_asset_liability_audit.csv", "liability_pv_legal_4pct"),
+        ("data/processed/bank_asset_liability_sensitivity.csv", "liability_pv"),
+        ("data/processed/bank_asset_trace.csv", "transfer_value"),
+        ("data/processed/bank_esa_treatment_bridge.csv", "deficit_effect_percent_gdp"),
+        ("data/processed/bank_transfer_long_run.csv", "administrative_cost"),
+        ("data/processed/bank_transfer_long_run.csv", "asset_drawdown"),
+        ("data/processed/bank_transfer_long_run.csv", "attributable_investment_income"),
+        ("data/processed/bank_transfer_long_run.csv", "other_financing"),
+        ("data/processed/bank_transfer_long_run.csv", "pension_expenditure"),
+        ("data/processed/bank_transfer_long_run.csv", "reconciliation_residual"),
+        ("data/processed/bank_transfer_long_run.csv", "state_specific_transfer"),
+        ("data/processed/cga_financing_ledger.csv", "administration"),
+        ("data/processed/cga_financing_ledger.csv", "employee_quotations"),
+        ("data/processed/cga_financing_ledger.csv", "employer_contributions"),
+        ("data/processed/cga_financing_ledger.csv", "identity_residual"),
+        ("data/processed/cga_financing_ledger.csv", "investment_income"),
+        ("data/processed/cga_financing_ledger.csv", "other_benefits"),
+        ("data/processed/cga_financing_ledger.csv", "other_public_transfers"),
+        ("data/processed/cga_financing_ledger.csv", "pension_expenditure"),
+        ("data/processed/cga_financing_ledger.csv", "state_budget_transfers"),
+        ("data/processed/employee_remittance_audit.csv", "recorded_cga_worker_revenue"),
+        ("data/processed/employee_remittance_audit.csv", "unexplained_remittance_gap"),
+        ("data/processed/employer_contribution_audit.csv", "economic_benchmark_due"),
+        ("data/processed/employer_contribution_audit.csv", "economic_benchmark_gap"),
+        ("data/processed/employer_contribution_audit.csv", "legal_compliance_gap"),
+        ("data/processed/employer_contribution_audit.csv", "legal_due"),
+        ("data/processed/employer_contribution_audit.csv", "recorded_cga_employer_revenue"),
+    }
+)
+
+AMBIGUOUS_ACCOUNTING_TERMS: frozenset[str] = frozenset(
+    {
+        "balance",
+        "contribution",
+        "deficit",
+        "liability",
+        "transfer",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -189,6 +302,10 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "concept_registry.csv").is_file():
+        errors.extend(
+            validate_concept_registry(evidence_dir / "concept_registry.csv", evidence_dir.parent)
         )
     if (evidence_dir / "analysis_protocol.csv").is_file():
         errors.extend(
@@ -347,6 +464,123 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def _split_registry_values(value: Any) -> list[str]:
+    if pd.isna(value):
+        return []
+    text = str(value).strip()
+    if not text or text.lower() in {"none", "not_applicable"}:
+        return []
+    return [part.strip() for part in text.split(";") if part.strip()]
+
+
+def validate_concept_registry(registry_path: Path, root: Path) -> list[str]:
+    """Return validation errors for the accounting ontology concept registry."""
+    if not isinstance(registry_path, Path):
+        raise TypeError("registry_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    registry = pd.read_csv(registry_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(CONCEPT_REGISTRY_REQUIRED_COLUMNS.difference(registry.columns))
+    if missing_columns:
+        return [f"Concept registry missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    concept_ids = set(registry["concept_id"])
+    duplicate_ids = sorted(
+        registry.loc[registry["concept_id"].duplicated(), "concept_id"].dropna().unique()
+    )
+    for concept_id in duplicate_ids:
+        errors.append(f"Duplicate concept_id in concept registry: {concept_id}")
+
+    for concept_id in sorted(REQUIRED_CONCEPT_IDS.difference(concept_ids)):
+        errors.append(f"Missing required accounting concept: {concept_id}")
+
+    source_ids: set[str] = set()
+    source_registry_path = root / "evidence" / "source_registry.csv"
+    if source_registry_path.is_file():
+        source_registry = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+        if "source_id" in source_registry.columns:
+            source_ids = set(source_registry["source_id"])
+
+    mapping_index: dict[tuple[str, str], str] = {}
+    for row in registry.to_dict("records"):
+        concept_id = row["concept_id"].strip()
+        if not concept_id:
+            errors.append("Concept registry contains a row with empty concept_id")
+            continue
+
+        for column in (
+            "source_label",
+            "canonical_name",
+            "concept_class",
+            "definition",
+            "institutional_perimeter",
+            "accounting_basis",
+            "source_definition_status",
+            "sign_convention",
+        ):
+            if not row[column].strip():
+                errors.append(f"Concept {concept_id} has empty {column}")
+
+        status = row["source_definition_status"].strip()
+        if status and status not in CONCEPT_SOURCE_DEFINITION_STATUSES:
+            errors.append(f"Concept {concept_id} has invalid source_definition_status: {status}")
+
+        sign_convention = row["sign_convention"].strip()
+        if sign_convention and sign_convention not in CONCEPT_SIGN_CONVENTIONS:
+            errors.append(f"Concept {concept_id} has invalid sign_convention: {sign_convention}")
+
+        if status == "source_defined" and not _split_registry_values(row["source_id"]):
+            errors.append(f"Source-defined concept {concept_id} must include source_id")
+
+        for source_id in _split_registry_values(row["source_id"]):
+            if source_ids and source_id not in source_ids:
+                errors.append(f"Concept {concept_id} references unknown source_id: {source_id}")
+
+        guard = row["ambiguous_label_guard"].strip()
+        searchable = " ".join(
+            [
+                row["source_label"],
+                row["canonical_name"],
+                row["definition"],
+                row["internal_variable_names"],
+            ]
+        ).lower()
+        if not guard:
+            for term in AMBIGUOUS_ACCOUNTING_TERMS:
+                if term in searchable:
+                    errors.append(f"Concept {concept_id} must define ambiguous_label_guard")
+                    break
+
+        for mapping in _split_registry_values(row["material_flow_columns"]):
+            if ":" not in mapping:
+                errors.append(f"Concept {concept_id} has invalid material mapping: {mapping}")
+                continue
+            dataset, column = mapping.split(":", 1)
+            dataset = dataset.strip().replace("\\", "/")
+            column = column.strip()
+            mapping_index[(dataset, column)] = concept_id
+            dataset_path = root / Path(dataset)
+            if not dataset_path.is_file():
+                errors.append(f"Concept {concept_id} maps missing dataset: {dataset}")
+                continue
+            dataset_columns = pd.read_csv(dataset_path, nrows=0).columns
+            if column not in dataset_columns:
+                errors.append(f"Concept {concept_id} maps missing column: {dataset}:{column}")
+
+    for dataset, column in sorted(REQUIRED_MATERIAL_FLOW_MAPPINGS):
+        concept_id = mapping_index.get((dataset, column))
+        if concept_id is None:
+            errors.append(f"Missing concept mapping for material column: {dataset}:{column}")
+        elif concept_id not in concept_ids:
+            errors.append(
+                f"Material column {dataset}:{column} maps to unknown concept: {concept_id}"
+            )
+
     return errors
 
 
