@@ -160,6 +160,32 @@ def employee_remittance_gap(
     return withheld - recorded + adjustments
 
 
+def employer_contribution_gaps(
+    *,
+    legal_due: float,
+    recorded_cga_employer_revenue: float,
+    timing_adjustments: float,
+    arrears_corrections: float,
+    base_definition_adjustment: float,
+    perimeter_adjustment: float,
+    economic_benchmark_due: float,
+) -> tuple[float, float]:
+    """Return legal compliance and economic benchmark gaps after adjustments."""
+    legal = _finite_nonnegative(legal_due, "legal_due")
+    recorded = _finite_nonnegative(
+        recorded_cga_employer_revenue,
+        "recorded_cga_employer_revenue",
+    )
+    benchmark = _finite_nonnegative(economic_benchmark_due, "economic_benchmark_due")
+    adjustments = (
+        _numeric_adjustment(timing_adjustments, "timing_adjustments")
+        + _numeric_adjustment(arrears_corrections, "arrears_corrections")
+        + _numeric_adjustment(base_definition_adjustment, "base_definition_adjustment")
+        + _numeric_adjustment(perimeter_adjustment, "perimeter_adjustment")
+    )
+    return legal - recorded + adjustments, benchmark - recorded + adjustments
+
+
 def validate_cga_financing_ledger(
     path: str,
     source_registry_path: str | None = None,
@@ -714,9 +740,12 @@ def validate_employee_remittance_audit(
     return errors
 
 
-def validate_employer_contribution_audit(path: str) -> list[str]:
+def validate_employer_contribution_audit(
+    path: str,
+    source_registry_path: str | None = None,
+) -> list[str]:
     """Return validation errors for the employer contribution audit table."""
-    audit = pd.read_csv(path, dtype=str)
+    audit = pd.read_csv(path, dtype=str, keep_default_na=False)
     required_columns = {
         "year",
         "employer_class",
@@ -735,6 +764,10 @@ def validate_employer_contribution_audit(path: str) -> list[str]:
         "economic_benchmark_due",
         "economic_benchmark_gap",
         "source_ids",
+        "legal_rate_basis",
+        "economic_benchmark_basis",
+        "missing_inputs",
+        "claim_permitted",
         "status",
         "notes",
     }
@@ -743,6 +776,27 @@ def validate_employer_contribution_audit(path: str) -> list[str]:
         return [f"Employer contribution audit missing columns: {', '.join(missing_columns)}"]
 
     errors: list[str] = []
+    expected_pairs = {
+        (str(year), employer_class)
+        for year in range(1977, 2026)
+        for employer_class in {
+            "autonomous_entities_first_covered_2007",
+            "central_state_integrated_services",
+            "entities_already_contributing_before_2007",
+            "entities_first_covered_2009",
+        }
+    }
+    observed_pairs = {
+        (_field(record, "year"), _field(record, "employer_class"))
+        for record in audit.to_dict("records")
+    }
+    missing_pairs = sorted(expected_pairs.difference(observed_pairs))
+    if missing_pairs:
+        errors.append(
+            "Employer contribution audit missing year/class pairs: "
+            f"{'; '.join(f'{year} {employer_class}' for year, employer_class in missing_pairs)}"
+        )
+
     duplicates = audit[audit.duplicated(subset=["year", "employer_class"], keep=False)]
     for _, duplicate_row in duplicates.iterrows():
         errors.append(
@@ -750,6 +804,20 @@ def validate_employer_contribution_audit(path: str) -> list[str]:
             f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'employer_class')}"
         )
 
+    source_ids = _source_ids(source_registry_path)
+    allowed_statuses = {
+        "blocked_missing_legal_payroll_and_revenue_data",
+        "blocked_missing_payroll_and_revenue_data",
+        "complete",
+    }
+    allowed_legal_rate_basis = {
+        "blocked_missing_primary_law_rate_history",
+        "bounded_legal_registry_employer_total",
+    }
+    allowed_benchmark_basis = {
+        "broad_rgss_employer_rate_counterfactual_not_legal_debt",
+        "not_applicable_until_legal_rate_bounded",
+    }
     complete_fields = {
         "legal_due",
         "recorded_cga_employer_revenue",
@@ -761,8 +829,24 @@ def validate_employer_contribution_audit(path: str) -> list[str]:
         "economic_benchmark_due",
         "economic_benchmark_gap",
     }
+    required_blocked_inputs = {
+        "arrears_corrections",
+        "base_definition_adjustment",
+        "economic_benchmark_due",
+        "employer_class_payroll_base",
+        "legal_due",
+        "perimeter_adjustment",
+        "recorded_cga_employer_revenue",
+        "timing_adjustments",
+    }
     for row_number, record in enumerate(audit.to_dict("records"), start=2):
+        status = _field(record, "status")
         for column in required_columns.difference(complete_fields):
+            if (
+                column in {"economic_benchmark_rate_total", "legal_employer_rate_total"}
+                and status == "blocked_missing_legal_payroll_and_revenue_data"
+            ):
+                continue
             if not _field(record, column):
                 errors.append(f"Missing {column} on employer contribution audit row {row_number}")
 
@@ -773,14 +857,56 @@ def validate_employer_contribution_audit(path: str) -> list[str]:
                 f"{row_number} must state that the economic benchmark is not a legal debt"
             )
 
-        status = _field(record, "status")
+        for source_id in _field(record, "source_ids").split(";"):
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    "Employer contribution row "
+                    f"{row_number} references unknown source_id: {source_id}"
+                )
+
+        legal_rate_basis = _field(record, "legal_rate_basis")
+        if legal_rate_basis and legal_rate_basis not in allowed_legal_rate_basis:
+            errors.append(
+                "Unexpected employer contribution legal_rate_basis on row "
+                f"{row_number}: {legal_rate_basis}"
+            )
+
+        benchmark_basis = _field(record, "economic_benchmark_basis")
+        if benchmark_basis and benchmark_basis not in allowed_benchmark_basis:
+            errors.append(
+                "Unexpected employer contribution economic_benchmark_basis on row "
+                f"{row_number}: {benchmark_basis}"
+            )
+
+        claim_permitted = _field(record, "claim_permitted")
+        if claim_permitted not in {"no", "yes"}:
+            errors.append(f"Employer contribution row {row_number} must use yes/no claim flag")
+
         if status == "complete":
             for column in complete_fields:
                 if not _field(record, column):
                     errors.append(
                         f"Complete employer contribution row {row_number} missing {column}"
                     )
-        elif not status.startswith("blocked"):
+            if claim_permitted != "yes":
+                errors.append(f"Complete employer contribution row {row_number} must permit claim")
+            if all(_field(record, column) for column in complete_fields):
+                errors.extend(_validate_employer_contribution_gaps(record, row_number))
+        elif status in allowed_statuses:
+            if claim_permitted != "no":
+                errors.append(
+                    f"Incomplete employer contribution row {row_number} cannot permit claim"
+                )
+            missing_inputs = set(_field(record, "missing_inputs").split(";"))
+            expected_missing = required_blocked_inputs
+            if status == "blocked_missing_legal_payroll_and_revenue_data":
+                expected_missing = expected_missing.union({"legal_employer_rate_total"})
+            for missing_input in sorted(expected_missing.difference(missing_inputs)):
+                errors.append(
+                    f"Incomplete employer contribution row {row_number} missing blocker for "
+                    f"{missing_input}"
+                )
+        else:
             errors.append(
                 f"Unexpected employer contribution audit status on row {row_number}: {status}"
             )
@@ -982,6 +1108,32 @@ def _validate_employee_remittance_gap(row: Any, row_number: int) -> list[str]:
     if not math.isclose(expected_gap, recorded_gap, rel_tol=0.0, abs_tol=0.11):
         return [f"Employee remittance gap residual fails on row {row_number}"]
     return []
+
+
+def _validate_employer_contribution_gaps(row: Any, row_number: int) -> list[str]:
+    legal_gap, benchmark_gap = employer_contribution_gaps(
+        legal_due=_numeric(row["legal_due"], "legal_due"),
+        recorded_cga_employer_revenue=_numeric(
+            row["recorded_cga_employer_revenue"],
+            "recorded_cga_employer_revenue",
+        ),
+        timing_adjustments=_numeric(row["timing_adjustments"], "timing_adjustments"),
+        arrears_corrections=_numeric(row["arrears_corrections"], "arrears_corrections"),
+        base_definition_adjustment=_numeric(
+            row["base_definition_adjustment"],
+            "base_definition_adjustment",
+        ),
+        perimeter_adjustment=_numeric(row["perimeter_adjustment"], "perimeter_adjustment"),
+        economic_benchmark_due=_numeric(row["economic_benchmark_due"], "economic_benchmark_due"),
+    )
+    recorded_legal_gap = _numeric(row["legal_compliance_gap"], "legal_compliance_gap")
+    recorded_benchmark_gap = _numeric(row["economic_benchmark_gap"], "economic_benchmark_gap")
+    errors: list[str] = []
+    if not math.isclose(legal_gap, recorded_legal_gap, rel_tol=0.0, abs_tol=0.11):
+        errors.append(f"Employer legal compliance gap residual fails on row {row_number}")
+    if not math.isclose(benchmark_gap, recorded_benchmark_gap, rel_tol=0.0, abs_tol=0.11):
+        errors.append(f"Employer economic benchmark gap residual fails on row {row_number}")
+    return errors
 
 
 def _numeric_adjustment(value: float, name: str) -> float:

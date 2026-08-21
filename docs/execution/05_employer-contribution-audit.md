@@ -1,24 +1,34 @@
 # Audit employer contributions
 
 Instruction file: `prompts/05_employer_contribution_audit.md`
-Date: 2026-08-19
-Status: `blocked_by_source_work`
+Date: 2026-08-21
+Status: `partial_bounded_reconstruction`
 
 ## Actions
 
 - Read the instruction file together with the master research guardrails.
 - Checked the current repository architecture, registries, tests, and validation commands.
-- Preserved existing validated outputs.
-- Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
+- Expanded the employer contribution audit to a 1977-2025 grid across the four
+  reconstructed CGA employer classes.
+- Added bounded class/year legal employer rates where the legal contribution
+  registry supports them.
+- Kept payroll bases, recorded CGA employer revenue, timing, arrears, base and
+  perimeter adjustments as missing inputs rather than substituting zeros.
+- Added validation for year/class coverage, source IDs, blocked-input lists,
+  no-claim flags, and separate complete-row legal and economic gap arithmetic.
 
 ## Result
 
-Recorded legal and economic gap separation.
+Added an executable employer contribution audit gate.
 
 ## Current Stop Condition
 
-Completion beyond this record requires the registered primary sources and deterministic extraction chain needed by the task. Until those inputs exist, any quantitative result remains blocked or partial under the repository evidence rules.
+Completion beyond this bounded audit requires employer-class payroll bases, CGA
+employer-contribution revenue splits, timing and arrears corrections,
+contribution-base adjustments, perimeter adjustments, and pre-2006 primary legal
+rate history. Until then no legal compliance gap or economic benchmark gap is
+quantified.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran `make quality` after regenerating `MANIFEST.sha256`.
