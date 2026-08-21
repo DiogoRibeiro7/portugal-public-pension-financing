@@ -1,2 +1,15 @@
-unit_id,currency,scale,price_basis,base_year,flow_or_stock,accounting_basis,conversion_rule,notes
-EUR_million_current_budgetary_flow,EUR,million,current_prices,,flow,budgetary_public_accounts,none,Nominal annual budgetary flow in millions of euros
+unit_id,currency,scale,price_basis,base_year,flow_or_stock,accounting_basis,conversion_rule,valid_from,valid_to,canonical_unit,join_family,notes
+EUR_million,EUR,million,current_prices,,flow,any_registered_basis,none,1999,,EUR_million,nominal_money,Canonical nominal euro accounting amount in millions
+PTE_million,PTE,million,current_prices,,flow,any_registered_basis,fixed_escudo_euro_200_482,1977,2001,EUR_million,nominal_money,Escudo amounts require official fixed conversion before joining to euro amounts
+count,none,ones,not_applicable,,stock,any_registered_basis,none,1977,,count,count,Entity or event count
+workers,none,ones,not_applicable,,stock,public_employment_statistics,none,1977,,workers,count,Public-worker population count
+percent,none,percent,not_applicable,,ratio,any_registered_basis,divide_by_100_for_rate,1977,,rate,ratio,Percentage value where 100 percent equals 1.0
+percent_GDP,none,percent,not_applicable,,ratio,national_accounts,divide_by_100_for_rate,1977,,rate,ratio,Percent of GDP measure not directly joinable to monetary values
+rate,none,unit_interval,not_applicable,,ratio,any_registered_basis,none,1977,,rate,ratio,Rate represented as a unit interval
+share_of_assets,none,unit_interval,not_applicable,,ratio,legal_valuation_and_asset_transfer_accounts,none,1977,,share_of_assets,ratio,Share of transferred assets represented as a unit interval
+share_of_provisional_value,none,unit_interval,not_applicable,,ratio,legal_valuation_and_asset_transfer_accounts,none,1977,,share_of_provisional_value,ratio,Share of provisional legal valuation represented as a unit interval
+EUR_million_and_percent_GDP,EUR,mixed,current_prices,,mixed,national_accounts_and_budgetary_public_accounts,split_before_join,1977,,not_applicable,mixed,Compound display unit must be split before numeric joins
+mixed,unknown,mixed,not_applicable,,mixed,mixed_basis,split_before_join,1977,,not_applicable,mixed,Mixed unit rows are metadata-only and cannot be joined numerically
+date,none,date,not_applicable,,date,any_registered_basis,none,1977,,date,date,Date or period locator
+text,none,text,not_applicable,,text,any_registered_basis,none,1977,,text,text,Qualitative text field not numeric
+not_applicable,none,not_applicable,not_applicable,,not_applicable,not_applicable,none,1977,,not_applicable,not_applicable,Explicit non-applicability marker
