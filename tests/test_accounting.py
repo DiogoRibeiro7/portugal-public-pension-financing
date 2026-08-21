@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from portugal_pensions.accounting import (
+    employee_remittance_gap,
     reconcile_financing_identity,
     validate_cga_closed_scheme_decomposition,
     validate_cga_financing_ledger,
@@ -41,6 +42,20 @@ def test_financing_identity_keeps_residual_uninterpreted() -> None:
     )
     assert not result.reconciled
     assert result.residual == 10.0
+
+
+def test_employee_remittance_gap_applies_explicit_adjustments() -> None:
+    assert (
+        employee_remittance_gap(
+            withheld_from_payroll=100.0,
+            recorded_cga_worker_revenue=95.0,
+            timing_adjustments=-2.0,
+            arrears_corrections=1.0,
+            base_definition_adjustment=0.5,
+            perimeter_adjustment=0.0,
+        )
+        == 4.5
+    )
 
 
 def test_repository_cga_financing_ledger_is_valid() -> None:
@@ -207,10 +222,23 @@ def test_repository_employee_remittance_audit_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
         validate_employee_remittance_audit(
-            str(root / "data" / "processed" / "employee_remittance_audit.csv")
+            str(root / "data" / "processed" / "employee_remittance_audit.csv"),
+            str(root / "evidence" / "source_registry.csv"),
         )
         == []
     )
+
+
+def test_repository_employee_remittance_audit_covers_study_years() -> None:
+    root = Path(__file__).resolve().parents[1]
+    years = {
+        int(row.split(",", maxsplit=1)[0])
+        for row in (root / "data" / "processed" / "employee_remittance_audit.csv")
+        .read_text(encoding="utf-8-sig")
+        .splitlines()[1:]
+    }
+
+    assert years == set(range(1977, 2026))
 
 
 def test_complete_employee_remittance_audit_requires_quantities(tmp_path: Path) -> None:
@@ -219,13 +247,33 @@ def test_complete_employee_remittance_audit_requires_quantities(tmp_path: Path) 
         "year,perimeter,unit,price_basis,accounting_basis,legal_worker_rate_total,"
         "legal_worker_liability,withheld_from_payroll,recorded_cga_worker_revenue,"
         "timing_adjustments,arrears_corrections,base_definition_adjustment,"
-        "perimeter_adjustment,unexplained_remittance_gap,source_ids,status,notes\n"
-        "2011,perimeter,EUR_million,current,basis,0.11,,,,,,,,,SRC,complete,notes\n",
+        "perimeter_adjustment,unexplained_remittance_gap,source_ids,legal_rate_basis,"
+        "missing_inputs,claim_permitted,status,notes\n"
+        "2011,perimeter,EUR_million,current,basis,0.11,,,,,,,,,SRC,"
+        "bounded_legal_registry_worker_total,,yes,complete,notes\n",
         encoding="utf-8",
     )
 
     errors = validate_employee_remittance_audit(str(audit))
     assert "Complete employee remittance row 2 missing withheld_from_payroll" in errors
+
+
+def test_complete_employee_remittance_audit_checks_gap_residual(tmp_path: Path) -> None:
+    audit = tmp_path / "employee_remittance_audit.csv"
+    audit.write_text(
+        "year,perimeter,unit,price_basis,accounting_basis,legal_worker_rate_total,"
+        "legal_worker_liability,withheld_from_payroll,recorded_cga_worker_revenue,"
+        "timing_adjustments,arrears_corrections,base_definition_adjustment,"
+        "perimeter_adjustment,unexplained_remittance_gap,source_ids,legal_rate_basis,"
+        "missing_inputs,claim_permitted,status,notes\n"
+        "2011,perimeter,EUR_million,current,basis,0.11,110.0,100.0,95.0,"
+        "0.0,0.0,0.0,0.0,9.0,SRC,bounded_legal_registry_worker_total,,yes,"
+        "complete,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_employee_remittance_audit(str(audit))
+    assert "Employee remittance gap residual fails on row 2" in errors
 
 
 def test_repository_employer_contribution_audit_is_valid() -> None:
