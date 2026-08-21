@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 
 from .accounting import (
+    validate_cga_closed_scheme_decomposition,
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
@@ -208,6 +209,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
+    cga_closure = evidence_dir.parent / "data" / "processed" / "cga_closed_scheme_decomposition.csv"
+    if cga_closure.is_file():
+        errors.extend(validate_cga_closed_scheme_decomposition(str(cga_closure)))
     pension_flow_matrix = (
         evidence_dir.parent / "data" / "processed" / "pension_flow_of_funds_long.csv"
     )
