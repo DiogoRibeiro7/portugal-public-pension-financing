@@ -46,6 +46,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "data_quality_registry.csv",
     "counterfactual_registry.csv",
     "article_evidence.csv",
+    "literature_map.csv",
     "figure_registry.csv",
     "table_registry.csv",
 )
@@ -250,6 +251,48 @@ AMBIGUOUS_ACCOUNTING_TERMS: frozenset[str] = frozenset(
     }
 )
 
+LITERATURE_MAP_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "reference_id",
+        "title",
+        "year",
+        "authors",
+        "venue",
+        "source_category",
+        "topic",
+        "research_question",
+        "method",
+        "data_period",
+        "data_source",
+        "main_finding",
+        "relation_to_paper",
+        "novelty_role",
+        "inclusion_decision",
+        "search_database",
+        "search_query",
+        "search_date",
+        "source_url",
+        "notes",
+    }
+)
+
+LITERATURE_SOURCE_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "academic_literature",
+        "institutional_review",
+        "technical_accounting_source",
+    }
+)
+
+LITERATURE_INCLUSION_DECISIONS: frozenset[str] = frozenset(
+    {
+        "excluded_not_relevant",
+        "excluded_no_accessible_metadata",
+        "included_context",
+        "included_nearest_neighbor",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -306,6 +349,14 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "concept_registry.csv").is_file():
         errors.extend(
             validate_concept_registry(evidence_dir / "concept_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "literature_map.csv").is_file():
+        errors.extend(
+            validate_literature_map(
+                evidence_dir / "literature_map.csv",
+                evidence_dir.parent / "docs" / "literature_search_protocol.md",
+                evidence_dir.parent / "docs" / "related_work_synthesis.md",
+            )
         )
     if (evidence_dir / "analysis_protocol.csv").is_file():
         errors.extend(
@@ -464,6 +515,107 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def validate_literature_map(
+    map_path: Path,
+    protocol_path: Path,
+    synthesis_path: Path,
+) -> list[str]:
+    """Return validation errors for the literature and novelty map."""
+    if not isinstance(map_path, Path):
+        raise TypeError("map_path must be pathlib.Path")
+    if not isinstance(protocol_path, Path):
+        raise TypeError("protocol_path must be pathlib.Path")
+    if not isinstance(synthesis_path, Path):
+        raise TypeError("synthesis_path must be pathlib.Path")
+
+    literature = pd.read_csv(map_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(LITERATURE_MAP_REQUIRED_COLUMNS.difference(literature.columns))
+    if missing_columns:
+        return [f"Literature map missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicate_ids = sorted(
+        literature.loc[literature["reference_id"].duplicated(), "reference_id"].dropna().unique()
+    )
+    for reference_id in duplicate_ids:
+        errors.append(f"Duplicate literature reference_id: {reference_id}")
+
+    included = literature[literature["inclusion_decision"].str.startswith("included_", na=False)]
+    if len(included) < 8:
+        errors.append("Literature map must include at least 8 included sources")
+
+    nearest = included[included["novelty_role"] == "nearest_neighbor"]
+    if len(nearest) < 4:
+        errors.append("Literature map must identify at least 4 nearest-neighbor sources")
+
+    academic_nearest = nearest[nearest["source_category"] == "academic_literature"]
+    if len(academic_nearest) < 3:
+        errors.append("Literature map must identify at least 3 academic nearest neighbors")
+
+    for row in literature.to_dict("records"):
+        reference_id = row["reference_id"].strip()
+        if not reference_id:
+            errors.append("Literature map contains a row with empty reference_id")
+            continue
+
+        for column in (
+            "title",
+            "authors",
+            "venue",
+            "topic",
+            "research_question",
+            "method",
+            "data_period",
+            "data_source",
+            "main_finding",
+            "relation_to_paper",
+            "novelty_role",
+            "search_database",
+            "search_query",
+            "search_date",
+            "source_url",
+        ):
+            if not row[column].strip():
+                errors.append(f"Literature row {reference_id} has empty {column}")
+
+        category = row["source_category"].strip()
+        if category not in LITERATURE_SOURCE_CATEGORIES:
+            errors.append(f"Literature row {reference_id} has invalid source_category: {category}")
+
+        decision = row["inclusion_decision"].strip()
+        if decision not in LITERATURE_INCLUSION_DECISIONS:
+            errors.append(
+                f"Literature row {reference_id} has invalid inclusion_decision: {decision}"
+            )
+
+        search_date = row["search_date"].strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", search_date):
+            errors.append(f"Literature row {reference_id} has invalid search_date: {search_date}")
+
+        source_url = row["source_url"].strip()
+        if not source_url.startswith(("https://", "http://")):
+            errors.append(f"Literature row {reference_id} has invalid source_url: {source_url}")
+
+        relation = row["relation_to_paper"].strip().lower()
+        if "no paper" in relation or "not seen" in relation:
+            errors.append(f"Literature row {reference_id} uses unsupported novelty language")
+
+    for path, label in (
+        (protocol_path, "literature search protocol"),
+        (synthesis_path, "related-work synthesis"),
+    ):
+        if not path.is_file():
+            errors.append(f"Missing {label}: {path}")
+            continue
+        text = path.read_text(encoding="utf-8").lower()
+        if "evidence of absence" not in text:
+            errors.append(f"{label} must include the bounded evidence-of-absence rule")
+        if "proof" not in text:
+            errors.append(f"{label} must explicitly reject proof-of-novelty language")
+
     return errors
 
 

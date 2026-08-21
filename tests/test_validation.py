@@ -8,6 +8,7 @@ from portugal_pensions.validation import (
     validate_evidence_directory,
     validate_falsification_review,
     validate_internal_replication_review,
+    validate_literature_map,
     validate_manifest,
     validate_manuscript_draft,
     validate_publication_artifacts,
@@ -42,6 +43,18 @@ def test_repository_analysis_protocol_is_valid() -> None:
 def test_repository_concept_registry_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert validate_concept_registry(root / "evidence" / "concept_registry.csv", root) == []
+
+
+def test_repository_literature_map_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_literature_map(
+            root / "evidence" / "literature_map.csv",
+            root / "docs" / "literature_search_protocol.md",
+            root / "docs" / "related_work_synthesis.md",
+        )
+        == []
+    )
 
 
 def test_repository_falsification_review_is_valid() -> None:
@@ -211,6 +224,32 @@ def test_concept_registry_requires_material_column_mapping(tmp_path: Path) -> No
         "Missing concept mapping for material column: "
         "data/processed/cga_financing_ledger.csv:state_budget_transfers"
     ) in errors
+
+
+def test_literature_map_rejects_unsupported_novelty_language(tmp_path: Path) -> None:
+    literature = tmp_path / "literature_map.csv"
+    protocol = tmp_path / "literature_search_protocol.md"
+    synthesis = tmp_path / "related_work_synthesis.md"
+    protocol.write_text(
+        "evidence of absence is not proof of novelty\n",
+        encoding="utf-8",
+    )
+    synthesis.write_text(
+        "evidence of absence is not proof of novelty\n",
+        encoding="utf-8",
+    )
+    literature.write_text(
+        "reference_id,title,year,authors,venue,source_category,topic,research_question,"
+        "method,data_period,data_source,main_finding,relation_to_paper,novelty_role,"
+        "inclusion_decision,search_database,search_query,search_date,source_url,notes\n"
+        "LIT_TEST,Title,2020,Authors,Venue,academic_literature,topic,question,method,"
+        "period,data,finding,no paper has been seen doing this,nearest_neighbor,"
+        "included_nearest_neighbor,web,query,2026-08-21,https://example.test,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_literature_map(literature, protocol, synthesis)
+    assert "Literature row LIT_TEST uses unsupported novelty language" in errors
 
 
 def test_internal_replication_review_requires_article_claim_coverage(tmp_path: Path) -> None:
