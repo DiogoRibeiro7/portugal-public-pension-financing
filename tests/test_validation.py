@@ -2,6 +2,7 @@ from pathlib import Path
 
 from portugal_pensions.validation import (
     validate_article_evidence,
+    validate_claim_language_audit,
     validate_evidence_directory,
     validate_falsification_review,
     validate_internal_replication_review,
@@ -103,6 +104,17 @@ def test_repository_submission_package_is_valid() -> None:
     )
 
 
+def test_repository_claim_language_audit_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_claim_language_audit(
+            root / "data" / "processed" / "manuscript_claim_language_audit.csv",
+            root / "paper" / "manuscript.tex",
+        )
+        == []
+    )
+
+
 def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -> None:
     manuscript = tmp_path / "manuscript.tex"
     article = tmp_path / "article_evidence.csv"
@@ -183,6 +195,21 @@ def test_submission_package_requires_bounded_status_blocker(tmp_path: Path) -> N
 
     errors = validate_submission_package(manifest, tmp_path)
     assert "Partial submission package row SUB_REPLICATION_GUIDE must name a blocker" in errors
+
+
+def test_claim_language_audit_rejects_count_mismatch(tmp_path: Path) -> None:
+    manuscript = tmp_path / "manuscript.tex"
+    audit = tmp_path / "language.csv"
+    manuscript.write_text("This deficit is an accounting deficit.\n", encoding="utf-8")
+    audit.write_text(
+        "term,occurrence_count,concept_mapping,boundary_status,claim_ids,evidence_ids,"
+        "allowed_context,prohibited_inference,notes\n"
+        "deficit,1,concept,bounded_use,CLAIM,EVIDENCE,context,inference,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_claim_language_audit(audit, manuscript)
+    assert "Claim language audit term deficit count mismatch: recorded 1, actual 2" in errors
 
 
 def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
