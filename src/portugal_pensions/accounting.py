@@ -4,9 +4,56 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 import pandas as pd
+
+STATE_FINANCING_REQUIRED_COLUMNS = frozenset(
+    {
+        "rule_id",
+        "valid_from",
+        "valid_to",
+        "institution",
+        "transfer_type",
+        "state_role",
+        "legal_basis",
+        "calculation_rule",
+        "recipient",
+        "accounting_basis",
+        "source_id",
+        "status",
+        "notes",
+    }
+)
+
+STATE_FINANCING_TRANSFER_TYPES = frozenset(
+    {
+        "accounting_presentation_rule",
+        "budget_appropriation_route",
+        "specific_state_transfer",
+        "transferred_asset_financing",
+    }
+)
+
+STATE_FINANCING_STATE_ROLES = frozenset(
+    {
+        "accounting_presenter",
+        "asset_recipient",
+        "budget_authority",
+        "guarantor",
+    }
+)
+
+STATE_FINANCING_STATUSES = frozenset(
+    {
+        "accounting_presentation_observed",
+        "legal_rule_and_account_observed",
+        "legal_rule_observed",
+        "official_account_extract",
+        "source_route_registered",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -585,6 +632,101 @@ def validate_employer_contribution_audit(path: str) -> list[str]:
             if value:
                 _numeric(value, column)
     return errors
+
+
+def validate_state_financing_rule_registry(path: str, source_registry_path: str) -> list[str]:
+    """Return validation errors for bounded State-financing rule records."""
+    registry = pd.read_csv(path, dtype=str, keep_default_na=False)
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(STATE_FINANCING_REQUIRED_COLUMNS.difference(registry.columns))
+    if missing_columns:
+        return [f"State financing rule registry missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    if len(registry) < 5:
+        errors.append("State financing rule registry must contain at least 5 rule rows")
+
+    duplicate_ids = registry[registry.duplicated(subset=["rule_id"], keep=False)]
+    for _, duplicate_row in duplicate_ids.iterrows():
+        errors.append(f"Duplicate state financing rule row: {_field(duplicate_row, 'rule_id')}")
+
+    observed_transfer_types = set(registry["transfer_type"])
+    for transfer_type in sorted(STATE_FINANCING_TRANSFER_TYPES.difference(observed_transfer_types)):
+        errors.append(f"Missing State financing transfer type: {transfer_type}")
+
+    source_ids = set(sources["source_id"])
+    for row_number, record in enumerate(registry.to_dict("records"), start=2):
+        rule_id = _field(record, "rule_id") or f"row {row_number}"
+        for column in STATE_FINANCING_REQUIRED_COLUMNS.difference({"valid_to"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on State financing row {row_number}")
+
+        transfer_type = _field(record, "transfer_type")
+        if transfer_type and transfer_type not in STATE_FINANCING_TRANSFER_TYPES:
+            errors.append(
+                f"Unexpected State financing transfer_type on row {row_number}: {transfer_type}"
+            )
+
+        state_role = _field(record, "state_role")
+        if state_role and state_role not in STATE_FINANCING_STATE_ROLES:
+            errors.append(
+                f"Unexpected State financing state_role on row {row_number}: {state_role}"
+            )
+
+        status = _field(record, "status")
+        if status and status not in STATE_FINANCING_STATUSES:
+            errors.append(f"Unexpected State financing status on row {row_number}: {status}")
+
+        for source_id in _field(record, "source_id").split(";"):
+            if source_id and source_id not in source_ids:
+                errors.append(
+                    f"State financing row {rule_id} references unknown source_id: {source_id}"
+                )
+
+        valid_from = _date_field(record, "valid_from", rule_id, errors)
+        valid_to_text = _field(record, "valid_to")
+        if valid_to_text:
+            valid_to = _date_field(record, "valid_to", rule_id, errors)
+            if valid_from is not None and valid_to is not None and valid_to < valid_from:
+                errors.append(f"State financing row {rule_id} has valid_to before valid_from")
+
+        notes = _field(record, "notes").lower()
+        if not any(
+            guardrail in notes for guardrail in ("not evidence", "does not by itself", "rule only")
+        ):
+            errors.append(f"State financing row {rule_id} must include interpretation guardrail")
+
+        calculation_rule = _field(record, "calculation_rule").lower()
+        if (
+            transfer_type == "transferred_asset_financing"
+            and "employer contribution" in calculation_rule
+            and "not" not in calculation_rule
+        ):
+            errors.append(
+                f"Transferred asset financing row {rule_id} cannot be an employer contribution"
+            )
+        if transfer_type == "specific_state_transfer" and state_role != "guarantor":
+            errors.append(f"Specific State transfer row {rule_id} must use guarantor role")
+        if transfer_type == "budget_appropriation_route" and status != "source_route_registered":
+            errors.append(
+                f"Budget appropriation route row {rule_id} must be source-route registered"
+            )
+
+    return errors
+
+
+def _date_field(
+    record: Any,
+    column: str,
+    rule_id: str,
+    errors: list[str],
+) -> date | None:
+    value = _field(record, column)
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        errors.append(f"State financing row {rule_id} has invalid {column}: {value}")
+        return None
 
 
 def _numeric(value: str, name: str) -> float:
