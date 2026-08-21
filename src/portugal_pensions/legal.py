@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -51,6 +52,79 @@ REQUIRED_EMPLOYER_PERIMETER_CLASSES: frozenset[str] = REQUIRED_EMPLOYER_CLASSES.
     {"public_workers_rgss_new_entrants_2006"}
 )
 
+RGSS_RATE_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "scenario_id",
+        "valid_from",
+        "valid_to",
+        "rate_owner",
+        "benchmark_kind",
+        "worker_rate",
+        "employer_rate",
+        "total_rate",
+        "pension_risk_rate",
+        "broad_social_protection_rate",
+        "other_risk_rate",
+        "covered_risks",
+        "excluded_risks",
+        "public_employer_risk_mapping",
+        "legal_status",
+        "source_id",
+        "status",
+        "notes",
+    }
+)
+
+RGSS_BENCHMARK_KINDS: frozenset[str] = frozenset(
+    {
+        "broad_social_protection",
+        "comparable_pension_risk",
+        "direct_risk_mapping",
+        "historical_series_blocker",
+        "observed_public_scheme_total",
+        "residual_non_pension_risk",
+    }
+)
+
+RGSS_RATE_STATUSES: frozenset[str] = frozenset(
+    {
+        "blocked_missing_source_extraction",
+        "derived_residual",
+        "official_bounded_extract",
+    }
+)
+
+RGSS_LEGAL_STATUSES: frozenset[str] = frozenset(
+    {
+        "actual_cga_law_for_registered_classes",
+        "actual_rgss_rate_not_cga_requirement",
+        "economic_counterfactual",
+        "excluded_from_pension_risk_benchmark",
+        "unresolved_source_requirement",
+    }
+)
+
+RGSS_RATE_COLUMNS: frozenset[str] = frozenset(
+    {
+        "broad_social_protection_rate",
+        "other_risk_rate",
+        "pension_risk_rate",
+        "total_rate",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class RgssBenchmark:
+    """A labeled RGSS comparison rate selected from the decomposition registry."""
+
+    scenario_id: str
+    rate: float
+    rate_column: str
+    benchmark_kind: str
+    legal_status: str
+    notes: str
+
 
 def statutory_liability(contribution_base: float, statutory_rate: float) -> float:
     """Compute a statutory contribution liability from a validated base and rate."""
@@ -65,6 +139,56 @@ def statutory_liability(contribution_base: float, statutory_rate: float) -> floa
     if not math.isfinite(rate) or rate < 0.0 or rate > 1.0:
         raise ValueError("statutory_rate must be finite and between 0 and 1")
     return base * rate
+
+
+def rgss_benchmark_at(
+    registry_path: str,
+    scenario_id: str,
+    when: date,
+    *,
+    rate_column: str,
+) -> RgssBenchmark:
+    """Return a labeled RGSS benchmark rate active on a date."""
+    if rate_column not in RGSS_RATE_COLUMNS:
+        raise ValueError(f"Unsupported RGSS benchmark rate column: {rate_column}")
+    registry = pd.read_csv(registry_path, dtype=str, keep_default_na=False)
+    matches = [
+        row
+        for row in registry.to_dict("records")
+        if row["scenario_id"] == scenario_id
+        and _date_value(row["valid_from"]) <= when
+        and (not row["valid_to"] or when <= _date_value(row["valid_to"]))
+    ]
+    if len(matches) != 1:
+        raise LookupError(
+            f"Expected one RGSS benchmark row for {scenario_id} on {when.isoformat()}; "
+            f"found {len(matches)}"
+        )
+    row = matches[0]
+    value = _field(row, rate_column)
+    if not value:
+        raise ValueError(f"RGSS benchmark row {scenario_id} has no {rate_column}")
+    return RgssBenchmark(
+        scenario_id=scenario_id,
+        rate=_rate_value(value, rate_column),
+        rate_column=rate_column,
+        benchmark_kind=_field(row, "benchmark_kind"),
+        legal_status=_field(row, "legal_status"),
+        notes=_field(row, "notes"),
+    )
+
+
+def counterfactual_rate_gap(
+    *,
+    contribution_base: float,
+    observed_rate: float,
+    benchmark_rate: float,
+) -> float:
+    """Return the contribution gap implied by a labeled economic benchmark."""
+    return statutory_liability(contribution_base, benchmark_rate) - statutory_liability(
+        contribution_base,
+        observed_rate,
+    )
 
 
 def validate_legal_contribution_registry(
@@ -208,6 +332,98 @@ def validate_employer_perimeter_registry(
     return errors
 
 
+def validate_rgss_rate_decomposition(
+    path: str,
+    source_registry_path: str,
+) -> list[str]:
+    """Return validation errors for the RGSS rate decomposition registry."""
+    registry = pd.read_csv(path, dtype=str, keep_default_na=False)
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(RGSS_RATE_REQUIRED_COLUMNS.difference(registry.columns))
+    if missing_columns:
+        return [f"RGSS rate decomposition missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    source_ids = set(sources["source_id"].dropna().astype(str))
+    scenario_ids = set(registry["scenario_id"].dropna().astype(str))
+    required_scenarios = {
+        "PUBLIC_EMPLOYER_DIRECT_RISK_MAPPING_BLOCKER",
+        "RGSS_BROAD_2012",
+        "RGSS_HISTORICAL_DECOMPOSITION_BLOCKER",
+        "RGSS_PENSION_RISK_2012",
+    }
+    for scenario_id in sorted(required_scenarios.difference(scenario_ids)):
+        errors.append(f"Missing RGSS rate scenario: {scenario_id}")
+
+    duplicates = registry[registry.duplicated(subset=["scenario_id", "valid_from"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate RGSS rate scenario interval: "
+            f"{_field(duplicate_row, 'scenario_id')} {_field(duplicate_row, 'valid_from')}"
+        )
+
+    for row_number, record in enumerate(registry.to_dict("records"), start=2):
+        scenario_id = _field(record, "scenario_id") or f"row {row_number}"
+        for column in RGSS_RATE_REQUIRED_COLUMNS.difference(
+            {
+                "broad_social_protection_rate",
+                "employer_rate",
+                "other_risk_rate",
+                "pension_risk_rate",
+                "total_rate",
+                "valid_to",
+                "worker_rate",
+            }
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on RGSS rate row {row_number}")
+
+        benchmark_kind = _field(record, "benchmark_kind")
+        if benchmark_kind and benchmark_kind not in RGSS_BENCHMARK_KINDS:
+            errors.append(f"Unexpected RGSS benchmark kind on row {row_number}: {benchmark_kind}")
+
+        status = _field(record, "status")
+        if status and status not in RGSS_RATE_STATUSES:
+            errors.append(f"Unexpected RGSS rate status on row {row_number}: {status}")
+
+        legal_status = _field(record, "legal_status")
+        if legal_status and legal_status not in RGSS_LEGAL_STATUSES:
+            errors.append(f"Unexpected RGSS legal status on row {row_number}: {legal_status}")
+
+        for source_id in _field(record, "source_id").split(";"):
+            if source_id and source_id not in source_ids:
+                errors.append(
+                    f"RGSS rate row {scenario_id} references unknown source_id: {source_id}"
+                )
+
+        valid_from = _date_value(_field(record, "valid_from"))
+        valid_to = _field(record, "valid_to")
+        if valid_to and _date_value(valid_to) < valid_from:
+            errors.append(f"RGSS rate interval ends before it starts on row {row_number}")
+
+        errors.extend(_validate_rgss_numeric_rates(record, row_number))
+        notes = _field(record, "notes").lower()
+        if benchmark_kind == "broad_social_protection" and (
+            "broad social-protection" not in notes or "not pension-only" not in notes
+        ):
+            errors.append("Broad RGSS row must be labeled as not pension-only")
+        if benchmark_kind == "comparable_pension_risk":
+            if legal_status != "economic_counterfactual":
+                errors.append(
+                    f"Comparable pension-risk row {scenario_id} must be an economic benchmark"
+                )
+            if "not legal debt" not in notes:
+                errors.append(
+                    f"Comparable pension-risk row {scenario_id} must state not legal debt"
+                )
+        if benchmark_kind in {"direct_risk_mapping", "historical_series_blocker"} and (
+            not status.startswith("blocked")
+        ):
+            errors.append(f"RGSS blocker row {scenario_id} must have blocked status")
+
+    return errors
+
+
 def employer_perimeter_at(
     perimeter_path: str,
     employer_class: str,
@@ -288,8 +504,50 @@ def _validate_non_overlapping_perimeter_intervals(registry: pd.DataFrame) -> lis
     return errors
 
 
+def _validate_rgss_numeric_rates(row: Any, row_number: int) -> list[str]:
+    errors: list[str] = []
+    for column in RGSS_RATE_COLUMNS.union({"employer_rate", "worker_rate"}):
+        value = _field(row, column)
+        if value:
+            _rate_value(value, column)
+
+    worker = _field(row, "worker_rate")
+    employer = _field(row, "employer_rate")
+    total = _field(row, "total_rate")
+    if worker and employer and total:
+        summed_rate = _rate_value(worker, "worker_rate") + _rate_value(employer, "employer_rate")
+        if not math.isclose(
+            summed_rate,
+            _rate_value(total, "total_rate"),
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ):
+            errors.append(f"RGSS worker and employer rates do not sum on row {row_number}")
+
+    full_rate = _field(row, "broad_social_protection_rate")
+    pension_rate = _field(row, "pension_risk_rate")
+    other_rate = _field(row, "other_risk_rate")
+    if full_rate and pension_rate and other_rate:
+        summed_components = _rate_value(pension_rate, "pension_risk_rate") + _rate_value(
+            other_rate,
+            "other_risk_rate",
+        )
+        if not math.isclose(
+            summed_components,
+            _rate_value(full_rate, "broad_social_protection_rate"),
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        ):
+            errors.append(f"RGSS pension and other risks do not sum on row {row_number}")
+    return errors
+
+
 def _rate(row: Any, column: str) -> float:
     value = _field(row, column)
+    return _rate_value(value, column)
+
+
+def _rate_value(value: str, column: str) -> float:
     try:
         rate = float(value)
     except ValueError as exc:
