@@ -579,6 +579,120 @@ def validate_public_worker_reallocation_bridge(
     return errors
 
 
+def validate_public_worker_liability_assumptions(
+    assumptions_path: str,
+    source_registry_path: str | None = None,
+) -> list[str]:
+    """Return validation errors for public-worker future-rights assumption gates."""
+    assumptions = pd.read_csv(assumptions_path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "assumption_id",
+        "scope",
+        "period_start",
+        "period_end",
+        "current_flow_dataset",
+        "rights_measure",
+        "liability_measurement_basis",
+        "discount_rate_basis",
+        "mortality_basis",
+        "indexation_basis",
+        "microdata_status",
+        "aggregate_bounds_status",
+        "required_inputs",
+        "source_ids",
+        "status",
+        "claim_constraint",
+        "notes",
+    }
+    errors = _missing_columns(assumptions, required_columns, "public worker liability assumptions")
+    if errors:
+        return errors
+
+    duplicates = assumptions[assumptions.duplicated(subset=["assumption_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate public worker liability assumption_id: "
+            f"{_field(duplicate_row, 'assumption_id')}"
+        )
+
+    source_ids = _registered_source_ids(source_registry_path)
+    has_flow_rights_gate = False
+    required_inputs = {
+        "cohort_counts",
+        "contribution_bases",
+        "service_histories",
+        "benefit_formula",
+        "indexation_rule",
+        "mortality_table",
+        "discount_rate",
+    }
+    for row_number, record in enumerate(assumptions.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(
+                    f"Missing {column} on public worker liability assumption row {row_number}"
+                )
+        try:
+            period_start = int(_field(record, "period_start"))
+            period_end = int(_field(record, "period_end"))
+        except ValueError:
+            errors.append(f"Invalid period on public worker liability assumption row {row_number}")
+            continue
+        if period_start > period_end:
+            errors.append(
+                "public worker liability assumption period_start must be <= period_end "
+                f"on row {row_number}"
+            )
+        if period_start <= 2006 and period_end >= 2025:
+            has_flow_rights_gate = True
+
+        if _field(record, "current_flow_dataset") != (
+            "data/processed/public_worker_rgss_contributions_2006_2025.csv"
+        ):
+            errors.append(
+                "public worker liability assumptions must reference the contribution "
+                f"dataset on row {row_number}"
+            )
+        claim_constraint = _field(record, "claim_constraint").lower()
+        if "free" not in claim_constraint or "pension rights" not in claim_constraint:
+            errors.append(
+                "public worker liability assumptions must block free-sustainability "
+                f"claims without pension-rights caveats on row {row_number}"
+            )
+        observed_inputs = {
+            value.strip() for value in _field(record, "required_inputs").split(";") if value.strip()
+        }
+        if not required_inputs.issubset(observed_inputs):
+            errors.append(
+                "public worker liability assumption row is missing required actuarial "
+                f"inputs on row {row_number}"
+            )
+        if not _field(record, "status").startswith("blocked"):
+            if _field(record, "microdata_status").startswith("missing"):
+                errors.append(
+                    "non-blocked public worker liability assumptions require microdata "
+                    f"or documented aggregate bounds on row {row_number}"
+                )
+            if _field(record, "aggregate_bounds_status").startswith("missing"):
+                errors.append(
+                    "non-blocked public worker liability assumptions require aggregate "
+                    f"bounds on row {row_number}"
+                )
+        for source_id in _field(record, "source_ids").split(";"):
+            source_id = source_id.strip()
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    f"Unknown source_id on public worker liability assumption row "
+                    f"{row_number}: {source_id}"
+                )
+
+    if not has_flow_rights_gate:
+        errors.append(
+            "public worker liability assumptions must cover the full 2006-2025 flow period"
+        )
+    return errors
+
+
 def _missing_columns(
     table: pd.DataFrame,
     required_columns: set[str],
