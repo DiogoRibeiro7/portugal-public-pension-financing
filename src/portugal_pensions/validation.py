@@ -662,7 +662,8 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "legal_contribution_registry.csv").is_file():
         errors.extend(
             validate_legal_contribution_registry(
-                str(evidence_dir / "legal_contribution_registry.csv")
+                str(evidence_dir / "legal_contribution_registry.csv"),
+                str(evidence_dir / "source_registry.csv"),
             )
         )
     if (evidence_dir / "bank_pension_transfer_registry.csv").is_file():

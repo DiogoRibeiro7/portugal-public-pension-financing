@@ -1,12 +1,12 @@
 # Legal contribution history
 
-Status: `bounded_registry_complete`
+Status: `partial_bounded_reconstruction`
 
 This note documents `evidence/legal_contribution_registry.csv`.
 
 ## Scope
 
-The registry reconstructs the CGA contribution regime from 2006 onward for:
+The registry reconstructs a bounded CGA contribution regime from 2006 onward for:
 
 - central state integrated services that were not in the earlier employer-contribution cohorts;
 - entities already obliged to contribute before 2007;
@@ -21,8 +21,8 @@ The current rule is recorded from the consolidated Estatuto da Aposentação, ar
 
 ## Limitation
 
-Older budget-law PDFs still need direct article-level extraction and hashing before the table can be treated as fully replicated from primary legislation. Until then, rows marked `verified_official_judicial_summary` should be cited as an official legal reconstruction, not as independently extracted statutory text.
+The registry is not a complete 1977-2025 rate history. Older budget-law PDFs still need direct article-level extraction and hashing before the table can be treated as fully replicated from primary legislation. Until then, rows marked `verified_official_judicial_summary` should be cited as an official legal reconstruction, not as independently extracted statutory text.
 
 ## Validation
 
-`python -m portugal_pensions.cli validate-evidence` now checks duplicate interval keys, rate-component totals, required fields and overlapping date intervals by employer class.
+`python -m portugal_pensions.cli validate-evidence` now checks duplicate interval keys, rate-component totals, required fields, source IDs, controlled statuses, covered-risk labels, required employer classes, one open interval per employer class, interval direction and overlapping date intervals by employer class.
