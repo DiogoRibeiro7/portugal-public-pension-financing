@@ -1,24 +1,30 @@
 # Decompose RGSS rates
 
 Instruction file: `prompts/29_rgss_rate_decomposition_and_pension_only_benchmark.md`
-Date: 2026-08-19
-Status: `blocked_by_source_work`
+Date: 2026-08-21
+Status: `partial_bounded_reconstruction`
 
 ## Actions
 
 - Read the instruction file together with the master research guardrails.
 - Checked the current repository architecture, registries, tests, and validation commands.
-- Preserved existing validated outputs.
-- Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
+- Replaced the passive RGSS-rate header with a validated decomposition registry.
+- Added 2012 bounded rows separating full RGSS broad social-protection rate,
+  comparable covered-eventuality benchmark, and residual non-pension risks.
+- Added benchmark lookup helpers that return legal-status labels with rates.
+- Preserved the rule that economic benchmarks are counterfactual and not legal
+  debt.
 
 ## Result
 
-Recorded benchmark separation requirements.
+Added an executable RGSS rate decomposition gate.
 
 ## Current Stop Condition
 
-Completion beyond this record requires the registered primary sources and deterministic extraction chain needed by the task. Until those inputs exist, any quantitative result remains blocked or partial under the repository evidence rules.
+Completion beyond this bounded result requires year-level legal RGSS rate tables
+by contingency, worker/employer allocations by contingency, and direct
+public-employer risk mapping for non-pension contingencies.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran `make quality` after regenerating `MANIFEST.sha256`.

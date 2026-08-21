@@ -4,10 +4,13 @@ from pathlib import Path
 import pytest
 
 from portugal_pensions.legal import (
+    counterfactual_rate_gap,
     employer_perimeter_at,
+    rgss_benchmark_at,
     statutory_liability,
     validate_employer_perimeter_registry,
     validate_legal_contribution_registry,
+    validate_rgss_rate_decomposition,
 )
 
 
@@ -41,6 +44,39 @@ def test_repository_employer_perimeter_registry_is_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_rgss_rate_decomposition_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_rgss_rate_decomposition(
+            str(root / "evidence" / "rgss_rate_decomposition.csv"),
+            str(root / "evidence" / "source_registry.csv"),
+        )
+        == []
+    )
+
+
+def test_rgss_pension_benchmark_is_labeled_counterfactual() -> None:
+    root = Path(__file__).resolve().parents[1]
+    benchmark = rgss_benchmark_at(
+        str(root / "evidence" / "rgss_rate_decomposition.csv"),
+        "RGSS_PENSION_RISK_2012",
+        date(2012, 12, 31),
+        rate_column="pension_risk_rate",
+    )
+
+    assert benchmark.rate == pytest.approx(0.2694)
+    assert benchmark.legal_status == "economic_counterfactual"
+    assert "not legal debt" in benchmark.notes
+
+
+def test_counterfactual_rate_gap_uses_labeled_rate_arithmetic() -> None:
+    assert counterfactual_rate_gap(
+        contribution_base=1_000.0,
+        observed_rate=0.2600,
+        benchmark_rate=0.2694,
+    ) == pytest.approx(9.4)
 
 
 def test_employer_perimeter_lookup_returns_active_row() -> None:
@@ -135,3 +171,44 @@ def test_employer_perimeter_registry_rejects_collapsed_legal_and_statistical_sec
 
     errors = validate_employer_perimeter_registry(str(perimeter), str(sources), str(legal))
     assert "Employer perimeter row 2 collapses legal and statistical sectors" in errors
+
+
+def test_rgss_rate_decomposition_rejects_pension_benchmark_without_debt_guard(
+    tmp_path: Path,
+) -> None:
+    sources = tmp_path / "source_registry.csv"
+    sources.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2012,https://example.test,"
+        "https://example.test,2026-08-21,2012,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+    registry = tmp_path / "rgss_rate_decomposition.csv"
+    registry.write_text(
+        "scenario_id,valid_from,valid_to,rate_owner,benchmark_kind,worker_rate,"
+        "employer_rate,total_rate,pension_risk_rate,broad_social_protection_rate,"
+        "other_risk_rate,covered_risks,excluded_risks,public_employer_risk_mapping,"
+        "legal_status,source_id,status,notes\n"
+        "RGSS_BROAD_2012,2012-01-01,2012-12-31,RGSS,broad_social_protection,"
+        "0.1100,0.2375,0.3475,,0.3475,,all,not_applicable,mapping,"
+        "actual_rgss_rate_not_cga_requirement,SRC,official_bounded_extract,"
+        "Full RGSS rate is broad social-protection and not pension-only.\n"
+        "RGSS_PENSION_RISK_2012,2012-01-01,2012-12-31,RGSS,"
+        "comparable_pension_risk,,,0.2694,0.2694,,,pension,other,mapping,"
+        "actual_rgss_rate_not_cga_requirement,SRC,official_bounded_extract,"
+        "economic benchmark\n"
+        "PUBLIC_EMPLOYER_DIRECT_RISK_MAPPING_BLOCKER,2006-01-01,2025-12-31,"
+        "public_employers,direct_risk_mapping,,,,,,,,other,blocked,"
+        "unresolved_source_requirement,SRC,blocked_missing_source_extraction,blocked\n"
+        "RGSS_HISTORICAL_DECOMPOSITION_BLOCKER,1977-01-01,2025-12-31,RGSS,"
+        "historical_series_blocker,,,,,,,,all,blocked,unresolved_source_requirement,"
+        "SRC,blocked_missing_source_extraction,blocked\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_rgss_rate_decomposition(str(registry), str(sources))
+    assert (
+        "Comparable pension-risk row RGSS_PENSION_RISK_2012 must be an economic benchmark" in errors
+    )
+    assert "Comparable pension-risk row RGSS_PENSION_RISK_2012 must state not legal debt" in errors
