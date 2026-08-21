@@ -38,6 +38,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "analysis_protocol_hash.csv",
     "concept_registry.csv",
     "source_registry.csv",
+    "source_acquisition_log.csv",
     "source_coverage_matrix.csv",
     "claim_registry.csv",
     "legal_contribution_registry.csv",
@@ -337,6 +338,26 @@ SOURCE_COVERAGE_STATUSES: frozenset[str] = frozenset(
 
 SOURCE_COVERAGE_YEARS: frozenset[int] = frozenset(range(1977, 2026))
 
+SOURCE_ACQUISITION_LOG_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "source_id",
+        "attempted_url",
+        "retrieval_date",
+        "raw_path",
+        "sha256",
+        "status",
+        "notes",
+    }
+)
+
+SOURCE_ACQUISITION_STATUSES: frozenset[str] = frozenset(
+    {
+        "acquired",
+        "failed",
+        "shell_html_not_evidence",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -389,6 +410,14 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "source_acquisition_log.csv").is_file():
+        errors.extend(
+            validate_source_acquisition_log(
+                evidence_dir / "source_acquisition_log.csv",
+                evidence_dir / "source_registry.csv",
+                evidence_dir.parent,
+            )
         )
     if (evidence_dir / "source_coverage_matrix.csv").is_file():
         errors.extend(
@@ -567,6 +596,119 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def validate_source_acquisition_log(
+    log_path: Path,
+    source_registry_path: Path,
+    root: Path,
+) -> list[str]:
+    """Return validation errors for raw-source acquisition attempts."""
+    if not isinstance(log_path, Path):
+        raise TypeError("log_path must be pathlib.Path")
+    if not isinstance(source_registry_path, Path):
+        raise TypeError("source_registry_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    acquisition_log = pd.read_csv(log_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(
+        SOURCE_ACQUISITION_LOG_REQUIRED_COLUMNS.difference(acquisition_log.columns)
+    )
+    if missing_columns:
+        return [f"Source acquisition log missing columns: {', '.join(missing_columns)}"]
+
+    source_registry = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    source_by_id = {
+        row["source_id"]: row for row in source_registry.to_dict("records") if row["source_id"]
+    }
+
+    errors: list[str] = []
+    duplicate_ids = sorted(
+        acquisition_log.loc[acquisition_log["source_id"].duplicated(), "source_id"]
+        .dropna()
+        .unique()
+    )
+    for source_id in duplicate_ids:
+        errors.append(f"Duplicate source acquisition log row: {source_id}")
+
+    status_counts = acquisition_log["status"].value_counts().to_dict()
+    if status_counts.get("acquired", 0) < 8:
+        errors.append("Source acquisition log must include at least 8 acquired sources")
+    if status_counts.get("failed", 0) == 0:
+        errors.append("Source acquisition log must preserve failed retrieval attempts")
+    if status_counts.get("shell_html_not_evidence", 0) == 0:
+        errors.append("Source acquisition log must preserve shell HTML rejections")
+
+    logged_source_ids = set(acquisition_log["source_id"])
+    for row in acquisition_log.to_dict("records"):
+        source_id = row["source_id"].strip()
+        if not source_id:
+            errors.append("Source acquisition log contains a row with empty source_id")
+            continue
+        source_row = source_by_id.get(source_id)
+        if source_row is None:
+            errors.append(f"Source acquisition log references unknown source_id: {source_id}")
+            continue
+
+        status = row["status"].strip()
+        if status not in SOURCE_ACQUISITION_STATUSES:
+            errors.append(f"Source acquisition row {source_id} has invalid status: {status}")
+
+        for column in ("attempted_url", "retrieval_date", "notes"):
+            if not row[column].strip():
+                errors.append(f"Source acquisition row {source_id} has empty {column}")
+
+        retrieval_date = row["retrieval_date"].strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", retrieval_date):
+            errors.append(
+                f"Source acquisition row {source_id} has invalid retrieval_date: {retrieval_date}"
+            )
+
+        raw_path = row["raw_path"].strip()
+        expected_hash = row["sha256"].strip()
+        if status == "acquired":
+            if not raw_path:
+                errors.append(f"Acquired source acquisition row {source_id} has empty raw_path")
+                continue
+            if len(expected_hash) != 64 or any(
+                char not in "0123456789abcdef" for char in expected_hash
+            ):
+                errors.append(f"Acquired source acquisition row {source_id} has invalid hash")
+                continue
+            candidate = Path(raw_path)
+            if candidate.is_absolute() or ".." in candidate.parts:
+                errors.append(f"Source acquisition row {source_id} has unsafe raw_path")
+                continue
+            raw_file = root / candidate
+            if not raw_file.is_file():
+                errors.append(f"Source acquisition raw file is missing: {raw_path}")
+                continue
+            actual_hash = hashlib.sha256(raw_file.read_bytes()).hexdigest()
+            if actual_hash != expected_hash:
+                errors.append(f"Source acquisition hash mismatch: {source_id}")
+            if source_row["status"] != "acquired":
+                errors.append(f"Acquired source {source_id} is not acquired in source registry")
+            if source_row["raw_path"] != raw_path:
+                errors.append(f"Source acquisition raw_path differs from registry: {source_id}")
+            if source_row["sha256"] != expected_hash:
+                errors.append(f"Source acquisition hash differs from registry: {source_id}")
+        else:
+            if raw_path or expected_hash:
+                errors.append(f"Unacquired source acquisition row {source_id} must not carry hash")
+            if source_row["status"] == "acquired":
+                errors.append(
+                    f"Unacquired source acquisition row {source_id} conflicts with registry"
+                )
+
+    for row in source_registry.to_dict("records"):
+        raw_path = row["raw_path"].strip()
+        if raw_path.startswith("data/raw/source_catalogues/"):
+            source_id = row["source_id"]
+            if source_id not in logged_source_ids:
+                errors.append(f"Acquired source catalogue missing acquisition log: {source_id}")
+
     return errors
 
 

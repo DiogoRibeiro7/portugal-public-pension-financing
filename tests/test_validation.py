@@ -13,6 +13,7 @@ from portugal_pensions.validation import (
     validate_manuscript_draft,
     validate_publication_artifacts,
     validate_release_reproducibility_audit,
+    validate_source_acquisition_log,
     validate_source_coverage_matrix,
     validate_source_registry,
     validate_submission_package,
@@ -65,6 +66,18 @@ def test_repository_source_coverage_matrix_is_valid() -> None:
             root / "evidence" / "source_coverage_matrix.csv",
             root / "evidence" / "source_registry.csv",
             root / "docs" / "historical_data_gap_map.md",
+        )
+        == []
+    )
+
+
+def test_repository_source_acquisition_log_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_source_acquisition_log(
+            root / "evidence" / "source_acquisition_log.csv",
+            root / "evidence" / "source_registry.csv",
+            root,
         )
         == []
     )
@@ -299,6 +312,34 @@ def test_source_coverage_matrix_requires_complete_horizon(tmp_path: Path) -> Non
 
     errors = validate_source_coverage_matrix(matrix, source_registry, gap_map)
     assert "Missing source coverage row: cge_public_accounts 1978" in errors
+
+
+def test_source_acquisition_log_rejects_hash_mismatch(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "data" / "raw" / "source_catalogues"
+    evidence_dir = tmp_path / "evidence"
+    raw_dir.mkdir(parents=True)
+    evidence_dir.mkdir()
+    raw_file = raw_dir / "SRC.html"
+    raw_file.write_text("changed\n", encoding="utf-8")
+    registry = evidence_dir / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2026,https://example.test,https://example.test,"
+        "2026-08-21,2026,basis,data/raw/source_catalogues/SRC.html,"
+        f"{'0' * 64},acquired,notes\n",
+        encoding="utf-8",
+    )
+    log = evidence_dir / "source_acquisition_log.csv"
+    log.write_text(
+        "source_id,attempted_url,retrieval_date,raw_path,sha256,status,notes\n"
+        "SRC,https://example.test,2026-08-21,data/raw/source_catalogues/SRC.html,"
+        f"{'0' * 64},acquired,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_source_acquisition_log(log, registry, tmp_path)
+    assert "Source acquisition hash mismatch: SRC" in errors
 
 
 def test_internal_replication_review_requires_article_claim_coverage(tmp_path: Path) -> None:
