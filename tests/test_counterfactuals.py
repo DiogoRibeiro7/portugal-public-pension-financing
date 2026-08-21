@@ -7,6 +7,7 @@ from portugal_pensions.counterfactuals import (
     funding_substitution,
     public_worker_reallocation_flow,
     validate_counterfactual_financing_regimes,
+    validate_public_worker_liability_assumptions,
     validate_public_worker_reallocation,
     validate_public_worker_reallocation_bridge,
 )
@@ -45,6 +46,17 @@ def test_repository_public_worker_reallocation_bridge_is_valid() -> None:
     assert (
         validate_public_worker_reallocation_bridge(
             str(root / "data" / "processed" / "public_worker_reallocation_bridge.csv"),
+            str(root / "evidence" / "source_registry.csv"),
+        )
+        == []
+    )
+
+
+def test_repository_public_worker_liability_assumptions_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_public_worker_liability_assumptions(
+            str(root / "evidence" / "public_worker_liability_assumptions.csv"),
             str(root / "evidence" / "source_registry.csv"),
         )
         == []
@@ -248,3 +260,53 @@ def test_public_worker_reallocation_bridge_checks_arithmetic_residual(tmp_path: 
 
     errors = validate_public_worker_reallocation_bridge(str(bridge))
     assert "Total contribution residual on public worker reallocation bridge row 2" in errors
+
+
+def test_public_worker_liability_assumptions_block_free_sustainability_claims(
+    tmp_path: Path,
+) -> None:
+    assumptions = tmp_path / "public_worker_liability_assumptions.csv"
+    assumptions.write_text(
+        "assumption_id,scope,period_start,period_end,current_flow_dataset,rights_measure,"
+        "liability_measurement_basis,discount_rate_basis,mortality_basis,indexation_basis,"
+        "microdata_status,aggregate_bounds_status,required_inputs,source_ids,status,"
+        "claim_constraint,notes\n"
+        "PWR1,scope,2006,2025,"
+        "data/processed/public_worker_rgss_contributions_2006_2025.csv,"
+        "accrued_rgss_pension_rights,basis,rate,mortality,indexation,missing_microdata,"
+        "missing_bounds,cohort_counts;contribution_bases;service_histories;"
+        "benefit_formula;indexation_rule;mortality_table;discount_rate,SRC,"
+        "blocked_missing_liability_inputs,contributions improve cash flow,missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_public_worker_liability_assumptions(str(assumptions))
+    assert (
+        "public worker liability assumptions must block free-sustainability claims "
+        "without pension-rights caveats on row 2" in errors
+    )
+
+
+def test_public_worker_liability_assumptions_require_actuarial_inputs(
+    tmp_path: Path,
+) -> None:
+    assumptions = tmp_path / "public_worker_liability_assumptions.csv"
+    assumptions.write_text(
+        "assumption_id,scope,period_start,period_end,current_flow_dataset,rights_measure,"
+        "liability_measurement_basis,discount_rate_basis,mortality_basis,indexation_basis,"
+        "microdata_status,aggregate_bounds_status,required_inputs,source_ids,status,"
+        "claim_constraint,notes\n"
+        "PWR1,scope,2006,2025,"
+        "data/processed/public_worker_rgss_contributions_2006_2025.csv,"
+        "accrued_rgss_pension_rights,basis,rate,mortality,indexation,missing_microdata,"
+        "missing_bounds,cohort_counts;contribution_bases,SRC,"
+        "blocked_missing_liability_inputs,not a free gain because pension rights accrue,"
+        "missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_public_worker_liability_assumptions(str(assumptions))
+    assert (
+        "public worker liability assumption row is missing required actuarial inputs on row 2"
+        in errors
+    )

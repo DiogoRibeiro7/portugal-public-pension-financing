@@ -30,6 +30,7 @@ from .banking import (
 )
 from .counterfactuals import (
     validate_counterfactual_financing_regimes,
+    validate_public_worker_liability_assumptions,
     validate_public_worker_reallocation,
     validate_public_worker_reallocation_bridge,
 )
@@ -54,6 +55,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "employer_perimeter_registry.csv",
     "rgss_rate_decomposition.csv",
     "state_financing_rule_registry.csv",
+    "public_worker_liability_assumptions.csv",
     "bank_pension_transfer_registry.csv",
     "bank_special_regime_annual.csv",
     "extraction_audit.csv",
@@ -802,6 +804,14 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_public_worker_reallocation_bridge(
                 str(public_worker_bridge),
+                str(evidence_dir / "source_registry.csv"),
+            )
+        )
+    public_worker_liability_assumptions = evidence_dir / "public_worker_liability_assumptions.csv"
+    if public_worker_liability_assumptions.is_file():
+        errors.extend(
+            validate_public_worker_liability_assumptions(
+                str(public_worker_liability_assumptions),
                 str(evidence_dir / "source_registry.csv"),
             )
         )

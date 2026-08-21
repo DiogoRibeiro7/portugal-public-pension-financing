@@ -7,6 +7,7 @@ This note documents:
 - `data/processed/public_worker_rgss_cohorts.csv`
 - `data/processed/public_worker_rgss_contributions_2006_2025.csv`
 - `data/processed/public_worker_reallocation_bridge.csv`
+- `evidence/public_worker_liability_assumptions.csv`
 
 ## Established Mechanism
 
@@ -27,6 +28,8 @@ The processed files contain year-level records from 2006 through 2025 with blank
 
 `public_worker_rgss_contributions_2006_2025.csv` includes method, pension-basis, uncertainty, aggregate-cap and claim-permission fields. These fields prevent a future estimate from entering the analysis unless it is labelled as either a direct observation or a reconstruction and checked against aggregate RGSS contribution revenue.
 
+`evidence/public_worker_liability_assumptions.csv` records that contribution inflows from post-2006 public workers must not be presented as a free sustainability improvement without noting the pension rights simultaneously accumulated.
+
 `public_worker_reallocation_bridge.csv` records the mechanical flow identity:
 
 `contribution_base * worker_rate + contribution_base * employer_rate = total_contributions`
@@ -43,3 +46,5 @@ The bridge validation additionally requires:
 - explicit source identifiers, unit, price basis and accounting basis metadata;
 - `claim_permitted=no` while rows remain blocked by missing source inputs;
 - non-negative numeric values and a zero residual against the flow identity whenever a row is marked complete.
+
+The liability-assumption validation requires the no-free-improvement caveat, 2006-2025 coverage and the source inputs needed for a future actuarial or aggregate-bound estimate.
