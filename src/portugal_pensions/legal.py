@@ -24,6 +24,33 @@ ALLOWED_REGISTRY_STATUSES: frozenset[str] = frozenset(
     }
 )
 
+EMPLOYER_PERIMETER_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "employer_class",
+        "valid_from",
+        "valid_to",
+        "legal_regime",
+        "statistical_sector",
+        "national_accounts_sector",
+        "cga_contribution_regime",
+        "rgss_new_entrants_rule",
+        "source_id",
+        "status",
+        "notes",
+    }
+)
+
+EMPLOYER_PERIMETER_STATUSES: frozenset[str] = frozenset(
+    {
+        "definition_boundary",
+        "official_summary_mapping",
+    }
+)
+
+REQUIRED_EMPLOYER_PERIMETER_CLASSES: frozenset[str] = REQUIRED_EMPLOYER_CLASSES.union(
+    {"public_workers_rgss_new_entrants_2006"}
+)
+
 
 def statutory_liability(contribution_base: float, statutory_rate: float) -> float:
     """Compute a statutory contribution liability from a validated base and rate."""
@@ -112,6 +139,101 @@ def validate_legal_contribution_registry(
     return errors
 
 
+def validate_employer_perimeter_registry(
+    perimeter_path: str,
+    source_registry_path: str,
+    legal_registry_path: str,
+) -> list[str]:
+    """Return validation errors for employer perimeter and class mappings."""
+    perimeter = pd.read_csv(perimeter_path, dtype=str, keep_default_na=False)
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    legal = pd.read_csv(legal_registry_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(EMPLOYER_PERIMETER_REQUIRED_COLUMNS.difference(perimeter.columns))
+    if missing_columns:
+        return [f"Employer perimeter registry missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    source_ids = set(sources["source_id"].dropna().astype(str))
+    legal_classes = set(legal["employer_class"].dropna().astype(str))
+    perimeter_classes = set(perimeter["employer_class"].dropna().astype(str))
+    for employer_class in sorted(REQUIRED_EMPLOYER_PERIMETER_CLASSES.difference(perimeter_classes)):
+        errors.append(f"Missing employer perimeter class: {employer_class}")
+    for employer_class in sorted(legal_classes.difference(perimeter_classes)):
+        errors.append(f"Legal employer class missing perimeter mapping: {employer_class}")
+
+    duplicates = perimeter[
+        perimeter.duplicated(subset=["employer_class", "valid_from"], keep=False)
+    ]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate employer perimeter row: "
+            f"{_field(duplicate_row, 'employer_class')} {_field(duplicate_row, 'valid_from')}"
+        )
+
+    for row_number, record in enumerate(perimeter.to_dict("records"), start=2):
+        employer_class = _field(record, "employer_class")
+        for column in EMPLOYER_PERIMETER_REQUIRED_COLUMNS.difference({"valid_to"}):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on employer perimeter row {row_number}")
+        if (
+            employer_class in legal_classes
+            and _field(record, "cga_contribution_regime") != employer_class
+        ):
+            errors.append(f"Employer perimeter row {row_number} must map to its legal class regime")
+        if employer_class == "public_workers_rgss_new_entrants_2006" and (
+            _field(record, "cga_contribution_regime") != "not_applicable"
+        ):
+            errors.append("RGSS entrant boundary row must not map to a CGA contribution regime")
+        if _field(record, "status") not in EMPLOYER_PERIMETER_STATUSES:
+            errors.append(
+                f"Invalid employer perimeter status on row {row_number}: {_field(record, 'status')}"
+            )
+        if "RGSS" not in _field(record, "rgss_new_entrants_rule"):
+            errors.append(f"Employer perimeter row {row_number} must document RGSS entrant rule")
+        if _field(record, "statistical_sector") == _field(record, "legal_regime"):
+            errors.append(
+                f"Employer perimeter row {row_number} collapses legal and statistical sectors"
+            )
+        for source_id in _field(record, "source_id").split(";"):
+            if source_id not in source_ids:
+                errors.append(
+                    f"Employer perimeter row {row_number} references unknown source_id: {source_id}"
+                )
+        valid_from = _date_value(_field(record, "valid_from"))
+        valid_to = _field(record, "valid_to")
+        if valid_to and _date_value(valid_to) < valid_from:
+            errors.append(f"Employer perimeter interval ends before it starts on row {row_number}")
+
+    errors.extend(_validate_non_overlapping_perimeter_intervals(perimeter))
+    return errors
+
+
+def employer_perimeter_at(
+    perimeter_path: str,
+    employer_class: str,
+    when: date,
+) -> dict[str, str]:
+    """Return the employer perimeter row active for an employer class on a date."""
+    if not isinstance(employer_class, str):
+        raise TypeError("employer_class must be str")
+    if not isinstance(when, date):
+        raise TypeError("when must be datetime.date")
+    perimeter = pd.read_csv(perimeter_path, dtype=str, keep_default_na=False)
+    matches = [
+        {str(key): str(value) for key, value in row.items()}
+        for row in perimeter.to_dict("records")
+        if row["employer_class"] == employer_class
+        and _date_value(row["valid_from"]) <= when
+        and (not row["valid_to"] or when <= _date_value(row["valid_to"]))
+    ]
+    if len(matches) != 1:
+        raise LookupError(
+            f"Expected one employer perimeter row for {employer_class} on {when.isoformat()}; "
+            f"found {len(matches)}"
+        )
+    return matches[0]
+
+
 def _legal_source_ids(source_registry_path: str | None) -> set[str]:
     if source_registry_path is None:
         return {
@@ -145,6 +267,23 @@ def _validate_non_overlapping_intervals(registry: pd.DataFrame) -> list[str]:
         for (_, previous_end), (current_start, _) in zip(intervals, intervals[1:], strict=False):
             if current_start <= previous_end:
                 errors.append(f"Overlapping legal contribution intervals for {employer_class}")
+                break
+    return errors
+
+
+def _validate_non_overlapping_perimeter_intervals(registry: pd.DataFrame) -> list[str]:
+    errors: list[str] = []
+    for employer_class, group in registry.groupby("employer_class"):
+        intervals = sorted(
+            (
+                _date_value(row["valid_from"]),
+                _date_value(row["valid_to"]) if _field(row, "valid_to") else date.max,
+            )
+            for _, row in group.iterrows()
+        )
+        for (_, previous_end), (current_start, _) in zip(intervals, intervals[1:], strict=False):
+            if current_start <= previous_end:
+                errors.append(f"Overlapping employer perimeter intervals for {employer_class}")
                 break
     return errors
 

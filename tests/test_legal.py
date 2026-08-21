@@ -1,8 +1,14 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from portugal_pensions.legal import statutory_liability, validate_legal_contribution_registry
+from portugal_pensions.legal import (
+    employer_perimeter_at,
+    statutory_liability,
+    validate_employer_perimeter_registry,
+    validate_legal_contribution_registry,
+)
 
 
 def test_statutory_liability() -> None:
@@ -23,6 +29,30 @@ def test_repository_legal_contribution_registry_is_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_employer_perimeter_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_employer_perimeter_registry(
+            str(root / "evidence" / "employer_perimeter_registry.csv"),
+            str(root / "evidence" / "source_registry.csv"),
+            str(root / "evidence" / "legal_contribution_registry.csv"),
+        )
+        == []
+    )
+
+
+def test_employer_perimeter_lookup_returns_active_row() -> None:
+    root = Path(__file__).resolve().parents[1]
+    row = employer_perimeter_at(
+        str(root / "evidence" / "employer_perimeter_registry.csv"),
+        "entities_first_covered_2009",
+        date(2010, 1, 1),
+    )
+
+    assert row["cga_contribution_regime"] == "entities_first_covered_2009"
+    assert row["national_accounts_sector"] == "sector_varies_by_entity_and_year"
 
 
 def test_legal_contribution_registry_rejects_overlapping_intervals(tmp_path: Path) -> None:
@@ -68,3 +98,40 @@ def test_legal_contribution_registry_rejects_unknown_source_id(tmp_path: Path) -
 
     errors = validate_legal_contribution_registry(str(registry), str(sources))
     assert "Unknown legal contribution source_id on row 2: MISSING" in errors
+
+
+def test_employer_perimeter_registry_rejects_collapsed_legal_and_statistical_sector(
+    tmp_path: Path,
+) -> None:
+    sources = tmp_path / "source_registry.csv"
+    sources.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2026,https://example.test,"
+        "https://example.test,2026-08-21,2026,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+    legal = tmp_path / "legal_contribution_registry.csv"
+    legal.write_text(
+        "effective_from,effective_to,employer_class,worker_rate_retirement,"
+        "worker_rate_survivor,worker_rate_total,employer_rate_retirement,"
+        "employer_rate_survivor,employer_rate_total,contribution_base_definition,"
+        "covered_risks,source_id,article,status,notes\n"
+        "2014-01-01,,central_state_integrated_services,0.08,0.03,0.11,0.20,"
+        "0.0375,0.2375,remuneration subject to CGA quota,retirement;survivor,"
+        "SRC,article,current_consolidated_rule,notes\n",
+        encoding="utf-8",
+    )
+    perimeter = tmp_path / "employer_perimeter_registry.csv"
+    perimeter.write_text(
+        "employer_class,valid_from,valid_to,legal_regime,statistical_sector,"
+        "national_accounts_sector,cga_contribution_regime,rgss_new_entrants_rule,"
+        "source_id,status,notes\n"
+        "central_state_integrated_services,2014-01-01,,same,same,central,"
+        "central_state_integrated_services,new entrants enter RGSS,SRC,"
+        "official_summary_mapping,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_employer_perimeter_registry(str(perimeter), str(sources), str(legal))
+    assert "Employer perimeter row 2 collapses legal and statistical sectors" in errors
