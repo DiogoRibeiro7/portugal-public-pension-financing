@@ -33,6 +33,7 @@ from .counterfactuals import (
 )
 from .extraction import parse_accounting_number
 from .legal import validate_legal_contribution_registry
+from .units import load_unit_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "analysis_protocol.csv",
@@ -41,6 +42,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "source_registry.csv",
     "source_acquisition_log.csv",
     "source_coverage_matrix.csv",
+    "unit_registry.csv",
     "claim_registry.csv",
     "legal_contribution_registry.csv",
     "bank_pension_transfer_registry.csv",
@@ -393,6 +395,52 @@ EXTRACTION_QA_TIERS: frozenset[str] = frozenset({"high_impact", "routine"})
 
 NON_NUMERIC_EXTRACTION_UNITS: frozenset[str] = frozenset({"legal_scope", "qualitative"})
 
+UNIT_REGISTRY_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "unit_id",
+        "currency",
+        "scale",
+        "price_basis",
+        "base_year",
+        "flow_or_stock",
+        "accounting_basis",
+        "conversion_rule",
+        "valid_from",
+        "valid_to",
+        "canonical_unit",
+        "join_family",
+        "notes",
+    }
+)
+
+UNIT_REGISTRY_REQUIRED_UNITS: frozenset[str] = frozenset(
+    {
+        "EUR_million",
+        "EUR_million_and_percent_GDP",
+        "PTE_million",
+        "count",
+        "date",
+        "mixed",
+        "not_applicable",
+        "percent",
+        "percent_GDP",
+        "rate",
+        "share_of_assets",
+        "share_of_provisional_value",
+        "text",
+        "workers",
+    }
+)
+
+UNIT_REGISTRY_CONVERSION_RULES: frozenset[str] = frozenset(
+    {
+        "divide_by_100_for_rate",
+        "fixed_escudo_euro_200_482",
+        "none",
+        "split_before_join",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -445,6 +493,10 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "unit_registry.csv").is_file():
+        errors.extend(
+            validate_unit_registry(evidence_dir / "unit_registry.csv", evidence_dir.parent)
         )
     if (evidence_dir / "source_acquisition_log.csv").is_file():
         errors.extend(
@@ -638,6 +690,79 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def validate_unit_registry(registry_path: Path, root: Path) -> list[str]:
+    """Return validation errors for unit/currency/price-basis metadata."""
+    if not isinstance(registry_path, Path):
+        raise TypeError("registry_path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+
+    registry = pd.read_csv(registry_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(UNIT_REGISTRY_REQUIRED_COLUMNS.difference(registry.columns))
+    if missing_columns:
+        return [f"Unit registry missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    unit_ids = set(registry["unit_id"])
+    for unit_id in sorted(UNIT_REGISTRY_REQUIRED_UNITS.difference(unit_ids)):
+        errors.append(f"Missing required unit registry row: {unit_id}")
+
+    duplicate_ids = sorted(
+        registry.loc[registry["unit_id"].duplicated(), "unit_id"].dropna().unique()
+    )
+    for unit_id in duplicate_ids:
+        errors.append(f"Duplicate unit registry row: {unit_id}")
+
+    for row in registry.to_dict("records"):
+        unit_id = row["unit_id"].strip()
+        if not unit_id:
+            errors.append("Unit registry contains a row with empty unit_id")
+            continue
+        for column in (
+            "currency",
+            "scale",
+            "price_basis",
+            "flow_or_stock",
+            "accounting_basis",
+            "conversion_rule",
+            "valid_from",
+            "canonical_unit",
+            "join_family",
+            "notes",
+        ):
+            if not row[column].strip():
+                errors.append(f"Unit registry row {unit_id} has empty {column}")
+        if row["conversion_rule"] not in UNIT_REGISTRY_CONVERSION_RULES:
+            errors.append(
+                f"Unit registry row {unit_id} has invalid conversion_rule: {row['conversion_rule']}"
+            )
+        if row["conversion_rule"] == "fixed_escudo_euro_200_482" and (
+            row["currency"] != "PTE" or row["canonical_unit"] != "EUR_million"
+        ):
+            errors.append(f"Escudo conversion row {unit_id} has invalid canonical metadata")
+
+    try:
+        load_unit_registry(registry_path)
+    except TypeError as exc:
+        errors.append(f"Unit registry cannot load definitions: {exc}")
+
+    observed_units: set[str] = set()
+    for directory in (root / "data" / "processed", root / "evidence"):
+        if not directory.is_dir():
+            continue
+        for csv_path in directory.glob("*.csv"):
+            table = pd.read_csv(csv_path, dtype=str, keep_default_na=False, nrows=5000)
+            if "unit" in table.columns:
+                observed_units.update(value for value in table["unit"].unique() if value)
+    missing_observed_units = observed_units.difference(unit_ids).difference(
+        NON_NUMERIC_EXTRACTION_UNITS
+    )
+    for unit in sorted(missing_observed_units):
+        errors.append(f"Observed CSV unit is missing from unit registry: {unit}")
+
     return errors
 
 

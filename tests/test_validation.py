@@ -18,6 +18,7 @@ from portugal_pensions.validation import (
     validate_source_coverage_matrix,
     validate_source_registry,
     validate_submission_package,
+    validate_unit_registry,
     validate_zenodo_metadata,
 )
 
@@ -93,6 +94,11 @@ def test_repository_extraction_audit_is_valid() -> None:
         )
         == []
     )
+
+
+def test_repository_unit_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert validate_unit_registry(root / "evidence" / "unit_registry.csv", root) == []
 
 
 def test_repository_falsification_review_is_valid() -> None:
@@ -352,6 +358,25 @@ def test_source_acquisition_log_rejects_hash_mismatch(tmp_path: Path) -> None:
 
     errors = validate_source_acquisition_log(log, registry, tmp_path)
     assert "Source acquisition hash mismatch: SRC" in errors
+
+
+def test_unit_registry_rejects_unregistered_observed_unit(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    processed = tmp_path / "data" / "processed"
+    evidence.mkdir()
+    processed.mkdir(parents=True)
+    registry = evidence / "unit_registry.csv"
+    registry.write_text(
+        "unit_id,currency,scale,price_basis,base_year,flow_or_stock,accounting_basis,"
+        "conversion_rule,valid_from,valid_to,canonical_unit,join_family,notes\n"
+        "EUR_million,EUR,million,current_prices,,flow,any_registered_basis,none,1999,,"
+        "EUR_million,nominal_money,notes\n",
+        encoding="utf-8",
+    )
+    (processed / "dataset.csv").write_text("unit\nmystery_unit\n", encoding="utf-8")
+
+    errors = validate_unit_registry(registry, tmp_path)
+    assert "Observed CSV unit is missing from unit registry: mystery_unit" in errors
 
 
 def test_extraction_audit_requires_high_impact_secondary_check(tmp_path: Path) -> None:
