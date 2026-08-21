@@ -34,6 +34,8 @@ from .counterfactuals import (
 from .legal import validate_legal_contribution_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
+    "analysis_protocol.csv",
+    "analysis_protocol_hash.csv",
     "source_registry.csv",
     "claim_registry.csv",
     "legal_contribution_registry.csv",
@@ -118,6 +120,23 @@ REQUIRED_CLAIM_LANGUAGE_TERMS: frozenset[str] = frozenset(
     }
 )
 
+REQUIRED_ANALYSIS_PROTOCOL_HYPOTHESES: frozenset[str] = frozenset(
+    {
+        "H1",
+        "H10",
+        "H11",
+        "H12",
+        "H2",
+        "H3",
+        "H4",
+        "H5",
+        "H6",
+        "H7",
+        "H8",
+        "H9",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -170,6 +189,13 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "analysis_protocol.csv").is_file():
+        errors.extend(
+            validate_analysis_protocol(
+                evidence_dir / "analysis_protocol.csv",
+                evidence_dir / "analysis_protocol_hash.csv",
+            )
         )
     if (evidence_dir / "legal_contribution_registry.csv").is_file():
         errors.extend(
@@ -321,6 +347,122 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def validate_analysis_protocol(protocol_path: Path, hash_path: Path) -> list[str]:
+    """Return validation errors for the preregistered analysis protocol."""
+    if not isinstance(protocol_path, Path):
+        raise TypeError("protocol_path must be pathlib.Path")
+    if not isinstance(hash_path, Path):
+        raise TypeError("hash_path must be pathlib.Path")
+
+    protocol = pd.read_csv(protocol_path, dtype=str)
+    required_columns = {
+        "hypothesis_id",
+        "estimand_id",
+        "formula",
+        "numerator",
+        "denominator",
+        "population",
+        "period",
+        "unit",
+        "accounting_basis",
+        "perimeter",
+        "primary_sources",
+        "tolerance_rule",
+        "materiality_rule",
+        "falsification_rule",
+        "exploratory_or_confirmatory",
+        "counterfactual_class",
+        "alternative_perimeter_set",
+        "required_source_class",
+        "protocol_version",
+        "status",
+    }
+    missing_columns = sorted(required_columns.difference(protocol.columns))
+    if missing_columns:
+        return [f"Analysis protocol missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    observed_hypotheses = set(protocol["hypothesis_id"].dropna().astype(str))
+    for hypothesis_id in sorted(
+        REQUIRED_ANALYSIS_PROTOCOL_HYPOTHESES.difference(observed_hypotheses)
+    ):
+        errors.append(f"Missing analysis protocol hypothesis: {hypothesis_id}")
+
+    duplicates = protocol[protocol.duplicated(subset=["hypothesis_id", "estimand_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate analysis protocol estimand: "
+            f"{_registry_field(duplicate_row, 'hypothesis_id')} "
+            f"{_registry_field(duplicate_row, 'estimand_id')}"
+        )
+
+    allowed_statuses = {"defined_requires_sources", "partial_bounded_reconstruction"}
+    allowed_modes = {"confirmatory", "exploratory"}
+    allowed_counterfactual_classes = {
+        "economic_scenario",
+        "legal_replication",
+        "not_applicable",
+    }
+    protocol_versions = set(protocol["protocol_version"].dropna().astype(str))
+    if protocol_versions != {"0.3.0"}:
+        errors.append("Analysis protocol must use exactly protocol_version 0.3.0")
+
+    for row_number, record in enumerate(protocol.to_dict("records"), start=2):
+        hypothesis_id = _registry_field(record, "hypothesis_id") or f"row {row_number}"
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on analysis protocol row {row_number}")
+
+        status = _registry_field(record, "status")
+        if status and status not in allowed_statuses:
+            errors.append(f"Unexpected analysis protocol status on row {row_number}: {status}")
+
+        mode = _registry_field(record, "exploratory_or_confirmatory")
+        if mode and mode not in allowed_modes:
+            errors.append(f"Unexpected analysis protocol mode on row {row_number}: {mode}")
+
+        counterfactual_class = _registry_field(record, "counterfactual_class")
+        if counterfactual_class and counterfactual_class not in allowed_counterfactual_classes:
+            errors.append(
+                f"Unexpected counterfactual_class on analysis protocol row {row_number}: "
+                f"{counterfactual_class}"
+            )
+
+        if status == "defined_requires_sources" and _registry_field(
+            record, "required_source_class"
+        ) in {"", "not_applicable"}:
+            errors.append(f"Analysis protocol row {hypothesis_id} must name required sources")
+
+        if "material" not in _registry_field(record, "materiality_rule").lower():
+            errors.append(f"Analysis protocol row {hypothesis_id} must define materiality")
+
+    if not hash_path.is_file():
+        errors.append("Missing analysis protocol hash file: analysis_protocol_hash.csv")
+        return errors
+
+    hash_registry = pd.read_csv(hash_path, dtype=str)
+    hash_columns = {"protocol_version", "artifact_path", "sha256", "status", "notes"}
+    missing_hash_columns = sorted(hash_columns.difference(hash_registry.columns))
+    if missing_hash_columns:
+        errors.append(f"Analysis protocol hash missing columns: {', '.join(missing_hash_columns)}")
+        return errors
+    if len(hash_registry) != 1:
+        errors.append("Analysis protocol hash must contain exactly one row")
+        return errors
+
+    row = hash_registry.iloc[0]
+    expected_hash = _registry_field(row, "sha256").lower()
+    actual_hash = hashlib.sha256(manifest_bytes(protocol_path)).hexdigest()
+    if expected_hash != actual_hash:
+        errors.append("Analysis protocol hash does not match analysis_protocol.csv")
+    if _registry_field(row, "protocol_version") != "0.3.0":
+        errors.append("Analysis protocol hash must use protocol_version 0.3.0")
+    if _registry_field(row, "artifact_path") != "evidence/analysis_protocol.csv":
+        errors.append("Analysis protocol hash artifact_path is incorrect")
+
     return errors
 
 

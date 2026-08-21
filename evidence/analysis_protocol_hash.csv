@@ -1,0 +1,2 @@
+protocol_version,artifact_path,sha256,status,notes
+0.3.0,evidence/analysis_protocol.csv,badb005d191fbcf7a13cd1a721626e4fbc58b339e7350244b5aa3e5625ea86ab,protocol_frozen,Hash is computed over analysis_protocol.csv after line-ending normalization
