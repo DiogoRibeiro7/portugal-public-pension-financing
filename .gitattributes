@@ -11,6 +11,7 @@
 Makefile text eol=lf
 
 *.pdf binary
+*.html binary
 *.png binary
 *.jpg binary
 *.jpeg binary
