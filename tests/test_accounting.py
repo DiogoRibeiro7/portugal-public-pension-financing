@@ -2,6 +2,7 @@ from pathlib import Path
 
 from portugal_pensions.accounting import (
     employee_remittance_gap,
+    employer_contribution_gaps,
     reconcile_financing_identity,
     validate_cga_closed_scheme_decomposition,
     validate_cga_financing_ledger,
@@ -56,6 +57,21 @@ def test_employee_remittance_gap_applies_explicit_adjustments() -> None:
         )
         == 4.5
     )
+
+
+def test_employer_contribution_gaps_keep_legal_and_economic_separate() -> None:
+    legal_gap, benchmark_gap = employer_contribution_gaps(
+        legal_due=100.0,
+        recorded_cga_employer_revenue=90.0,
+        timing_adjustments=-1.0,
+        arrears_corrections=2.0,
+        base_definition_adjustment=0.0,
+        perimeter_adjustment=0.0,
+        economic_benchmark_due=120.0,
+    )
+
+    assert legal_gap == 11.0
+    assert benchmark_gap == 31.0
 
 
 def test_repository_cga_financing_ledger_is_valid() -> None:
@@ -280,10 +296,33 @@ def test_repository_employer_contribution_audit_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
         validate_employer_contribution_audit(
-            str(root / "data" / "processed" / "employer_contribution_audit.csv")
+            str(root / "data" / "processed" / "employer_contribution_audit.csv"),
+            str(root / "evidence" / "source_registry.csv"),
         )
         == []
     )
+
+
+def test_repository_employer_contribution_audit_covers_year_classes() -> None:
+    root = Path(__file__).resolve().parents[1]
+    pairs = {
+        tuple(row.split(",", maxsplit=2)[:2])
+        for row in (root / "data" / "processed" / "employer_contribution_audit.csv")
+        .read_text(encoding="utf-8-sig")
+        .splitlines()[1:]
+    }
+    expected = {
+        (str(year), employer_class)
+        for year in range(1977, 2026)
+        for employer_class in {
+            "autonomous_entities_first_covered_2007",
+            "central_state_integrated_services",
+            "entities_already_contributing_before_2007",
+            "entities_first_covered_2009",
+        }
+    }
+
+    assert pairs == expected
 
 
 def test_employer_contribution_audit_requires_benchmark_debt_warning(tmp_path: Path) -> None:
@@ -293,8 +332,15 @@ def test_employer_contribution_audit_requires_benchmark_debt_warning(tmp_path: P
         "legal_due,recorded_cga_employer_revenue,timing_adjustments,arrears_corrections,"
         "base_definition_adjustment,perimeter_adjustment,legal_compliance_gap,"
         "economic_benchmark_rate_total,economic_benchmark_due,economic_benchmark_gap,"
-        "source_ids,status,notes\n"
-        "2011,class,EUR_million,current,basis,0.15,,,,,,,,0.2375,,,SRC,blocked,missing\n",
+        "source_ids,legal_rate_basis,economic_benchmark_basis,missing_inputs,claim_permitted,"
+        "status,notes\n"
+        "2011,class,EUR_million,current,basis,0.15,,,,,,,,0.2375,,,SRC,"
+        "bounded_legal_registry_employer_total,"
+        "broad_rgss_employer_rate_counterfactual_not_legal_debt,"
+        "employer_class_payroll_base;legal_due;recorded_cga_employer_revenue;"
+        "timing_adjustments;arrears_corrections;base_definition_adjustment;"
+        "perimeter_adjustment;economic_benchmark_due,no,"
+        "blocked_missing_payroll_and_revenue_data,missing\n",
         encoding="utf-8",
     )
 
@@ -303,6 +349,26 @@ def test_employer_contribution_audit_requires_benchmark_debt_warning(tmp_path: P
         "Employer contribution audit row 2 must state that the economic benchmark is "
         "not a legal debt" in errors
     )
+
+
+def test_complete_employer_contribution_audit_checks_gap_residuals(tmp_path: Path) -> None:
+    audit = tmp_path / "employer_contribution_audit.csv"
+    audit.write_text(
+        "year,employer_class,unit,price_basis,accounting_basis,legal_employer_rate_total,"
+        "legal_due,recorded_cga_employer_revenue,timing_adjustments,arrears_corrections,"
+        "base_definition_adjustment,perimeter_adjustment,legal_compliance_gap,"
+        "economic_benchmark_rate_total,economic_benchmark_due,economic_benchmark_gap,"
+        "source_ids,legal_rate_basis,economic_benchmark_basis,missing_inputs,claim_permitted,"
+        "status,notes\n"
+        "2011,class,EUR_million,current,basis,0.15,100.0,90.0,0.0,0.0,0.0,0.0,"
+        "99.0,0.2375,120.0,30.0,SRC,bounded_legal_registry_employer_total,"
+        "broad_rgss_employer_rate_counterfactual_not_legal_debt,,yes,complete,"
+        "economic benchmark is not a legal debt\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_employer_contribution_audit(str(audit))
+    assert "Employer legal compliance gap residual fails on row 2" in errors
 
 
 def test_repository_state_financing_rule_registry_is_valid() -> None:
