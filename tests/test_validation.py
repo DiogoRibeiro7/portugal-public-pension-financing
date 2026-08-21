@@ -5,6 +5,7 @@ from portugal_pensions.validation import (
     validate_article_evidence,
     validate_claim_language_audit,
     validate_concept_registry,
+    validate_conflict_and_uncertainty_registries,
     validate_evidence_directory,
     validate_extraction_audit,
     validate_falsification_review,
@@ -99,6 +100,20 @@ def test_repository_extraction_audit_is_valid() -> None:
 def test_repository_unit_registry_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert validate_unit_registry(root / "evidence" / "unit_registry.csv", root) == []
+
+
+def test_repository_conflict_and_uncertainty_registries_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_conflict_and_uncertainty_registries(
+            root / "evidence" / "source_conflict_registry.csv",
+            root / "evidence" / "uncertainty_registry.csv",
+            root / "evidence" / "source_registry.csv",
+            root / "evidence" / "concept_registry.csv",
+            root / "evidence" / "unit_registry.csv",
+        )
+        == []
+    )
 
 
 def test_repository_falsification_review_is_valid() -> None:
@@ -377,6 +392,65 @@ def test_unit_registry_rejects_unregistered_observed_unit(tmp_path: Path) -> Non
 
     errors = validate_unit_registry(registry, tmp_path)
     assert "Observed CSV unit is missing from unit registry: mystery_unit" in errors
+
+
+def test_conflict_uncertainty_registry_requires_unresolved_range_without_central(
+    tmp_path: Path,
+) -> None:
+    source_registry = tmp_path / "source_registry.csv"
+    source_registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC_A,Source A,Institution,official,2026,https://example.test/a,"
+        "https://example.test/a,2026-08-21,2026,basis,,,registered,notes\n"
+        "SRC_B,Source B,Institution,official,2026,https://example.test/b,"
+        "https://example.test/b,2026-08-21,2026,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+    concept_registry = tmp_path / "concept_registry.csv"
+    concept_registry.write_text(
+        "concept_id,source_label,canonical_name,concept_class,definition,valid_from,valid_to,"
+        "institutional_perimeter,accounting_basis,source_id,source_definition_status,"
+        "sign_convention,internal_variable_names,material_flow_columns,ambiguous_label_guard,"
+        "notes\n"
+        "PENSION_EXPENDITURE,label,pension_expenditure,flow,definition,1977,,perimeter,"
+        "basis,SRC_A,source_defined,positive_outflow,,none,guard,notes\n",
+        encoding="utf-8",
+    )
+    unit_registry = tmp_path / "unit_registry.csv"
+    unit_registry.write_text(
+        "unit_id,currency,scale,price_basis,base_year,flow_or_stock,accounting_basis,"
+        "conversion_rule,valid_from,valid_to,canonical_unit,join_family,notes\n"
+        "EUR_million,EUR,million,current_prices,,flow,any_registered_basis,none,1999,,"
+        "EUR_million,nominal_money,notes\n",
+        encoding="utf-8",
+    )
+    conflict_registry = tmp_path / "source_conflict_registry.csv"
+    conflict_registry.write_text(
+        "conflict_id,concept_id,period,source_id_a,value_a,source_id_b,value_b,unit,"
+        "difference_type,tolerance_rule,materiality_rule,resolution,status,uncertainty_id,"
+        "notes\n"
+        "CONF,PENSION_EXPENDITURE,2026,SRC_A,1,SRC_B,3,EUR_million,unresolved,"
+        "no tolerance,material if unresolved,propagate range,unresolved_range,UNC,notes\n",
+        encoding="utf-8",
+    )
+    uncertainty_registry = tmp_path / "uncertainty_registry.csv"
+    uncertainty_registry.write_text(
+        "estimate_id,source_or_model,lower,central,upper,unit,uncertainty_reason,method,"
+        "status\n"
+        "UNC,SRC_A;SRC_B,1,2,3,EUR_million,unresolved difference,propagate range,"
+        "unresolved_range\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_conflict_and_uncertainty_registries(
+        conflict_registry,
+        uncertainty_registry,
+        source_registry,
+        concept_registry,
+        unit_registry,
+    )
+    assert "Unresolved uncertainty row UNC must leave central empty" in errors
 
 
 def test_extraction_audit_requires_high_impact_secondary_check(tmp_path: Path) -> None:
