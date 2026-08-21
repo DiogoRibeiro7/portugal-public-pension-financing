@@ -3,10 +3,12 @@ from pathlib import Path
 import pytest
 
 from portugal_pensions.counterfactuals import (
+    capitalize_cash_flows,
     compound_reserve,
     funding_substitution,
     public_worker_reallocation_flow,
     validate_counterfactual_financing_regimes,
+    validate_fefss_return_inputs,
     validate_public_worker_liability_assumptions,
     validate_public_worker_reallocation,
     validate_public_worker_reallocation_bridge,
@@ -16,6 +18,12 @@ from portugal_pensions.counterfactuals import (
 def test_compound_reserve() -> None:
     path = compound_reserve([100.0, 100.0], [0.10, 0.10])
     assert path == pytest.approx([110.0, 231.0])
+
+
+def test_capitalize_cash_flows_timing_conventions() -> None:
+    assert capitalize_cash_flows([100.0], [0.21], timing="beginning") == pytest.approx([121.0])
+    assert capitalize_cash_flows([100.0], [0.21], timing="mid") == pytest.approx([110.0])
+    assert capitalize_cash_flows([100.0], [0.21], timing="end") == pytest.approx([100.0])
 
 
 def test_funding_substitution_does_not_create_extra_cash() -> None:
@@ -57,6 +65,18 @@ def test_repository_public_worker_liability_assumptions_are_valid() -> None:
     assert (
         validate_public_worker_liability_assumptions(
             str(root / "evidence" / "public_worker_liability_assumptions.csv"),
+            str(root / "evidence" / "source_registry.csv"),
+        )
+        == []
+    )
+
+
+def test_repository_fefss_return_inputs_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_fefss_return_inputs(
+            str(root / "data" / "processed" / "fefss_returns.csv"),
+            str(root / "data" / "processed" / "public_worker_fefss_counterfactual.csv"),
             str(root / "evidence" / "source_registry.csv"),
         )
         == []
@@ -310,3 +330,50 @@ def test_public_worker_liability_assumptions_require_actuarial_inputs(
         "public worker liability assumption row is missing required actuarial inputs on row 2"
         in errors
     )
+
+
+def test_fefss_returns_require_full_year_coverage(tmp_path: Path) -> None:
+    returns = tmp_path / "fefss_returns.csv"
+    capitalization = tmp_path / "capitalization.csv"
+    returns.write_text(
+        "year,reported_return,return_type,valuation_basis,fees_basis,nominal_real_basis,"
+        "source_ids,page,status,missing_inputs,notes\n"
+        "2006,,,,,,SRC,,blocked_missing_official_return_series,"
+        "official_annual_return;return_type;valuation_basis;fees_basis,missing\n",
+        encoding="utf-8",
+    )
+    capitalization.write_text(
+        "scenario_id,year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,"
+        "status,missing_inputs,notes\n"
+        "BEGIN,2006,,beginning,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n"
+        "MID,2006,,mid,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n"
+        "END,2006,,end,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_fefss_return_inputs(str(returns), str(capitalization))
+    assert "FEFSS returns must cover every year from 2006 to 2025" in errors
+
+
+def test_fefss_capitalization_requires_all_timing_conventions(tmp_path: Path) -> None:
+    returns = tmp_path / "fefss_returns.csv"
+    capitalization = tmp_path / "capitalization.csv"
+    returns.write_text(
+        "year,reported_return,return_type,valuation_basis,fees_basis,nominal_real_basis,"
+        "source_ids,page,status,missing_inputs,notes\n"
+        + "".join(
+            f"{year},,,,,,SRC,,blocked_missing_official_return_series,"
+            "official_annual_return;return_type;valuation_basis;fees_basis,missing\n"
+            for year in range(2006, 2026)
+        ),
+        encoding="utf-8",
+    )
+    capitalization.write_text(
+        "scenario_id,year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,"
+        "status,missing_inputs,notes\n"
+        "BEGIN,2006,,beginning,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_fefss_return_inputs(str(returns), str(capitalization))
+    assert "FEFSS capitalization must include beginning mid and end timing rows" in errors

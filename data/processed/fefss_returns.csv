@@ -1,1 +1,21 @@
-year,reported_return,return_type,valuation_basis,source_id,page,status,notes
+year,reported_return,return_type,valuation_basis,fees_basis,nominal_real_basis,source_ids,page,status,missing_inputs,notes
+2006,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2007,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2008,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2009,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2010,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2011,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2012,,,,,,IGFSS_CSS_ARCHIVE;TC_AEO_2013_SS_2012,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Tribunal de Contas audit identifies FEFSS return tables but the annual return value and convention have not been extracted into the series
+2013,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2014,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2015,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2016,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2017,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2018,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2019,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2020,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2021,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2022,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2023,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2024,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted
+2025,,,,,,IGFSS_CSS_ARCHIVE,,blocked_missing_official_return_series,official_annual_return;return_type;valuation_basis;fees_basis,Official annual FEFSS return measure and valuation convention not yet extracted

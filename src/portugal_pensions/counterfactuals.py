@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
+
+ContributionTiming = Literal["beginning", "mid", "end"]
 
 
 def _finite(value: float, name: str) -> float:
@@ -42,6 +44,37 @@ def compound_reserve(
         if rate <= -1.0:
             raise ValueError("annual returns must be greater than -1")
         reserve = (reserve + flow) * (1.0 + rate)
+        path.append(reserve)
+    return path
+
+
+def capitalize_cash_flows(
+    cash_flows: Sequence[float],
+    annual_returns: Sequence[float],
+    *,
+    timing: ContributionTiming,
+    initial_reserve: float = 0.0,
+) -> list[float]:
+    """Capitalize annual cash flows under an explicit contribution-timing convention."""
+    if len(cash_flows) != len(annual_returns):
+        raise ValueError("cash_flows and annual_returns must have the same length")
+    reserve = _finite(initial_reserve, "initial_reserve")
+    path: list[float] = []
+    for index, (cash_flow, annual_return) in enumerate(
+        zip(cash_flows, annual_returns, strict=True)
+    ):
+        flow = _finite(cash_flow, f"cash_flows[{index}]")
+        rate = _finite(annual_return, f"annual_returns[{index}]")
+        if rate <= -1.0:
+            raise ValueError("annual returns must be greater than -1")
+        if timing == "beginning":
+            reserve = (reserve + flow) * (1.0 + rate)
+        elif timing == "mid":
+            reserve = reserve * (1.0 + rate) + flow * math.sqrt(1.0 + rate)
+        elif timing == "end":
+            reserve = reserve * (1.0 + rate) + flow
+        else:
+            raise ValueError("timing must be beginning, mid, or end")
         path.append(reserve)
     return path
 
@@ -690,6 +723,169 @@ def validate_public_worker_liability_assumptions(
         errors.append(
             "public worker liability assumptions must cover the full 2006-2025 flow period"
         )
+    return errors
+
+
+def validate_fefss_return_inputs(
+    returns_path: str,
+    capitalization_path: str,
+    source_registry_path: str | None = None,
+) -> list[str]:
+    """Return validation errors for FEFSS return and capitalization inputs."""
+    returns = pd.read_csv(returns_path, dtype=str, keep_default_na=False)
+    capitalization = pd.read_csv(capitalization_path, dtype=str, keep_default_na=False)
+    errors = [
+        *_validate_fefss_returns(returns, source_registry_path),
+        *_validate_fefss_capitalization(capitalization, source_registry_path),
+    ]
+    return errors
+
+
+def _validate_fefss_returns(
+    returns: pd.DataFrame,
+    source_registry_path: str | None,
+) -> list[str]:
+    required_columns = {
+        "year",
+        "reported_return",
+        "return_type",
+        "valuation_basis",
+        "fees_basis",
+        "nominal_real_basis",
+        "source_ids",
+        "page",
+        "status",
+        "missing_inputs",
+        "notes",
+    }
+    errors = _missing_columns(returns, required_columns, "FEFSS returns")
+    if errors:
+        return errors
+    source_ids = _registered_source_ids(source_registry_path)
+    duplicates = returns[returns.duplicated(subset=["year"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(f"Duplicate FEFSS return row for year {_field(duplicate_row, 'year')}")
+    years: list[int] = []
+    for row_number, record in enumerate(returns.to_dict("records"), start=2):
+        try:
+            years.append(int(_field(record, "year")))
+        except ValueError:
+            errors.append(f"Invalid year on FEFSS return row {row_number}")
+        status = _field(record, "status")
+        if not (status.startswith("blocked") or status in {"observed", "complete"}):
+            errors.append(f"Unexpected FEFSS return status on row {row_number}: {status}")
+        if status.startswith("blocked"):
+            if _field(record, "reported_return"):
+                errors.append(
+                    f"Blocked FEFSS return row must not contain a return on row {row_number}"
+                )
+            missing_inputs = {
+                value.strip()
+                for value in _field(record, "missing_inputs").split(";")
+                if value.strip()
+            }
+            for required_input in (
+                "official_annual_return",
+                "return_type",
+                "valuation_basis",
+                "fees_basis",
+            ):
+                if required_input not in missing_inputs:
+                    errors.append(
+                        f"Blocked FEFSS return row missing {required_input} on row {row_number}"
+                    )
+        else:
+            for column in {
+                "reported_return",
+                "return_type",
+                "valuation_basis",
+                "fees_basis",
+                "nominal_real_basis",
+                "page",
+            }:
+                if not _field(record, column):
+                    errors.append(f"Missing {column} on observed FEFSS return row {row_number}")
+            return_value = _optional_float(record, "reported_return")
+            if return_value is not None and return_value <= -1.0:
+                errors.append(f"FEFSS reported_return must be greater than -1 on row {row_number}")
+        for source_id in _field(record, "source_ids").split(";"):
+            source_id = source_id.strip()
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(f"Unknown source_id on FEFSS return row {row_number}: {source_id}")
+    if sorted(years) != list(range(2006, 2026)):
+        errors.append("FEFSS returns must cover every year from 2006 to 2025")
+    return errors
+
+
+def _validate_fefss_capitalization(
+    capitalization: pd.DataFrame,
+    source_registry_path: str | None,
+) -> list[str]:
+    required_columns = {
+        "scenario_id",
+        "year",
+        "cash_flow",
+        "timing",
+        "annual_return",
+        "reserve_value",
+        "unit",
+        "source_ids",
+        "status",
+        "missing_inputs",
+        "notes",
+    }
+    errors = _missing_columns(capitalization, required_columns, "FEFSS capitalization")
+    if errors:
+        return errors
+    source_ids = _registered_source_ids(source_registry_path)
+    required_timings = {"beginning", "mid", "end"}
+    observed_timings = set(capitalization["timing"].dropna().astype(str))
+    if not required_timings.issubset(observed_timings):
+        errors.append("FEFSS capitalization must include beginning mid and end timing rows")
+    duplicates = capitalization[
+        capitalization.duplicated(subset=["scenario_id", "year", "timing"], keep=False)
+    ]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate FEFSS capitalization row for "
+            f"{_field(duplicate_row, 'scenario_id')} "
+            f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'timing')}"
+        )
+    for row_number, record in enumerate(capitalization.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {"cash_flow", "annual_return", "reserve_value", "missing_inputs"}
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on FEFSS capitalization row {row_number}")
+        timing = _field(record, "timing")
+        if timing not in required_timings:
+            errors.append(f"Unexpected FEFSS capitalization timing on row {row_number}: {timing}")
+        status = _field(record, "status")
+        if not (status.startswith("blocked") or status in {"estimated", "complete"}):
+            errors.append(f"Unexpected FEFSS capitalization status on row {row_number}: {status}")
+        missing_inputs = {
+            value.strip() for value in _field(record, "missing_inputs").split(";") if value.strip()
+        }
+        if status.startswith("blocked"):
+            for required_input in {"cash_flow", "annual_return"}:
+                if required_input not in missing_inputs:
+                    errors.append(
+                        "Blocked FEFSS capitalization row missing "
+                        f"{required_input} on row {row_number}"
+                    )
+        for column in {"cash_flow", "annual_return", "reserve_value"}:
+            value = _field(record, column)
+            if value:
+                _finite(float(value), column)
+        annual_return = _optional_float(record, "annual_return")
+        if annual_return is not None and annual_return <= -1.0:
+            errors.append(f"FEFSS annual_return must be greater than -1 on row {row_number}")
+        for source_id in _field(record, "source_ids").split(";"):
+            source_id = source_id.strip()
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    f"Unknown source_id on FEFSS capitalization row {row_number}: {source_id}"
+                )
     return errors
 
 
