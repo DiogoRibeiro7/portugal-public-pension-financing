@@ -136,9 +136,12 @@ def reconcile_financing_identity(
     )
 
 
-def validate_cga_financing_ledger(path: str) -> list[str]:
+def validate_cga_financing_ledger(
+    path: str,
+    source_registry_path: str | None = None,
+) -> list[str]:
     """Return validation errors for the processed CGA financing ledger."""
-    ledger = pd.read_csv(path, dtype=str)
+    ledger = pd.read_csv(path, dtype=str, keep_default_na=False)
     required_columns = {
         "year",
         "source_id",
@@ -162,6 +165,9 @@ def validate_cga_financing_ledger(path: str) -> list[str]:
         "pt_pension_fund_effect",
         "reported_global_balance_ex_pt_fund",
         "identity_residual",
+        "full_identity_status",
+        "balance_decomposition_residual",
+        "missing_components",
         "status",
         "notes",
     }
@@ -170,6 +176,13 @@ def validate_cga_financing_ledger(path: str) -> list[str]:
         return [f"CGA financing ledger missing columns: {', '.join(missing_columns)}"]
 
     errors: list[str] = []
+    observed_years = {int(year) for year in ledger["year"] if str(year).isdigit()}
+    missing_years = sorted(set(range(1977, 2026)).difference(observed_years))
+    if missing_years:
+        errors.append(
+            f"CGA financing ledger missing years: {', '.join(str(year) for year in missing_years)}"
+        )
+
     duplicates = ledger[ledger.duplicated(subset=["year", "source_id", "perimeter"], keep=False)]
     for _, duplicate_row in duplicates.iterrows():
         errors.append(
@@ -177,6 +190,14 @@ def validate_cga_financing_ledger(path: str) -> list[str]:
             f"{_field(duplicate_row, 'year')} {_field(duplicate_row, 'perimeter')}"
         )
 
+    source_ids = _source_ids(source_registry_path)
+    allowed_statuses = {
+        "blocked_missing_primary_account_components",
+        "complete",
+        "partial_cge_extract",
+    }
+    allowed_identity_statuses = {"blocked_missing_components", "reconciled"}
+    allowed_units = {"EUR_million", "mixed"}
     complete_components = {
         "employee_quotations",
         "employer_contributions",
@@ -196,25 +217,56 @@ def validate_cga_financing_ledger(path: str) -> list[str]:
         "reported_global_balance",
         "pt_pension_fund_effect",
         "reported_global_balance_ex_pt_fund",
+        "balance_decomposition_residual",
     }
+    required_missing_components = complete_components.difference({"identity_residual"})
     for row_number, record in enumerate(ledger.to_dict("records"), start=2):
         for column in required_columns.difference({"identity_residual"}):
             if column in complete_components or column in optional_numeric:
                 continue
             if not _field(record, column):
                 errors.append(f"Missing {column} on CGA financing ledger row {row_number}")
+
+        for source_id in _field(record, "source_id").split(";"):
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    f"CGA financing ledger row {row_number} unknown source_id: {source_id}"
+                )
+
+        unit = _field(record, "unit")
+        if unit and unit not in allowed_units:
+            errors.append(f"Unexpected CGA financing ledger unit on row {row_number}: {unit}")
+
+        identity_status = _field(record, "full_identity_status")
+        if identity_status and identity_status not in allowed_identity_statuses:
+            errors.append(
+                f"Unexpected CGA financing identity status on row {row_number}: {identity_status}"
+            )
+
         status = _field(record, "status")
         if status == "complete":
             for column in complete_components:
                 if not _field(record, column):
                     errors.append(f"Complete CGA ledger row {row_number} missing {column}")
-        elif not status.startswith("partial"):
+            if identity_status != "reconciled":
+                errors.append(f"Complete CGA ledger row {row_number} must reconcile identity")
+        elif status in {"blocked_missing_primary_account_components", "partial_cge_extract"}:
+            missing_components = set(_field(record, "missing_components").split(";"))
+            for component in sorted(required_missing_components.difference(missing_components)):
+                errors.append(
+                    f"Incomplete CGA ledger row {row_number} missing blocker for {component}"
+                )
+            if identity_status != "blocked_missing_components":
+                errors.append(f"Incomplete CGA ledger row {row_number} must block full identity")
+        elif status not in allowed_statuses:
             errors.append(f"Unexpected CGA financing ledger status on row {row_number}: {status}")
 
         for column in complete_components.union(optional_numeric):
             value = _field(record, column)
             if value:
                 _numeric(value, column)
+        errors.extend(_validate_cga_balance_decomposition(record, row_number))
+        errors.extend(_validate_cga_complete_identity(record, row_number))
     return errors
 
 
@@ -727,6 +779,80 @@ def _date_field(
     except ValueError:
         errors.append(f"State financing row {rule_id} has invalid {column}: {value}")
         return None
+
+
+def _source_ids(source_registry_path: str | None) -> set[str] | None:
+    if source_registry_path is None:
+        return None
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    return set(sources["source_id"])
+
+
+def _validate_cga_balance_decomposition(row: Any, row_number: int) -> list[str]:
+    columns = {
+        "balance_decomposition_residual",
+        "pt_pension_fund_effect",
+        "reported_global_balance",
+        "reported_global_balance_ex_pt_fund",
+    }
+    present = {column for column in columns if _field(row, column)}
+    if not present:
+        return []
+    if present != columns:
+        missing = ", ".join(sorted(columns.difference(present)))
+        return [f"CGA balance decomposition row {row_number} missing {missing}"]
+
+    expected_residual = _numeric(row["reported_global_balance"], "reported_global_balance") - (
+        _numeric(row["pt_pension_fund_effect"], "pt_pension_fund_effect")
+        + _numeric(row["reported_global_balance_ex_pt_fund"], "reported_global_balance_ex_pt_fund")
+    )
+    recorded_residual = _numeric(
+        row["balance_decomposition_residual"],
+        "balance_decomposition_residual",
+    )
+    if not math.isclose(expected_residual, recorded_residual, rel_tol=0.0, abs_tol=0.11):
+        return [f"CGA balance decomposition residual fails on row {row_number}"]
+    return []
+
+
+def _validate_cga_complete_identity(row: Any, row_number: int) -> list[str]:
+    if _field(row, "status") != "complete":
+        return []
+    identity_columns = {
+        "administration",
+        "employee_quotations",
+        "employer_contributions",
+        "identity_residual",
+        "investment_income",
+        "other_benefits",
+        "other_public_transfers",
+        "pension_expenditure",
+        "reported_global_balance",
+        "state_budget_transfers",
+    }
+    if any(not _field(row, column) for column in identity_columns):
+        return []
+    result = reconcile_financing_identity(
+        employee_contributions=_numeric(row["employee_quotations"], "employee_quotations"),
+        employer_contributions=_numeric(row["employer_contributions"], "employer_contributions"),
+        state_transfers=_numeric(row["state_budget_transfers"], "state_budget_transfers"),
+        other_financing=(
+            _numeric(row["other_public_transfers"], "other_public_transfers")
+            + _numeric(row["investment_income"], "investment_income")
+        ),
+        pension_expenditure=_numeric(row["pension_expenditure"], "pension_expenditure"),
+        administrative_expenditure=_numeric(row["administration"], "administration"),
+        other_expenditure=_numeric(row["other_benefits"], "other_benefits"),
+        change_in_financial_position=_numeric(
+            row["reported_global_balance"],
+            "reported_global_balance",
+        ),
+        tolerance=0.11,
+    )
+    recorded_residual = _numeric(row["identity_residual"], "identity_residual")
+    if not math.isclose(result.residual, recorded_residual, rel_tol=0.0, abs_tol=0.11):
+        return [f"CGA complete financing identity residual fails on row {row_number}"]
+    return []
 
 
 def _numeric(value: str, name: str) -> float:

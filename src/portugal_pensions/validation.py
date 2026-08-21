@@ -744,7 +744,12 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(validate_bpn_2012_pension_transfer(str(bpn_transfer)))
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
-        errors.extend(validate_cga_financing_ledger(str(cga_ledger)))
+        errors.extend(
+            validate_cga_financing_ledger(
+                str(cga_ledger),
+                str(evidence_dir / "source_registry.csv"),
+            )
+        )
     cga_closure = evidence_dir.parent / "data" / "processed" / "cga_closed_scheme_decomposition.csv"
     if cga_closure.is_file():
         errors.extend(validate_cga_closed_scheme_decomposition(str(cga_closure)))
