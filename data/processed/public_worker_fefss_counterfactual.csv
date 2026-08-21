@@ -1,1 +1,4 @@
-year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,status,notes
+scenario_id,year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,status,missing_inputs,notes
+PWF_BEGINNING,2006,,beginning,,,EUR_million,IGFSS_CSS_ARCHIVE;DR_LEI60_2005,blocked_missing_cash_flow_and_returns,cash_flow;annual_return,Beginning-year capitalization scenario blocked until public-worker contribution cash flows and FEFSS returns are reconstructed
+PWF_MID,2006,,mid,,,EUR_million,IGFSS_CSS_ARCHIVE;DR_LEI60_2005,blocked_missing_cash_flow_and_returns,cash_flow;annual_return,Mid-year capitalization scenario blocked until public-worker contribution cash flows and FEFSS returns are reconstructed
+PWF_END,2006,,end,,,EUR_million,IGFSS_CSS_ARCHIVE;DR_LEI60_2005,blocked_missing_cash_flow_and_returns,cash_flow;annual_return,End-year capitalization scenario blocked until public-worker contribution cash flows and FEFSS returns are reconstructed

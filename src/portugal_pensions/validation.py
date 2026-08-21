@@ -30,6 +30,7 @@ from .banking import (
 )
 from .counterfactuals import (
     validate_counterfactual_financing_regimes,
+    validate_fefss_return_inputs,
     validate_public_worker_liability_assumptions,
     validate_public_worker_reallocation,
     validate_public_worker_reallocation_bridge,
@@ -823,6 +824,18 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_counterfactual_financing_regimes(
                 str(evidence_dir / "counterfactual_registry.csv"),
                 str(counterfactual_regimes),
+            )
+        )
+    fefss_returns = evidence_dir.parent / "data" / "processed" / "fefss_returns.csv"
+    fefss_counterfactual = (
+        evidence_dir.parent / "data" / "processed" / "public_worker_fefss_counterfactual.csv"
+    )
+    if fefss_returns.is_file() and fefss_counterfactual.is_file():
+        errors.extend(
+            validate_fefss_return_inputs(
+                str(fefss_returns),
+                str(fefss_counterfactual),
+                str(evidence_dir / "source_registry.csv"),
             )
         )
     falsification_review = evidence_dir.parent / "data" / "processed" / "falsification_review.csv"
