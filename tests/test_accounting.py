@@ -7,6 +7,7 @@ from portugal_pensions.accounting import (
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
     validate_pension_flow_of_funds,
+    validate_state_financing_rule_registry,
 )
 
 
@@ -215,3 +216,38 @@ def test_employer_contribution_audit_requires_benchmark_debt_warning(tmp_path: P
         "Employer contribution audit row 2 must state that the economic benchmark is "
         "not a legal debt" in errors
     )
+
+
+def test_repository_state_financing_rule_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_state_financing_rule_registry(
+            str(root / "evidence" / "state_financing_rule_registry.csv"),
+            str(root / "evidence" / "source_registry.csv"),
+        )
+        == []
+    )
+
+
+def test_state_financing_registry_rejects_misclassified_specific_transfer(
+    tmp_path: Path,
+) -> None:
+    source_registry = tmp_path / "source_registry.csv"
+    source_registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,title,institution,type,2012,url,url,2026-08-21,2012,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+    registry = tmp_path / "state_financing_rule_registry.csv"
+    registry.write_text(
+        "rule_id,valid_from,valid_to,institution,transfer_type,state_role,legal_basis,"
+        "calculation_rule,recipient,accounting_basis,source_id,status,notes\n"
+        "STATE,2012-01-01,,Social_Security,specific_state_transfer,budget_authority,"
+        "law,specific State financing,Social_Security,basis,SRC,legal_rule_observed,"
+        "transfer not evidence of underfunding by itself\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_state_financing_rule_registry(str(registry), str(source_registry))
+    assert "Specific State transfer row STATE must use guarantor role" in errors

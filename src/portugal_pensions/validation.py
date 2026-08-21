@@ -16,6 +16,7 @@ from .accounting import (
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
     validate_pension_flow_of_funds,
+    validate_state_financing_rule_registry,
 )
 from .banking import (
     validate_bank_asset_liability_outputs,
@@ -46,6 +47,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "claim_registry.csv",
     "legal_contribution_registry.csv",
     "employer_perimeter_registry.csv",
+    "state_financing_rule_registry.csv",
     "bank_pension_transfer_registry.csv",
     "bank_special_regime_annual.csv",
     "extraction_audit.csv",
@@ -685,6 +687,13 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_bank_special_regime_annual(
                 str(evidence_dir / "bank_special_regime_annual.csv")
+            )
+        )
+    if (evidence_dir / "state_financing_rule_registry.csv").is_file():
+        errors.extend(
+            validate_state_financing_rule_registry(
+                str(evidence_dir / "state_financing_rule_registry.csv"),
+                str(evidence_dir / "source_registry.csv"),
             )
         )
     bank_asset_liability = (
