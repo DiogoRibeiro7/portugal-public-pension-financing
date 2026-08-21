@@ -730,6 +730,7 @@ def validate_fefss_return_inputs(
     returns_path: str,
     capitalization_path: str,
     source_registry_path: str | None = None,
+    sensitivity_path: str | None = None,
 ) -> list[str]:
     """Return validation errors for FEFSS return and capitalization inputs."""
     returns = pd.read_csv(returns_path, dtype=str, keep_default_na=False)
@@ -738,6 +739,9 @@ def validate_fefss_return_inputs(
         *_validate_fefss_returns(returns, source_registry_path),
         *_validate_fefss_capitalization(capitalization, source_registry_path),
     ]
+    if sensitivity_path is not None:
+        sensitivity = pd.read_csv(sensitivity_path, dtype=str, keep_default_na=False)
+        errors.extend(_validate_fefss_sensitivity(sensitivity, source_registry_path))
     return errors
 
 
@@ -828,10 +832,20 @@ def _validate_fefss_capitalization(
         "timing",
         "annual_return",
         "reserve_value",
+        "actual_fefss_assets",
+        "comparison_ratio",
         "unit",
+        "price_basis",
+        "nominal_real_basis",
+        "return_source",
+        "benchmark_source",
+        "financing_assumption",
+        "retained_resources_required",
+        "offsetting_financing_assumption",
         "source_ids",
         "status",
         "missing_inputs",
+        "claim_permitted",
         "notes",
     }
     errors = _missing_columns(capitalization, required_columns, "FEFSS capitalization")
@@ -853,7 +867,15 @@ def _validate_fefss_capitalization(
         )
     for row_number, record in enumerate(capitalization.to_dict("records"), start=2):
         for column in required_columns.difference(
-            {"cash_flow", "annual_return", "reserve_value", "missing_inputs"}
+            {
+                "cash_flow",
+                "annual_return",
+                "reserve_value",
+                "actual_fefss_assets",
+                "comparison_ratio",
+                "offsetting_financing_assumption",
+                "missing_inputs",
+            }
         ):
             if not _field(record, column):
                 errors.append(f"Missing {column} on FEFSS capitalization row {row_number}")
@@ -873,7 +895,29 @@ def _validate_fefss_capitalization(
                         "Blocked FEFSS capitalization row missing "
                         f"{required_input} on row {row_number}"
                     )
-        for column in {"cash_flow", "annual_return", "reserve_value"}:
+            if _field(record, "claim_permitted") != "no":
+                errors.append(
+                    f"Blocked FEFSS capitalization rows must not permit claims on row {row_number}"
+                )
+        if _field(record, "retained_resources_required") != "yes" and not _field(
+            record, "offsetting_financing_assumption"
+        ):
+            errors.append(
+                "FEFSS capitalization rows must require retained resources unless an "
+                f"offsetting financing assumption is specified on row {row_number}"
+            )
+        if _field(record, "return_source") == _field(record, "benchmark_source"):
+            errors.append(
+                "FEFSS capitalization rows must distinguish return source from benchmark "
+                f"source on row {row_number}"
+            )
+        for column in {
+            "cash_flow",
+            "annual_return",
+            "reserve_value",
+            "actual_fefss_assets",
+            "comparison_ratio",
+        }:
             value = _field(record, column)
             if value:
                 _finite(float(value), column)
@@ -885,6 +929,96 @@ def _validate_fefss_capitalization(
             if source_ids is not None and source_id and source_id not in source_ids:
                 errors.append(
                     f"Unknown source_id on FEFSS capitalization row {row_number}: {source_id}"
+                )
+    return errors
+
+
+def _validate_fefss_sensitivity(
+    sensitivity: pd.DataFrame,
+    source_registry_path: str | None,
+) -> list[str]:
+    required_columns = {
+        "scenario_id",
+        "benchmark",
+        "return_basis",
+        "timing",
+        "year_start",
+        "year_end",
+        "cash_flow_source",
+        "return_source",
+        "financing_assumption",
+        "retained_resources_required",
+        "offsetting_financing_assumption",
+        "nominal_value",
+        "real_value",
+        "actual_fefss_assets",
+        "unit",
+        "source_ids",
+        "status",
+        "missing_inputs",
+        "claim_permitted",
+        "notes",
+    }
+    errors = _missing_columns(sensitivity, required_columns, "FEFSS sensitivity")
+    if errors:
+        return errors
+    source_ids = _registered_source_ids(source_registry_path)
+    required_benchmarks = {
+        "fefss_observed_returns",
+        "low_risk_government_financing",
+        "actual_fefss_assets_reference",
+    }
+    observed_benchmarks = set(sensitivity["benchmark"].dropna().astype(str))
+    if not required_benchmarks.issubset(observed_benchmarks):
+        errors.append(
+            "FEFSS sensitivity must include observed returns low-risk benchmark and actual assets"
+        )
+    for row_number, record in enumerate(sensitivity.to_dict("records"), start=2):
+        for column in required_columns.difference(
+            {
+                "offsetting_financing_assumption",
+                "nominal_value",
+                "real_value",
+                "actual_fefss_assets",
+            }
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on FEFSS sensitivity row {row_number}")
+        try:
+            year_start = int(_field(record, "year_start"))
+            year_end = int(_field(record, "year_end"))
+        except ValueError:
+            errors.append(f"Invalid year range on FEFSS sensitivity row {row_number}")
+            continue
+        if year_start > year_end:
+            errors.append(f"FEFSS sensitivity year_start must be <= year_end on row {row_number}")
+        if year_start > 2006 or year_end < 2025:
+            errors.append(f"FEFSS sensitivity rows must cover 2006-2025 on row {row_number}")
+        if _field(record, "timing") not in {"beginning", "mid", "end", "not_applicable"}:
+            errors.append(f"Unexpected FEFSS sensitivity timing on row {row_number}")
+        status = _field(record, "status")
+        if not (status.startswith("blocked") or status in {"estimated", "complete"}):
+            errors.append(f"Unexpected FEFSS sensitivity status on row {row_number}: {status}")
+        if status.startswith("blocked") and _field(record, "claim_permitted") != "no":
+            errors.append(
+                f"Blocked FEFSS sensitivity rows must not permit claims on row {row_number}"
+            )
+        if _field(record, "retained_resources_required") != "yes" and not _field(
+            record, "offsetting_financing_assumption"
+        ):
+            errors.append(
+                "FEFSS sensitivity rows must require retained resources unless an "
+                f"offsetting financing assumption is specified on row {row_number}"
+            )
+        for column in {"nominal_value", "real_value", "actual_fefss_assets"}:
+            value = _field(record, column)
+            if value:
+                _finite(float(value), column)
+        for source_id in _field(record, "source_ids").split(";"):
+            source_id = source_id.strip()
+            if source_ids is not None and source_id and source_id not in source_ids:
+                errors.append(
+                    f"Unknown source_id on FEFSS sensitivity row {row_number}: {source_id}"
                 )
     return errors
 

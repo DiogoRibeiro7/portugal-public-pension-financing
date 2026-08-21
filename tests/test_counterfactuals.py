@@ -78,6 +78,7 @@ def test_repository_fefss_return_inputs_are_valid() -> None:
             str(root / "data" / "processed" / "fefss_returns.csv"),
             str(root / "data" / "processed" / "public_worker_fefss_counterfactual.csv"),
             str(root / "evidence" / "source_registry.csv"),
+            str(root / "data" / "processed" / "public_worker_fefss_sensitivity.csv"),
         )
         == []
     )
@@ -344,10 +345,18 @@ def test_fefss_returns_require_full_year_coverage(tmp_path: Path) -> None:
     )
     capitalization.write_text(
         "scenario_id,year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,"
-        "status,missing_inputs,notes\n"
-        "BEGIN,2006,,beginning,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n"
-        "MID,2006,,mid,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n"
-        "END,2006,,end,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n",
+        "actual_fefss_assets,comparison_ratio,price_basis,nominal_real_basis,return_source,"
+        "benchmark_source,financing_assumption,retained_resources_required,"
+        "offsetting_financing_assumption,status,missing_inputs,claim_permitted,notes\n"
+        "BEGIN,2006,,beginning,,,EUR_million,SRC,,,current_prices,nominal,returns,"
+        "assets,additional_retained_resources_required,yes,,blocked,"
+        "cash_flow;annual_return,no,missing\n"
+        "MID,2006,,mid,,,EUR_million,SRC,,,current_prices,nominal,returns,assets,"
+        "additional_retained_resources_required,yes,,blocked,cash_flow;annual_return,"
+        "no,missing\n"
+        "END,2006,,end,,,EUR_million,SRC,,,current_prices,nominal,returns,assets,"
+        "additional_retained_resources_required,yes,,blocked,cash_flow;annual_return,"
+        "no,missing\n",
         encoding="utf-8",
     )
 
@@ -370,10 +379,52 @@ def test_fefss_capitalization_requires_all_timing_conventions(tmp_path: Path) ->
     )
     capitalization.write_text(
         "scenario_id,year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,"
-        "status,missing_inputs,notes\n"
-        "BEGIN,2006,,beginning,,,EUR_million,SRC,blocked,cash_flow;annual_return,missing\n",
+        "actual_fefss_assets,comparison_ratio,price_basis,nominal_real_basis,return_source,"
+        "benchmark_source,financing_assumption,retained_resources_required,"
+        "offsetting_financing_assumption,status,missing_inputs,claim_permitted,notes\n"
+        "BEGIN,2006,,beginning,,,EUR_million,SRC,,,current_prices,nominal,returns,"
+        "assets,additional_retained_resources_required,yes,,blocked,"
+        "cash_flow;annual_return,no,missing\n",
         encoding="utf-8",
     )
 
     errors = validate_fefss_return_inputs(str(returns), str(capitalization))
     assert "FEFSS capitalization must include beginning mid and end timing rows" in errors
+
+
+def test_fefss_capitalization_requires_retained_resources_or_offset(
+    tmp_path: Path,
+) -> None:
+    returns = tmp_path / "fefss_returns.csv"
+    capitalization = tmp_path / "capitalization.csv"
+    returns.write_text(
+        "year,reported_return,return_type,valuation_basis,fees_basis,nominal_real_basis,"
+        "source_ids,page,status,missing_inputs,notes\n"
+        + "".join(
+            f"{year},,,,,,SRC,,blocked_missing_official_return_series,"
+            "official_annual_return;return_type;valuation_basis;fees_basis,missing\n"
+            for year in range(2006, 2026)
+        ),
+        encoding="utf-8",
+    )
+    capitalization.write_text(
+        "scenario_id,year,cash_flow,timing,annual_return,reserve_value,unit,source_ids,"
+        "actual_fefss_assets,comparison_ratio,price_basis,nominal_real_basis,return_source,"
+        "benchmark_source,financing_assumption,retained_resources_required,"
+        "offsetting_financing_assumption,status,missing_inputs,claim_permitted,notes\n"
+        "BEGIN,2025,,beginning,,,EUR_million,SRC,,,current_prices,nominal,returns,assets,"
+        "unspecified,no,,blocked,cash_flow;annual_return,no,missing\n"
+        "MID,2025,,mid,,,EUR_million,SRC,,,current_prices,nominal,returns,assets,"
+        "additional_retained_resources_required,yes,,blocked,cash_flow;annual_return,"
+        "no,missing\n"
+        "END,2025,,end,,,EUR_million,SRC,,,current_prices,nominal,returns,assets,"
+        "additional_retained_resources_required,yes,,blocked,cash_flow;annual_return,"
+        "no,missing\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_fefss_return_inputs(str(returns), str(capitalization))
+    assert (
+        "FEFSS capitalization rows must require retained resources unless an offsetting "
+        "financing assumption is specified on row 2" in errors
+    )

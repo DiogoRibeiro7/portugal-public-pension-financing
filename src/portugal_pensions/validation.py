@@ -830,12 +830,16 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     fefss_counterfactual = (
         evidence_dir.parent / "data" / "processed" / "public_worker_fefss_counterfactual.csv"
     )
+    fefss_sensitivity = (
+        evidence_dir.parent / "data" / "processed" / "public_worker_fefss_sensitivity.csv"
+    )
     if fefss_returns.is_file() and fefss_counterfactual.is_file():
         errors.extend(
             validate_fefss_return_inputs(
                 str(fefss_returns),
                 str(fefss_counterfactual),
                 str(evidence_dir / "source_registry.csv"),
+                str(fefss_sensitivity) if fefss_sensitivity.is_file() else None,
             )
         )
     falsification_review = evidence_dir.parent / "data" / "processed" / "falsification_review.csv"
