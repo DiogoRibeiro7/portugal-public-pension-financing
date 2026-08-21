@@ -18,7 +18,8 @@ def test_repository_legal_contribution_registry_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
         validate_legal_contribution_registry(
-            str(root / "evidence" / "legal_contribution_registry.csv")
+            str(root / "evidence" / "legal_contribution_registry.csv"),
+            str(root / "evidence" / "source_registry.csv"),
         )
         == []
     )
@@ -38,6 +39,32 @@ def test_legal_contribution_registry_rejects_overlapping_intervals(tmp_path: Pat
         encoding="utf-8",
     )
 
-    assert validate_legal_contribution_registry(str(registry)) == [
+    assert (
         "Overlapping legal contribution intervals for class"
-    ]
+        in validate_legal_contribution_registry(str(registry))
+    )
+
+
+def test_legal_contribution_registry_rejects_unknown_source_id(tmp_path: Path) -> None:
+    registry = tmp_path / "legal_contribution_registry.csv"
+    registry.write_text(
+        "effective_from,effective_to,employer_class,worker_rate_retirement,"
+        "worker_rate_survivor,worker_rate_total,employer_rate_retirement,"
+        "employer_rate_survivor,employer_rate_total,contribution_base_definition,"
+        "covered_risks,source_id,article,status,notes\n"
+        "2014-01-01,,central_state_integrated_services,0.08,0.03,0.11,0.20,"
+        "0.0375,0.2375,remuneration subject to CGA quota,retirement;survivor,"
+        "MISSING,article,current_consolidated_rule,notes\n",
+        encoding="utf-8",
+    )
+    sources = tmp_path / "source_registry.csv"
+    sources.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "KNOWN,Source,Institution,official,2026,https://example.test,"
+        "https://example.test,2026-08-21,2026,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_legal_contribution_registry(str(registry), str(sources))
+    assert "Unknown legal contribution source_id on row 2: MISSING" in errors
