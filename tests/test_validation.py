@@ -6,6 +6,7 @@ from portugal_pensions.validation import (
     validate_claim_language_audit,
     validate_concept_registry,
     validate_conflict_and_uncertainty_registries,
+    validate_data_license_registry,
     validate_evidence_directory,
     validate_extraction_audit,
     validate_falsification_review,
@@ -81,6 +82,17 @@ def test_repository_source_acquisition_log_is_valid() -> None:
             root / "evidence" / "source_acquisition_log.csv",
             root / "evidence" / "source_registry.csv",
             root,
+        )
+        == []
+    )
+
+
+def test_repository_data_license_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_data_license_registry(
+            root / "evidence" / "data_license_registry.csv",
+            root / "evidence" / "source_registry.csv",
         )
         == []
     )
@@ -373,6 +385,32 @@ def test_source_acquisition_log_rejects_hash_mismatch(tmp_path: Path) -> None:
 
     errors = validate_source_acquisition_log(log, registry, tmp_path)
     assert "Source acquisition hash mismatch: SRC" in errors
+
+
+def test_data_license_registry_requires_public_release_exclusion_for_unclear_raw(
+    tmp_path: Path,
+) -> None:
+    source_registry = tmp_path / "source_registry.csv"
+    source_registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2026,https://example.test,"
+        "https://example.test/source.pdf,2026-08-21,2026,basis,data/raw/source.pdf,"
+        f"{'0' * 64},acquired,notes\n",
+        encoding="utf-8",
+    )
+    license_registry = tmp_path / "data_license_registry.csv"
+    license_registry.write_text(
+        "source_id,access_status,redistribution_status,license_or_terms,retrieval_method,"
+        "archival_reference,clean_room_instruction,repository_action,notes\n"
+        "SRC,acquired_public_download,permission_unclear_do_not_redistribute,"
+        "terms not captured,download registered URL,sha256 recorded in source registry,"
+        "follow source_registry download_url,retain_raw_in_public_release,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_data_license_registry(license_registry, source_registry)
+    assert "Unclear redistribution source SRC must exclude raw file from public release" in errors
 
 
 def test_unit_registry_rejects_unregistered_observed_unit(tmp_path: Path) -> None:

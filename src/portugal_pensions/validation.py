@@ -50,6 +50,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "extraction_audit.csv",
     "reconciliation_log.csv",
     "data_quality_registry.csv",
+    "data_license_registry.csv",
     "counterfactual_registry.csv",
     "source_conflict_registry.csv",
     "uncertainty_registry.csv",
@@ -508,6 +509,36 @@ UNCERTAINTY_STATUSES: frozenset[str] = frozenset(
     }
 )
 
+DATA_LICENSE_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "source_id",
+        "access_status",
+        "redistribution_status",
+        "license_or_terms",
+        "retrieval_method",
+        "archival_reference",
+        "clean_room_instruction",
+        "repository_action",
+        "notes",
+    }
+)
+
+DATA_LICENSE_ACCESS_STATUSES: frozenset[str] = frozenset(
+    {
+        "acquired_public_download",
+        "registered_public_url",
+        "retrieval_failed_public_url",
+    }
+)
+
+DATA_LICENSE_REDISTRIBUTION_STATUSES: frozenset[str] = frozenset(
+    {
+        "allowed_with_attribution",
+        "permission_unclear_do_not_redistribute",
+        "not_acquired_no_redistribution",
+    }
+)
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -560,6 +591,15 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    if (evidence_dir / "data_license_registry.csv").is_file() and (
+        evidence_dir / "source_registry.csv"
+    ).is_file():
+        errors.extend(
+            validate_data_license_registry(
+                evidence_dir / "data_license_registry.csv",
+                evidence_dir / "source_registry.csv",
+            )
         )
     if (evidence_dir / "unit_registry.csv").is_file():
         errors.extend(
@@ -2603,6 +2643,92 @@ def validate_source_registry(registry_path: Path, root: Path) -> list[str]:
         actual_hash = hashlib.sha256(raw_file.read_bytes()).hexdigest()
         if actual_hash != expected_hash:
             errors.append(f"Source {source_id} checksum mismatch for {raw_path_value}")
+    return errors
+
+
+def validate_data_license_registry(
+    license_path: Path,
+    source_registry_path: Path,
+) -> list[str]:
+    """Return validation errors for source licensing and redistribution metadata."""
+    if not isinstance(license_path, Path):
+        raise TypeError("license_path must be pathlib.Path")
+    if not isinstance(source_registry_path, Path):
+        raise TypeError("source_registry_path must be pathlib.Path")
+
+    licenses = pd.read_csv(license_path, dtype=str, keep_default_na=False)
+    sources = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(DATA_LICENSE_REQUIRED_COLUMNS.difference(licenses.columns))
+    if missing_columns:
+        return [f"Data license registry missing columns: {', '.join(missing_columns)}"]
+
+    source_ids = set(sources["source_id"])
+    license_ids = set(licenses["source_id"])
+    errors: list[str] = []
+    for source_id in sorted(source_ids.difference(license_ids)):
+        errors.append(f"Source missing data license row: {source_id}")
+    for source_id in sorted(license_ids.difference(source_ids)):
+        errors.append(f"Data license row references unknown source_id: {source_id}")
+
+    duplicate_ids = sorted(
+        licenses.loc[licenses["source_id"].duplicated(), "source_id"].dropna().unique()
+    )
+    for source_id in duplicate_ids:
+        errors.append(f"Duplicate data license row: {source_id}")
+
+    source_status_by_id = {
+        str(row["source_id"]): str(row["status"]).strip().lower()
+        for row in sources.to_dict("records")
+    }
+    raw_path_by_id = {
+        str(row["source_id"]): str(row["raw_path"]).strip() for row in sources.to_dict("records")
+    }
+
+    for row in licenses.to_dict("records"):
+        source_id = row["source_id"].strip()
+        if not source_id:
+            errors.append("Data license registry contains a row with empty source_id")
+            continue
+        for column in DATA_LICENSE_REQUIRED_COLUMNS:
+            if not row[column].strip():
+                errors.append(f"Data license row {source_id} has empty {column}")
+        if row["access_status"] not in DATA_LICENSE_ACCESS_STATUSES:
+            errors.append(
+                f"Data license row {source_id} has invalid access_status: {row['access_status']}"
+            )
+        if row["redistribution_status"] not in DATA_LICENSE_REDISTRIBUTION_STATUSES:
+            errors.append(
+                f"Data license row {source_id} has invalid redistribution_status: "
+                f"{row['redistribution_status']}"
+            )
+
+        source_status = source_status_by_id.get(source_id, "")
+        raw_path = raw_path_by_id.get(source_id, "")
+        if source_status == "acquired" and row["access_status"] != "acquired_public_download":
+            errors.append(f"Acquired source {source_id} must use acquired_public_download")
+        if source_status != "acquired" and raw_path:
+            errors.append(f"Non-acquired source {source_id} must not have raw release path")
+        if row["redistribution_status"] == "not_acquired_no_redistribution" and raw_path:
+            errors.append(f"Acquired source {source_id} cannot be marked not acquired")
+        if (
+            row["redistribution_status"] == "permission_unclear_do_not_redistribute"
+            and raw_path
+            and "exclude_raw_from_public_release" not in row["repository_action"]
+        ):
+            errors.append(
+                f"Unclear redistribution source {source_id} must exclude raw file "
+                "from public release"
+            )
+        if (
+            row["redistribution_status"] == "allowed_with_attribution"
+            and "cite_source" not in row["repository_action"]
+        ):
+            errors.append(f"Redistributable source {source_id} must require source citation")
+        if "source_registry" not in row["clean_room_instruction"]:
+            errors.append(f"Data license row {source_id} must reference source_registry")
+        if raw_path and "sha256" not in row["archival_reference"].lower():
+            errors.append(f"Acquired source {source_id} must preserve SHA-256 archival reference")
+
     return errors
 
 
