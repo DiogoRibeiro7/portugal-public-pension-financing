@@ -6,6 +6,7 @@ from portugal_pensions.validation import (
     validate_claim_language_audit,
     validate_concept_registry,
     validate_evidence_directory,
+    validate_extraction_audit,
     validate_falsification_review,
     validate_internal_replication_review,
     validate_literature_map,
@@ -78,6 +79,17 @@ def test_repository_source_acquisition_log_is_valid() -> None:
             root / "evidence" / "source_acquisition_log.csv",
             root / "evidence" / "source_registry.csv",
             root,
+        )
+        == []
+    )
+
+
+def test_repository_extraction_audit_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_extraction_audit(
+            root / "evidence" / "extraction_audit.csv",
+            root / "evidence" / "source_registry.csv",
         )
         == []
     )
@@ -340,6 +352,29 @@ def test_source_acquisition_log_rejects_hash_mismatch(tmp_path: Path) -> None:
 
     errors = validate_source_acquisition_log(log, registry, tmp_path)
     assert "Source acquisition hash mismatch: SRC" in errors
+
+
+def test_extraction_audit_requires_high_impact_secondary_check(tmp_path: Path) -> None:
+    registry = tmp_path / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2026,https://example.test,https://example.test,"
+        "2026-08-21,2026,basis,,,registered,notes\n",
+        encoding="utf-8",
+    )
+    audit = tmp_path / "extraction_audit.csv"
+    audit.write_text(
+        "source_id,page,table_title,row_label,column_label,original_text,parsed_value,unit,"
+        "extraction_method,validation_method,qa_tier,secondary_check,parsing_warning,"
+        "status,notes\n"
+        "SRC,1,Table,Row,Column,value 10,10,EUR_million,pdftotext,"
+        "checked against total,high_impact,not_required,none,extracted,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_extraction_audit(audit, registry)
+    assert "High-impact extraction row lacks secondary check: SRC page 1 Row Column" in errors
 
 
 def test_internal_replication_review_requires_article_claim_coverage(tmp_path: Path) -> None:

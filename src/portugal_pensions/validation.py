@@ -31,6 +31,7 @@ from .counterfactuals import (
     validate_counterfactual_financing_regimes,
     validate_public_worker_reallocation,
 )
+from .extraction import parse_accounting_number
 from .legal import validate_legal_contribution_registry
 
 REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
@@ -44,6 +45,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "legal_contribution_registry.csv",
     "bank_pension_transfer_registry.csv",
     "bank_special_regime_annual.csv",
+    "extraction_audit.csv",
     "reconciliation_log.csv",
     "data_quality_registry.csv",
     "counterfactual_registry.csv",
@@ -358,6 +360,39 @@ SOURCE_ACQUISITION_STATUSES: frozenset[str] = frozenset(
     }
 )
 
+EXTRACTION_AUDIT_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {
+        "source_id",
+        "page",
+        "table_title",
+        "row_label",
+        "column_label",
+        "original_text",
+        "parsed_value",
+        "unit",
+        "extraction_method",
+        "validation_method",
+        "qa_tier",
+        "secondary_check",
+        "parsing_warning",
+        "status",
+        "notes",
+    }
+)
+
+EXTRACTION_AUDIT_STATUSES: frozenset[str] = frozenset(
+    {
+        "extracted",
+        "reconciled",
+        "reconciled_rounding",
+        "replicated_approximation",
+    }
+)
+
+EXTRACTION_QA_TIERS: frozenset[str] = frozenset({"high_impact", "routine"})
+
+NON_NUMERIC_EXTRACTION_UNITS: frozenset[str] = frozenset({"legal_scope", "qualitative"})
+
 ARTICLE_EVIDENCE_REQUIRED_CLAIM_TYPES: frozenset[str] = frozenset(
     {
         "published_quantitative_claim",
@@ -417,6 +452,13 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 evidence_dir / "source_acquisition_log.csv",
                 evidence_dir / "source_registry.csv",
                 evidence_dir.parent,
+            )
+        )
+    if (evidence_dir / "extraction_audit.csv").is_file():
+        errors.extend(
+            validate_extraction_audit(
+                evidence_dir / "extraction_audit.csv",
+                evidence_dir / "source_registry.csv",
             )
         )
     if (evidence_dir / "source_coverage_matrix.csv").is_file():
@@ -596,6 +638,184 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if language_audit.is_file() and manuscript.is_file():
         errors.extend(validate_claim_language_audit(language_audit, manuscript))
+    return errors
+
+
+def _extraction_value(
+    audit: pd.DataFrame,
+    source_id: str,
+    page: str,
+    row_label: str,
+    column_label: str,
+) -> float | None:
+    matches = audit[
+        (audit["source_id"] == source_id)
+        & (audit["page"] == page)
+        & (audit["row_label"] == row_label)
+        & (audit["column_label"] == column_label)
+    ]
+    if len(matches) != 1:
+        return None
+    value = matches.iloc[0]["parsed_value"]
+    if not value:
+        return None
+    return float(value)
+
+
+def validate_extraction_audit(audit_path: Path, source_registry_path: Path) -> list[str]:
+    """Return validation errors for PDF/table extraction audit rows."""
+    if not isinstance(audit_path, Path):
+        raise TypeError("audit_path must be pathlib.Path")
+    if not isinstance(source_registry_path, Path):
+        raise TypeError("source_registry_path must be pathlib.Path")
+
+    audit = pd.read_csv(audit_path, dtype=str, keep_default_na=False)
+    missing_columns = sorted(EXTRACTION_AUDIT_REQUIRED_COLUMNS.difference(audit.columns))
+    if missing_columns:
+        return [f"Extraction audit missing columns: {', '.join(missing_columns)}"]
+
+    source_ids: set[str] = set()
+    if source_registry_path.is_file():
+        source_registry = pd.read_csv(source_registry_path, dtype=str, keep_default_na=False)
+        if "source_id" in source_registry.columns:
+            source_ids = set(source_registry["source_id"])
+
+    errors: list[str] = []
+    duplicate_rows = audit[
+        audit.duplicated(
+            subset=["source_id", "page", "table_title", "row_label", "column_label"],
+            keep=False,
+        )
+    ]
+    for row in duplicate_rows.to_dict("records"):
+        errors.append(
+            "Duplicate extraction audit row: "
+            f"{row['source_id']} {row['page']} {row['row_label']} {row['column_label']}"
+        )
+
+    high_impact_count = 0
+    for row_number, row in enumerate(audit.to_dict("records"), start=2):
+        locator = f"{row['source_id']} page {row['page']} {row['row_label']} {row['column_label']}"
+        for column in (
+            "source_id",
+            "page",
+            "table_title",
+            "row_label",
+            "column_label",
+            "original_text",
+            "unit",
+            "extraction_method",
+            "validation_method",
+            "qa_tier",
+            "secondary_check",
+            "parsing_warning",
+            "status",
+            "notes",
+        ):
+            if not row[column].strip():
+                errors.append(f"Extraction audit row {row_number} has empty {column}")
+
+        source_id = row["source_id"].strip()
+        if source_ids and source_id not in source_ids:
+            errors.append(f"Extraction audit references unknown source_id: {source_id}")
+
+        status = row["status"].strip()
+        if status not in EXTRACTION_AUDIT_STATUSES:
+            errors.append(f"Extraction audit row {locator} has invalid status: {status}")
+
+        qa_tier = row["qa_tier"].strip()
+        if qa_tier not in EXTRACTION_QA_TIERS:
+            errors.append(f"Extraction audit row {locator} has invalid qa_tier: {qa_tier}")
+        if qa_tier == "high_impact":
+            high_impact_count += 1
+            if row["secondary_check"].strip() in {"", "not_required", "none"}:
+                errors.append(f"High-impact extraction row lacks secondary check: {locator}")
+
+        if (
+            "ocr" in row["extraction_method"].lower()
+            and "unchecked" in row["validation_method"].lower()
+        ):
+            errors.append(f"Extraction audit row uses unchecked OCR: {locator}")
+
+        parsed_value = row["parsed_value"].strip()
+        unit = row["unit"].strip()
+        if unit not in NON_NUMERIC_EXTRACTION_UNITS:
+            if not parsed_value:
+                errors.append(f"Numeric extraction row lacks parsed_value: {locator}")
+            else:
+                try:
+                    parsed_numeric = float(parsed_value)
+                    source_numbers = [
+                        value
+                        for value in re.findall(r"[-+]?\d+(?:[.,]\d+)?", row["original_text"])
+                        if value.lstrip("+-").split(",", maxsplit=1)[0].split(".", maxsplit=1)[0]
+                        not in {str(year) for year in range(1900, 2101)}
+                    ]
+                    source_numeric = (
+                        parse_accounting_number(row["original_text"])
+                        if len(source_numbers) == 1
+                        else None
+                    )
+                except ValueError:
+                    source_numeric = None
+                expected_values = {parsed_numeric}
+                if source_numeric is not None:
+                    expected_values = {source_numeric}
+                    if unit == "EUR_million" and abs(source_numeric) >= 1_000_000:
+                        expected_values.add(source_numeric / 1_000_000)
+                    if unit == "EUR_million" and "thousand" in row["original_text"].lower():
+                        expected_values.add(source_numeric / 1_000)
+                    if unit == "rate" or unit.startswith("share_"):
+                        expected_values.add(source_numeric / 100)
+                if source_numeric is not None and all(
+                    abs(parsed_numeric - expected) > 1e-9 for expected in expected_values
+                ):
+                    errors.append(f"Parsed value does not match original text: {locator}")
+            if row["parsing_warning"].strip() != "none":
+                errors.append(f"Numeric extraction row carries parsing warning: {locator}")
+        elif parsed_value and row["parsing_warning"].strip() != "none":
+            errors.append(f"Non-numeric extraction row carries parsing warning: {locator}")
+
+    if high_impact_count < 8:
+        errors.append("Extraction audit must identify at least 8 high-impact rows")
+
+    cga_balance = _extraction_value(audit, "DGO_CGE_2011", "159", "CGA", "Saldo Global 2011")
+    pt_fund = _extraction_value(
+        audit,
+        "DGO_CGE_2011",
+        "159",
+        "Fundo de Pensões da PT",
+        "Saldo Global 2011",
+    )
+    cga_without_pt = _extraction_value(
+        audit,
+        "DGO_CGE_2011",
+        "159",
+        "CGA sem Fundo de Pensões da PT",
+        "Saldo Global 2011",
+    )
+    if cga_balance is not None and pt_fund is not None and cga_without_pt is not None:
+        residual = cga_balance - pt_fund - cga_without_pt
+        if abs(residual) > 0.2:
+            errors.append("CGA/PT fund extraction identity exceeds rounding tolerance")
+
+    tc_revenue = _extraction_value(
+        audit,
+        "TC_AEO_2013_SS_2012",
+        "19",
+        "banking substitute-regime pensions",
+        "current-transfer financing",
+    )
+    tc_expenditure = _extraction_value(
+        audit,
+        "TC_AEO_2013_SS_2012",
+        "20",
+        "banking substitute-regime pensions",
+        "current-transfer expenditure",
+    )
+    if tc_revenue is not None and tc_expenditure is not None and abs(tc_revenue - tc_expenditure):
+        errors.append("Banking substitute-regime extraction revenue/expenditure mismatch")
+
     return errors
 
 
