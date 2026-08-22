@@ -613,6 +613,19 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_public_claim_registry(public_claim_registry, working_group_replication)
         )
+    combined_balance_replication = (
+        evidence_dir.parent / "data" / "processed" / "combined_balance_replication_2026.csv"
+    )
+    combined_balance_bridge = (
+        evidence_dir.parent / "data" / "processed" / "combined_balance_component_bridge_2026.csv"
+    )
+    if combined_balance_replication.is_file() and combined_balance_bridge.is_file():
+        errors.extend(
+            validate_combined_balance_replication(
+                combined_balance_replication,
+                combined_balance_bridge,
+            )
+        )
     if (evidence_dir / "data_license_registry.csv").is_file() and (
         evidence_dir / "source_registry.csv"
     ).is_file():
@@ -2109,6 +2122,7 @@ def validate_manuscript_draft(
         "does not establish",
         "does not classify",
         "No numerical counterfactual result is reported",
+        "Reproducing the published combined-balance definition would not endorse it",
     }
     for phrase in sorted(required_gate_phrases):
         if phrase not in text:
@@ -2127,6 +2141,159 @@ def validate_manuscript_draft(
         if phrase.lower() in lowered_text:
             errors.append(f"Manuscript contains unsupported phrase: {phrase}")
 
+    return errors
+
+
+def validate_combined_balance_replication(
+    replication_path: Path,
+    bridge_path: Path,
+) -> list[str]:
+    """Return validation errors for the 2026 combined-balance replication gate."""
+    for name, path in (("replication_path", replication_path), ("bridge_path", bridge_path)):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+
+    replication = pd.read_csv(replication_path, dtype=str, keep_default_na=False)
+    bridge = pd.read_csv(bridge_path, dtype=str, keep_default_na=False)
+    required_replication_columns = {
+        "series_id",
+        "year",
+        "definition_id",
+        "definition_role",
+        "component",
+        "value",
+        "unit",
+        "source_ids",
+        "component_bridge_ids",
+        "sign_effect_class",
+        "replication_status",
+        "blocking_issue",
+        "notes",
+    }
+    required_bridge_columns = {
+        "bridge_id",
+        "definition_id",
+        "component",
+        "component_role",
+        "operation",
+        "source_requirement",
+        "sign_effect_class",
+        "bank_special_regime_visibility",
+        "replication_status",
+        "blocking_issue",
+        "notes",
+    }
+    errors: list[str] = []
+    missing_replication_columns = sorted(
+        required_replication_columns.difference(replication.columns)
+    )
+    if missing_replication_columns:
+        return [
+            "Combined balance replication table missing columns: "
+            f"{', '.join(missing_replication_columns)}"
+        ]
+    missing_bridge_columns = sorted(required_bridge_columns.difference(bridge.columns))
+    if missing_bridge_columns:
+        return [
+            "Combined balance component bridge missing columns: "
+            f"{', '.join(missing_bridge_columns)}"
+        ]
+
+    required_definitions = {
+        "alternative_cga_only",
+        "alternative_cga_plus_previdential_plus_fefss",
+        "alternative_cga_plus_previdential_unadjusted",
+        "bank_special_regime_sensitivity",
+        "published_working_group_adjusted_2025",
+        "published_working_group_definition",
+    }
+    observed_definitions = set(replication["definition_id"])
+    for definition_id in sorted(required_definitions.difference(observed_definitions)):
+        errors.append(f"Missing combined-balance definition: {definition_id}")
+
+    published_years = {
+        int(year)
+        for year in replication.loc[
+            (replication["definition_id"] == "published_working_group_definition")
+            & (replication["component"] == "reported_combined_total"),
+            "year",
+        ]
+        if year.isdigit()
+    }
+    for year in range(2006, 2026):
+        if year not in published_years:
+            errors.append(f"Missing published combined-balance annual row: {year}")
+
+    required_bridge_ids = {
+        "BR_BANK_SPECIAL_SENSITIVITY",
+        "BR_CGA_BALANCE",
+        "BR_EARLY_RETIREMENT_ADJUSTMENT",
+        "BR_FEFSS_FLOW_ALTERNATIVE",
+        "BR_OTHER_RECLASSIFICATIONS",
+        "BR_PREVIDENTIAL_BALANCE",
+    }
+    observed_bridge_ids = set(bridge["bridge_id"])
+    for bridge_id in sorted(required_bridge_ids.difference(observed_bridge_ids)):
+        errors.append(f"Missing combined-balance component bridge row: {bridge_id}")
+
+    allowed_roles = {"alternative_perimeter", "published_definition", "sensitivity"}
+    allowed_statuses = {
+        "approximately_reproduced",
+        "blocked_primary_source_missing",
+        "not_reproduced",
+        "reproduced",
+    }
+    allowed_sign_effects = {"magnitude_only", "not_applicable", "sensitivity_only", "sign_relevant"}
+    bridge_ids = set(bridge["bridge_id"])
+    for row_number, record in enumerate(replication.to_dict("records"), start=2):
+        for column in required_replication_columns.difference({"value"}):
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on combined-balance row {row_number}")
+        if _registry_field(record, "definition_role") not in allowed_roles:
+            errors.append(f"Unexpected combined-balance definition_role on row {row_number}")
+        status = _registry_field(record, "replication_status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected combined-balance replication_status on row {row_number}")
+        sign_effect = _registry_field(record, "sign_effect_class")
+        if sign_effect not in allowed_sign_effects:
+            errors.append(f"Unexpected combined-balance sign_effect_class on row {row_number}")
+        if status == "blocked_primary_source_missing":
+            if _registry_field(record, "value"):
+                errors.append(
+                    f"Blocked combined-balance row must not contain value on row {row_number}"
+                )
+            if "primary" not in _registry_field(record, "blocking_issue").lower():
+                errors.append(
+                    "Blocked combined-balance row must name the missing primary "
+                    f"source on row {row_number}"
+                )
+        for bridge_id in _registry_field(record, "component_bridge_ids").split(";"):
+            if bridge_id and bridge_id not in bridge_ids:
+                errors.append(
+                    f"Combined-balance row {row_number} references unknown bridge: {bridge_id}"
+                )
+
+    for row_number, record in enumerate(bridge.to_dict("records"), start=2):
+        for column in required_bridge_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on combined-balance bridge row {row_number}")
+        status = _registry_field(record, "replication_status")
+        if status not in allowed_statuses:
+            errors.append(
+                f"Unexpected combined-balance bridge replication_status on row {row_number}"
+            )
+        sign_effect = _registry_field(record, "sign_effect_class")
+        if sign_effect not in allowed_sign_effects:
+            errors.append(
+                f"Unexpected combined-balance bridge sign_effect_class on row {row_number}"
+            )
+        if status == "blocked_primary_source_missing" and (
+            "primary" not in _registry_field(record, "blocking_issue").lower()
+        ):
+            errors.append(
+                "Blocked combined-balance bridge row must name the missing primary "
+                f"source on row {row_number}"
+            )
     return errors
 
 
