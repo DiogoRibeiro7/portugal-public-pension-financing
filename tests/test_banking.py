@@ -12,6 +12,7 @@ from portugal_pensions.banking import (
     validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_classification_requirements,
     validate_bank_benefit_risk_distribution,
+    validate_bank_esa_restatement_requirements,
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
     validate_bank_pension_cost_2012,
@@ -375,6 +376,16 @@ def test_repository_bank_esa_treatment_bridge_is_valid() -> None:
     )
 
 
+def test_repository_bank_esa_restatement_requirements_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_esa_restatement_requirements(
+            str(root / "evidence" / "bank_esa_restatement_requirements.csv")
+        )
+        == []
+    )
+
+
 def test_bank_esa_treatment_bridge_checks_percent_identity(tmp_path: Path) -> None:
     bridge = tmp_path / "bank_esa_treatment_bridge.csv"
     bridge.write_text(
@@ -394,6 +405,25 @@ def test_bank_esa_treatment_bridge_checks_percent_identity(tmp_path: Path) -> No
 
     errors = validate_bank_esa_treatment_bridge(str(bridge))
     assert "Bank ESA bridge percent identity fails on row 2" in errors
+
+
+def test_bank_esa_restatement_requirements_block_missing_tables(tmp_path: Path) -> None:
+    requirements = tmp_path / "bank_esa_restatement_requirements.csv"
+    requirements.write_text(
+        "requirement_id,reconstruction_step,required_inputs,available_inputs,"
+        "permitted_output,status,blocking_issue,notes\n"
+        "REQ1,machine_readable_esa2010_restatement,official table,not_available,"
+        "complete_restatement,replicated_from_cge_and_ec,records missing,notes\n"
+        "REQ2,esa95_percent_gdp_arithmetic,cge amount,5993.2 EUR_million,"
+        "reproduce_percent_identity,replicated_from_cge_and_ec,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_esa_restatement_requirements(str(requirements))
+    assert "Missing bank ESA restatement step: edp_transaction_level_bridge" in errors
+    assert "Machine-readable ESA requirement must remain blocked on row 2" in errors
+    assert "Machine-readable ESA requirement must block output on row 2" in errors
+    assert "ESA-95 arithmetic requirement must preserve 5993.2 and 3.5 anchors" in errors
 
 
 def test_repository_bank_pension_cost_2012_is_valid() -> None:

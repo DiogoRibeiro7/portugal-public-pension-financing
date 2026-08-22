@@ -1,7 +1,7 @@
 # Replicate ESA treatment
 
 Instruction file: `prompts/11_replicate_esa95_esa2010_treatment.md`
-Date: 2026-08-19
+Date: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -11,12 +11,22 @@ Status: `partial_bounded_reconstruction`
 - Extracted the European Commission ex-post evaluation text to an interim file for line-level audit.
 - Added `data/processed/bank_esa_treatment_bridge.csv` to record the ESA-95 treatment, ESA-2010 treatment, and remaining bridge gap.
 - Added a validation contract for the bridge dataset, including the percent-of-GDP identity for rows that contain both euro and GDP-denominator values.
+- Added `evidence/bank_esa_restatement_requirements.csv` to distinguish the
+  replicated ESA-95 arithmetic and confirmed ESA-2010 classification from the
+  still-missing machine-readable ESA-95, ESA-2010 and EDP restatement tables.
+- Added validation that machine-readable restatement steps remain blocked until
+  primary national-accounts tables are acquired.
 - Preserved existing validated outputs.
 - Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
 
 ## Result
 
 The ESA-95 result is partially replicated by reconciling the CGE 2011 amount of EUR 5993.2m to the published 3.5 percent of GDP treatment, implying a GDP denominator of EUR 171234.285714m. The European Commission source confirms the accounting discontinuity: ESA-95 treated the transfer as revenue-increasing with a direct deficit effect, while ESA-2010 treated the same operation as a financial transaction with no direct deficit effect.
+
+The requirements gate records which parts are arithmetic, which parts are
+classification evidence, and which parts remain unreproduced from official
+machine-readable accounts. The same-transaction bridge remains interpretive
+until a transaction-level EDP or national-accounts bridge is acquired.
 
 ## Current Stop Condition
 

@@ -25,6 +25,7 @@ from .banking import (
     validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_classification_requirements,
     validate_bank_benefit_risk_distribution,
+    validate_bank_esa_restatement_requirements,
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
     validate_bank_pension_cost_2012,
@@ -863,6 +864,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     bank_esa_bridge = evidence_dir.parent / "data" / "processed" / "bank_esa_treatment_bridge.csv"
     if bank_esa_bridge.is_file():
         errors.extend(validate_bank_esa_treatment_bridge(str(bank_esa_bridge)))
+    bank_esa_requirements = evidence_dir / "bank_esa_restatement_requirements.csv"
+    if bank_esa_requirements.is_file():
+        errors.extend(validate_bank_esa_restatement_requirements(str(bank_esa_requirements)))
     bank_pension_cost = evidence_dir.parent / "data" / "processed" / "bank_pension_cost_2012.csv"
     if bank_pension_cost.is_file():
         errors.extend(validate_bank_pension_cost_2012(str(bank_pension_cost)))
