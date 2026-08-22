@@ -715,6 +715,30 @@ def test_release_reproducibility_audit_requires_pinned_requirements(tmp_path: Pa
     assert "Unpinned release requirement on line 1: pandas>=2" in errors
 
 
+def test_release_reproducibility_audit_requires_manuscript_pdf_gate(
+    tmp_path: Path,
+) -> None:
+    audit = tmp_path / "release_reproducibility_audit.csv"
+    paper_dir = tmp_path / "paper"
+    paper_dir.mkdir()
+    (tmp_path / "requirements-release.txt").write_text("pandas==2.3.2\n", encoding="utf-8")
+    (tmp_path / "MANIFEST.sha256").write_text("hash  path\n", encoding="utf-8")
+    (paper_dir / "manuscript.tex").write_text("source\n", encoding="utf-8")
+    (paper_dir / "manuscript.pdf").write_bytes(b"")
+    audit.write_text(
+        "check_id,release_area,input_artifacts,command_or_gate,period,unit,perimeter,"
+        "accounting_basis,result,status,blocking_issue,notes\n"
+        "REL_MANUSCRIPT_PDF,compiled,paper/manuscript.tex,gate,none,none,repo,"
+        "archive,result,ready_partial,missing_final_manuscript_inputs,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_release_reproducibility_audit(audit, tmp_path)
+    assert "Manuscript PDF release row missing input artifact: MANIFEST.sha256" in errors
+    assert "Manuscript PDF release row missing input artifact: paper/manuscript.pdf" in errors
+    assert "Compiled manuscript PDF artifact is empty" in errors
+
+
 def test_submission_package_requires_bounded_status_blocker(tmp_path: Path) -> None:
     artifact = tmp_path / "artifact.md"
     artifact.write_text("bounded research snapshot\n", encoding="utf-8")
