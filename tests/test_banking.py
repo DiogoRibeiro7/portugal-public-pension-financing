@@ -5,6 +5,7 @@ import pytest
 from portugal_pensions.banking import (
     bank_transfer_balance,
     present_value,
+    validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
@@ -252,6 +253,17 @@ def test_repository_bank_asset_liability_outputs_are_valid() -> None:
     )
 
 
+def test_repository_bank_asset_liability_institution_requirements_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_asset_liability_institution_requirements(
+            str(root / "data" / "processed" / "bank_asset_liability_institution_requirements.csv"),
+            str(root / "data" / "processed" / "bank_asset_trace.csv"),
+        )
+        == []
+    )
+
+
 def test_repository_bank_special_regime_annual_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
@@ -491,3 +503,71 @@ def test_bank_asset_liability_sensitivity_requires_rate_surface(tmp_path: Path) 
 
     errors = validate_bank_asset_liability_outputs(str(audit), str(trace), str(sensitivity))
     assert "Bank asset-liability sensitivity must cover discount rates 0.02-0.06" in errors
+
+
+def test_bank_asset_liability_requirements_match_trace_institutions(tmp_path: Path) -> None:
+    requirements = tmp_path / "bank_asset_liability_institution_requirements.csv"
+    trace = tmp_path / "bank_asset_trace.csv"
+    requirements.write_text(
+        "requirement_id,institution,legal_source_id,required_liability_fields,"
+        "required_asset_fields,statutory_equality_status,sensitivity_status,"
+        "economic_interpretation_rule,status,blocking_issue,notes\n"
+        "REQ1,Bank A,DR_DL127_2011,final_actuarial_liability_pv_legal_4pct;"
+        "cashflow_schedule,final_assets_transferred_total;cash_transferred;"
+        "portuguese_public_debt_transferred;other_assets_transferred;final_adjustment,"
+        "statutory_equality_not_reproduced_missing_inputs,"
+        "sensitivity_blocked_missing_cashflows,"
+        "alternative_discount_rate_is_sensitivity_not_underfunding_finding,"
+        "blocked_missing_bank_level_values,primary schedules missing,notes\n",
+        encoding="utf-8",
+    )
+    trace.write_text(
+        "institution,asset_type,transfer_value,destination,accounting_treatment,source_id,"
+        "status,notes\n"
+        "Bank A,final_assets_transferred,,State,treatment,SRC,"
+        "blocked_missing_bank_level_values,notes\n"
+        "Bank B,final_assets_transferred,,State,treatment,SRC,"
+        "blocked_missing_bank_level_values,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_asset_liability_institution_requirements(
+        str(requirements),
+        str(trace),
+    )
+    assert "Expected 18 bank asset-liability institution requirements, found 1" in errors
+    assert "Missing bank asset-liability institution requirement: Bank B" in errors
+
+
+def test_bank_asset_liability_requirements_block_underfunding_language(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "bank_asset_liability_institution_requirements.csv"
+    trace = tmp_path / "bank_asset_trace.csv"
+    requirements.write_text(
+        "requirement_id,institution,legal_source_id,required_liability_fields,"
+        "required_asset_fields,statutory_equality_status,sensitivity_status,"
+        "economic_interpretation_rule,status,blocking_issue,notes\n"
+        "REQ1,Bank A,DR_DL127_2011,final_actuarial_liability_pv_legal_4pct,"
+        "final_assets_transferred_total,complete,complete,underfunded,"
+        "blocked_missing_bank_level_values,primary schedules missing,notes\n",
+        encoding="utf-8",
+    )
+    trace.write_text(
+        "institution,asset_type,transfer_value,destination,accounting_treatment,source_id,"
+        "status,notes\n"
+        "Bank A,final_assets_transferred,,State,treatment,SRC,"
+        "blocked_missing_bank_level_values,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_asset_liability_institution_requirements(
+        str(requirements),
+        str(trace),
+    )
+    assert "Missing liability requirement cashflow_schedule on row 2" in errors
+    assert "Missing asset requirement cash_transferred on row 2" in errors
+    assert "Unexpected statutory equality status on row 2" in errors
+    assert (
+        "Bank asset-liability requirement must block underfunding interpretation on row 2" in errors
+    )

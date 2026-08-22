@@ -405,6 +405,107 @@ def validate_bank_asset_liability_outputs(
     return errors
 
 
+def validate_bank_asset_liability_institution_requirements(
+    requirements_path: str,
+    asset_trace_path: str,
+) -> list[str]:
+    """Return validation errors for bank-level asset-liability audit requirements."""
+    requirements = pd.read_csv(requirements_path, dtype=str, keep_default_na=False)
+    asset_trace = pd.read_csv(asset_trace_path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "requirement_id",
+        "institution",
+        "legal_source_id",
+        "required_liability_fields",
+        "required_asset_fields",
+        "statutory_equality_status",
+        "sensitivity_status",
+        "economic_interpretation_rule",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [
+            "Bank asset-liability institution requirements missing columns: "
+            f"{', '.join(missing_columns)}"
+        ]
+
+    errors: list[str] = []
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate bank asset-liability requirement_id: "
+            f"{_field(duplicate_row, 'requirement_id')}"
+        )
+    duplicate_institutions = requirements[
+        requirements.duplicated(subset=["institution"], keep=False)
+    ]
+    for _, duplicate_row in duplicate_institutions.iterrows():
+        errors.append(
+            "Duplicate bank asset-liability institution requirement: "
+            f"{_field(duplicate_row, 'institution')}"
+        )
+
+    bank_level_trace = asset_trace[
+        asset_trace["status"].astype(str) == "blocked_missing_bank_level_values"
+    ]
+    trace_institutions = set(bank_level_trace["institution"].astype(str))
+    requirement_institutions = set(requirements["institution"].astype(str))
+    if len(requirement_institutions) != 18:
+        errors.append(
+            f"Expected 18 bank asset-liability institution requirements, found "
+            f"{len(requirement_institutions)}"
+        )
+    for institution in sorted(trace_institutions.difference(requirement_institutions)):
+        errors.append(f"Missing bank asset-liability institution requirement: {institution}")
+    for institution in sorted(requirement_institutions.difference(trace_institutions)):
+        errors.append(f"Unknown bank asset-liability institution requirement: {institution}")
+
+    required_liability_terms = {"cashflow_schedule", "final_actuarial_liability_pv_legal_4pct"}
+    required_asset_terms = {
+        "cash_transferred",
+        "final_adjustment",
+        "final_assets_transferred_total",
+        "other_assets_transferred",
+        "portuguese_public_debt_transferred",
+    }
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(
+                    f"Missing {column} on bank asset-liability requirement row {row_number}"
+                )
+        if _field(record, "legal_source_id") != "DR_DL127_2011":
+            errors.append(f"Unexpected legal_source_id on bank asset-liability row {row_number}")
+        if _field(record, "status") != "blocked_missing_bank_level_values":
+            errors.append(f"Unexpected bank asset-liability requirement status on row {row_number}")
+        if "primary" not in _field(record, "blocking_issue").lower():
+            errors.append(
+                "Blocked bank asset-liability requirement must name missing primary inputs "
+                f"on row {row_number}"
+            )
+        liability_terms = set(_field(record, "required_liability_fields").split(";"))
+        asset_terms = set(_field(record, "required_asset_fields").split(";"))
+        for term in sorted(required_liability_terms.difference(liability_terms)):
+            errors.append(f"Missing liability requirement {term} on row {row_number}")
+        for term in sorted(required_asset_terms.difference(asset_terms)):
+            errors.append(f"Missing asset requirement {term} on row {row_number}")
+        if _field(record, "statutory_equality_status") != (
+            "statutory_equality_not_reproduced_missing_inputs"
+        ):
+            errors.append(f"Unexpected statutory equality status on row {row_number}")
+        if _field(record, "sensitivity_status") != "sensitivity_blocked_missing_cashflows":
+            errors.append(f"Unexpected sensitivity status on row {row_number}")
+        if "not_underfunding_finding" not in _field(record, "economic_interpretation_rule"):
+            errors.append(
+                "Bank asset-liability requirement must block underfunding interpretation "
+                f"on row {row_number}"
+            )
+    return errors
+
+
 def validate_bank_special_regime_annual(path: str, *, end_year: int = 2025) -> list[str]:
     """Return validation errors for the annual bank special-regime financing ledger."""
     annual = pd.read_csv(path, dtype=str)

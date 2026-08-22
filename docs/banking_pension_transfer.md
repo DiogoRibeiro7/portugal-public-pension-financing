@@ -30,6 +30,13 @@ Source correction: the earlier local file `data/raw/legislation/DR_DL127_2011_is
 
 The registry is a legal reconstruction. It does not yet populate bank-level monetary values for liability present value, assets transferred, cash, Portuguese public debt securities, other assets, independent valuer identity or final adjustments.
 
+`data/processed/bank_asset_liability_institution_requirements.csv` enumerates
+the 18 DL127 participating institutions and records the bank-level valuation,
+asset-composition, final-adjustment and cash-flow inputs required before the
+statutory equality or discount-rate sensitivity surface can be reproduced. A
+larger liability under an alternative discount rate is treated as sensitivity
+evidence, not by itself as an underfunding finding.
+
 `data/processed/bank_transfer_legal_coverage.csv` is the machine-readable
 coverage gate for this reconstruction. It maps each required timeline instrument
 and DL127 extraction requirement to the registry record IDs that support it, and
