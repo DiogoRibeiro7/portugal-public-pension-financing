@@ -3455,6 +3455,7 @@ def validate_manuscript_section_boundaries(
 
     required_sections = {
         "MS_INTRO",
+        "MS_ARCHITECTURE",
         "MS_ACCOUNTING",
         "MS_CGA",
         "MS_CONTRIBUTIONS",
@@ -3582,6 +3583,7 @@ def validate_claim_language_audit(
         "boundary_status",
         "claim_ids",
         "evidence_ids",
+        "section_boundary_ids",
         "allowed_context",
         "prohibited_inference",
         "notes",
@@ -3600,6 +3602,17 @@ def validate_claim_language_audit(
         errors.append(
             f"Duplicate claim language audit term: {_registry_field(duplicate_row, 'term')}"
         )
+
+    section_boundary_path = (
+        manuscript_path.parent.parent / "evidence" / "manuscript_section_boundaries.csv"
+    )
+    section_boundary_ids: set[str] = set()
+    if section_boundary_path.is_file():
+        section_boundaries = pd.read_csv(section_boundary_path, dtype=str)
+        if "section_id" in section_boundaries.columns:
+            section_boundary_ids = set(section_boundaries["section_id"].dropna().astype(str))
+        else:
+            errors.append("Manuscript section boundaries missing columns: section_id")
 
     allowed_statuses = {"blocked_absent", "blocked_negated", "bounded_use"}
     for row_number, record in enumerate(audit.to_dict("records"), start=2):
@@ -3633,6 +3646,19 @@ def validate_claim_language_audit(
             errors.append(f"Present claim language term {term} must map to a claim")
         if recorded_count > 0 and _registry_field(record, "evidence_ids") == "not_applicable":
             errors.append(f"Present claim language term {term} must map to evidence or blocker")
+        section_ids = _registry_field(record, "section_boundary_ids")
+        if recorded_count > 0 and section_ids == "not_applicable":
+            errors.append(f"Present claim language term {term} must map to a section boundary")
+        if recorded_count == 0 and section_ids != "not_applicable":
+            errors.append(f"Absent claim language term {term} cannot map to a section boundary")
+        if section_boundary_ids and section_ids != "not_applicable":
+            for section_id in section_ids.split(";"):
+                section_id = section_id.strip()
+                if section_id and section_id not in section_boundary_ids:
+                    errors.append(
+                        "Claim language audit term "
+                        f"{term} references unknown section boundary {section_id}"
+                    )
 
     unsupported_phrases = {
         "was diverted",

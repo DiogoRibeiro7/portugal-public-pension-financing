@@ -701,13 +701,47 @@ def test_claim_language_audit_rejects_count_mismatch(tmp_path: Path) -> None:
     manuscript.write_text("This deficit is an accounting deficit.\n", encoding="utf-8")
     audit.write_text(
         "term,occurrence_count,concept_mapping,boundary_status,claim_ids,evidence_ids,"
-        "allowed_context,prohibited_inference,notes\n"
-        "deficit,1,concept,bounded_use,CLAIM,EVIDENCE,context,inference,notes\n",
+        "section_boundary_ids,allowed_context,prohibited_inference,notes\n"
+        "deficit,1,concept,bounded_use,CLAIM,EVIDENCE,MS_ACCOUNTING,context,inference,"
+        "notes\n",
         encoding="utf-8",
     )
 
     errors = validate_claim_language_audit(audit, manuscript)
     assert "Claim language audit term deficit count mismatch: recorded 1, actual 2" in errors
+
+
+def test_claim_language_audit_requires_section_boundaries(tmp_path: Path) -> None:
+    manuscript = tmp_path / "paper" / "manuscript.tex"
+    evidence_dir = tmp_path / "evidence"
+    audit = tmp_path / "data" / "processed" / "language.csv"
+    manuscript.parent.mkdir()
+    evidence_dir.mkdir()
+    audit.parent.mkdir(parents=True)
+    manuscript.write_text("This deficit is bounded.\n", encoding="utf-8")
+    (evidence_dir / "manuscript_section_boundaries.csv").write_text(
+        "section_id,section_title,required_labels,required_evidence_ids,"
+        "permitted_claim_class,blocked_claim_class,dependency_gate,status,notes\n"
+        "MS_ACCOUNTING,Definitions,[Accounting fact],not_applicable,claim,"
+        "definitive claim,gate,bounded_section,notes\n",
+        encoding="utf-8",
+    )
+    audit.write_text(
+        "term,occurrence_count,concept_mapping,boundary_status,claim_ids,evidence_ids,"
+        "section_boundary_ids,allowed_context,prohibited_inference,notes\n"
+        "deficit,1,concept,bounded_use,CLAIM,EVIDENCE,MS_UNKNOWN,context,inference,"
+        "notes\n"
+        "debt,1,concept,bounded_use,CLAIM,EVIDENCE,not_applicable,context,inference,"
+        "notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_claim_language_audit(audit, manuscript)
+    assert (
+        "Claim language audit term deficit references unknown section boundary MS_UNKNOWN" in errors
+    )
+    assert "Claim language audit term debt count mismatch: recorded 1, actual 0" in errors
+    assert "Present claim language term debt must map to a section boundary" in errors
 
 
 def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
