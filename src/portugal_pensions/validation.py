@@ -626,6 +626,16 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 combined_balance_bridge,
             )
         )
+    joint_balance_definitions = (
+        evidence_dir.parent / "data" / "processed" / "joint_balance_definitions.csv"
+    )
+    joint_balance_rules = (
+        evidence_dir.parent / "data" / "processed" / "joint_balance_definition_rules.csv"
+    )
+    if joint_balance_definitions.is_file() and joint_balance_rules.is_file():
+        errors.extend(
+            validate_joint_balance_definitions(joint_balance_definitions, joint_balance_rules)
+        )
     if (evidence_dir / "data_license_registry.csv").is_file() and (
         evidence_dir / "source_registry.csv"
     ).is_file():
@@ -2292,6 +2302,176 @@ def validate_combined_balance_replication(
         ):
             errors.append(
                 "Blocked combined-balance bridge row must name the missing primary "
+                f"source on row {row_number}"
+            )
+    return errors
+
+
+def validate_joint_balance_definitions(
+    definitions_path: Path,
+    rules_path: Path,
+) -> list[str]:
+    """Return validation errors for competing CGA/RGSS balance definitions."""
+    for name, path in (("definitions_path", definitions_path), ("rules_path", rules_path)):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+
+    definitions = pd.read_csv(definitions_path, dtype=str, keep_default_na=False)
+    rules = pd.read_csv(rules_path, dtype=str, keep_default_na=False)
+    required_definition_columns = {
+        "definition_id",
+        "definition_label",
+        "definition_role",
+        "period",
+        "unit",
+        "accounting_basis",
+        "perimeter",
+        "inclusion_rule_ids",
+        "exclusion_rule_ids",
+        "consolidation_rule",
+        "bank_special_regime_treatment",
+        "historical_adjustment_policy",
+        "source_requirements",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    required_rule_columns = {
+        "rule_id",
+        "rule_type",
+        "component",
+        "operation",
+        "sign_convention",
+        "double_counting_guard",
+        "unit_requirement",
+        "source_requirement",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    errors: list[str] = []
+    missing_definition_columns = sorted(required_definition_columns.difference(definitions.columns))
+    if missing_definition_columns:
+        return [
+            f"Joint balance definitions missing columns: {', '.join(missing_definition_columns)}"
+        ]
+    missing_rule_columns = sorted(required_rule_columns.difference(rules.columns))
+    if missing_rule_columns:
+        return [
+            f"Joint balance definition rules missing columns: {', '.join(missing_rule_columns)}"
+        ]
+
+    required_definitions = {
+        "BANK_SPECIAL_SEPARATE_SENSITIVITY",
+        "CGA_INSTITUTIONAL_BALANCE",
+        "CONSOLIDATED_GENERAL_GOVERNMENT",
+        "FEFSS_VISIBLE_ALTERNATIVE",
+        "HISTORICALLY_ADJUSTED_NO_EARLY_RETIREMENT",
+        "HISTORICALLY_ADJUSTED_WORKING_GROUP",
+        "RGSS_PREVIDENTIAL_REPORTED",
+        "SIMPLE_CGA_PREVIDENTIAL_COMBINED",
+    }
+    observed_definitions = set(definitions["definition_id"])
+    for definition_id in sorted(required_definitions.difference(observed_definitions)):
+        errors.append(f"Missing joint balance definition: {definition_id}")
+
+    required_rules = {
+        "EXC_BANK_SPECIAL_OBLIGATIONS",
+        "EXC_CGA_BALANCE",
+        "EXC_EARLY_RETIREMENT_ADJUSTMENT",
+        "EXC_FEFSS_STOCK",
+        "EXC_INTRA_PUBLIC_TRANSFERS",
+        "EXC_PREVIDENTIAL_BALANCE",
+        "INC_BANK_SPECIAL_OBLIGATIONS",
+        "INC_CGA_BALANCE",
+        "INC_CONSOLIDATION_ELIMINATIONS",
+        "INC_FEFSS_FLOW",
+        "INC_HISTORICAL_ADJUSTMENTS",
+        "INC_PREVIDENTIAL_BALANCE",
+    }
+    observed_rules = set(rules["rule_id"])
+    for rule_id in sorted(required_rules.difference(observed_rules)):
+        errors.append(f"Missing joint balance rule: {rule_id}")
+
+    allowed_definition_roles = {
+        "alternative_perimeter",
+        "base_perimeter",
+        "combined_perimeter",
+        "consolidated_perimeter",
+        "historical_adjustment_variant",
+        "sensitivity_perimeter",
+    }
+    allowed_rule_types = {"exclusion", "inclusion"}
+    allowed_statuses = {
+        "blocked_primary_source_missing",
+        "ready_for_calculation",
+    }
+    duplicates = definitions[definitions.duplicated(subset=["definition_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate joint balance definition: {_registry_field(duplicate_row, 'definition_id')}"
+        )
+    duplicate_rules = rules[rules.duplicated(subset=["rule_id"], keep=False)]
+    for _, duplicate_row in duplicate_rules.iterrows():
+        errors.append(f"Duplicate joint balance rule: {_registry_field(duplicate_row, 'rule_id')}")
+
+    for row_number, record in enumerate(definitions.to_dict("records"), start=2):
+        for column in required_definition_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on joint balance definition row {row_number}")
+        if _registry_field(record, "definition_role") not in allowed_definition_roles:
+            errors.append(f"Unexpected joint balance definition_role on row {row_number}")
+        if _registry_field(record, "unit") != "EUR_million":
+            errors.append(f"Unexpected joint balance unit on row {row_number}")
+        if _registry_field(record, "status") not in allowed_statuses:
+            errors.append(f"Unexpected joint balance status on row {row_number}")
+        if _registry_field(record, "status") == "blocked_primary_source_missing" and (
+            "primary" not in _registry_field(record, "blocking_issue").lower()
+        ):
+            errors.append(
+                "Blocked joint balance definition must name the missing primary "
+                f"source on row {row_number}"
+            )
+        referenced_rules = set(
+            filter(
+                None,
+                (
+                    _registry_field(record, "inclusion_rule_ids")
+                    + ";"
+                    + _registry_field(record, "exclusion_rule_ids")
+                ).split(";"),
+            )
+        )
+        for rule_id in sorted(referenced_rules.difference(observed_rules)):
+            errors.append(
+                f"Joint balance definition row {row_number} references unknown rule: {rule_id}"
+            )
+        if _registry_field(record, "definition_id") == "CONSOLIDATED_GENERAL_GOVERNMENT" and (
+            "eliminate" not in _registry_field(record, "consolidation_rule")
+        ):
+            errors.append("Consolidated general-government definition must eliminate transfers")
+        if _registry_field(record, "definition_id") == "BANK_SPECIAL_SEPARATE_SENSITIVITY" and (
+            "sensitivity" not in _registry_field(record, "bank_special_regime_treatment")
+        ):
+            errors.append("Bank special-regime definition must remain a visible sensitivity")
+
+    for row_number, record in enumerate(rules.to_dict("records"), start=2):
+        for column in required_rule_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on joint balance rule row {row_number}")
+        if _registry_field(record, "rule_type") not in allowed_rule_types:
+            errors.append(f"Unexpected joint balance rule_type on row {row_number}")
+        if _registry_field(record, "unit_requirement") != "EUR_million":
+            errors.append(f"Unexpected joint balance unit_requirement on row {row_number}")
+        if _registry_field(record, "status") not in allowed_statuses:
+            errors.append(f"Unexpected joint balance rule status on row {row_number}")
+        if not _registry_field(record, "double_counting_guard"):
+            errors.append(f"Missing double-counting guard on joint balance rule row {row_number}")
+        if _registry_field(record, "status") == "blocked_primary_source_missing" and (
+            "primary" not in _registry_field(record, "blocking_issue").lower()
+        ):
+            errors.append(
+                "Blocked joint balance rule must name the missing primary "
                 f"source on row {row_number}"
             )
     return errors

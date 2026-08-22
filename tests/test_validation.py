@@ -12,6 +12,7 @@ from portugal_pensions.validation import (
     validate_extraction_audit,
     validate_falsification_review,
     validate_internal_replication_review,
+    validate_joint_balance_definitions,
     validate_literature_map,
     validate_manifest,
     validate_manuscript_draft,
@@ -167,6 +168,17 @@ def test_repository_combined_balance_replication_is_valid() -> None:
         validate_combined_balance_replication(
             root / "data" / "processed" / "combined_balance_replication_2026.csv",
             root / "data" / "processed" / "combined_balance_component_bridge_2026.csv",
+        )
+        == []
+    )
+
+
+def test_repository_joint_balance_definitions_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_joint_balance_definitions(
+            root / "data" / "processed" / "joint_balance_definitions.csv",
+            root / "data" / "processed" / "joint_balance_definition_rules.csv",
         )
         == []
     )
@@ -922,6 +934,114 @@ def test_combined_balance_replication_rejects_blocked_values(tmp_path: Path) -> 
 
     errors = validate_combined_balance_replication(replication, bridge)
     assert "Blocked combined-balance row must not contain value on row 2" in errors
+
+
+def test_joint_balance_definitions_require_core_perimeters(tmp_path: Path) -> None:
+    definitions = tmp_path / "joint_balance_definitions.csv"
+    rules = tmp_path / "joint_balance_definition_rules.csv"
+    definitions.write_text(
+        "definition_id,definition_label,definition_role,period,unit,accounting_basis,"
+        "perimeter,inclusion_rule_ids,exclusion_rule_ids,consolidation_rule,"
+        "bank_special_regime_treatment,historical_adjustment_policy,source_requirements,"
+        "status,blocking_issue,notes\n"
+        "RGSS_PREVIDENTIAL_REPORTED,reported,bad_role,2006-2025,EUR_million,basis,"
+        "perimeter,INC_PREVIDENTIAL_BALANCE,EXC_CGA_BALANCE,no_consolidation,"
+        "separate_not_included,reported,source,blocked_primary_source_missing,"
+        "primary source missing,notes\n",
+        encoding="utf-8",
+    )
+    rules.write_text(
+        "rule_id,rule_type,component,operation,sign_convention,double_counting_guard,"
+        "unit_requirement,source_requirement,status,blocking_issue,notes\n"
+        "INC_PREVIDENTIAL_BALANCE,inclusion,previdential_balance,add,"
+        "positive_surplus_negative_deficit,guard,EUR_million,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_CGA_BALANCE,exclusion,cga_balance,exclude,not_applicable,guard,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_joint_balance_definitions(definitions, rules)
+    assert "Missing joint balance definition: CGA_INSTITUTIONAL_BALANCE" in errors
+    assert "Missing joint balance rule: INC_CGA_BALANCE" in errors
+    assert "Unexpected joint balance definition_role on row 2" in errors
+
+
+def test_joint_balance_rules_require_double_counting_guards(tmp_path: Path) -> None:
+    definitions = tmp_path / "joint_balance_definitions.csv"
+    rules = tmp_path / "joint_balance_definition_rules.csv"
+    definitions.write_text(
+        "definition_id,definition_label,definition_role,period,unit,accounting_basis,"
+        "perimeter,inclusion_rule_ids,exclusion_rule_ids,consolidation_rule,"
+        "bank_special_regime_treatment,historical_adjustment_policy,source_requirements,"
+        "status,blocking_issue,notes\n"
+        "RGSS_PREVIDENTIAL_REPORTED,reported RGSS previdential balance,base_perimeter,"
+        "2006-2025,EUR_million,basis,perimeter,INC_PREVIDENTIAL_BALANCE,"
+        "EXC_CGA_BALANCE,none,separate_not_included,reported,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "CGA_INSTITUTIONAL_BALANCE,CGA institutional balance,base_perimeter,2006-2025,"
+        "EUR_million,basis,perimeter,INC_CGA_BALANCE,EXC_PREVIDENTIAL_BALANCE,none,"
+        "separate_not_included,reported,source,blocked_primary_source_missing,"
+        "primary source missing,notes\n"
+        "SIMPLE_CGA_PREVIDENTIAL_COMBINED,simple combined,combined_perimeter,"
+        "2006-2025,EUR_million,basis,perimeter,INC_CGA_BALANCE;INC_PREVIDENTIAL_BALANCE,"
+        "EXC_FEFSS_STOCK;EXC_BANK_SPECIAL_OBLIGATIONS,none,separate_not_included,"
+        "reported,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "CONSOLIDATED_GENERAL_GOVERNMENT,consolidated,consolidated_perimeter,"
+        "2006-2025,EUR_million,basis,perimeter,INC_CONSOLIDATION_ELIMINATIONS,"
+        "EXC_INTRA_PUBLIC_TRANSFERS,eliminate_transfers,separate_visible_sensitivity,"
+        "reported,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "HISTORICALLY_ADJUSTED_WORKING_GROUP,adjusted,historical_adjustment_variant,"
+        "2006-2025,EUR_million,basis,perimeter,INC_HISTORICAL_ADJUSTMENTS,"
+        "EXC_FEFSS_STOCK,adjust_only_with_registered_bridge,separate_not_included,"
+        "adjusted,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "HISTORICALLY_ADJUSTED_NO_EARLY_RETIREMENT,no early retirement,"
+        "historical_adjustment_variant,2006-2025,EUR_million,basis,perimeter,"
+        "INC_CGA_BALANCE,EXC_EARLY_RETIREMENT_ADJUSTMENT,"
+        "adjust_only_with_registered_bridge,separate_not_included,adjusted,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "FEFSS_VISIBLE_ALTERNATIVE,FEFSS visible,alternative_perimeter,2006-2025,"
+        "EUR_million,basis,perimeter,INC_FEFSS_FLOW,EXC_FEFSS_STOCK,none,"
+        "separate_not_included,reported,source,blocked_primary_source_missing,"
+        "primary source missing,notes\n"
+        "BANK_SPECIAL_SEPARATE_SENSITIVITY,bank sensitivity,sensitivity_perimeter,"
+        "2006-2025,EUR_million,basis,perimeter,INC_BANK_SPECIAL_OBLIGATIONS,"
+        "EXC_FEFSS_STOCK,none,separate_visible_sensitivity,reported,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n",
+        encoding="utf-8",
+    )
+    rules.write_text(
+        "rule_id,rule_type,component,operation,sign_convention,double_counting_guard,"
+        "unit_requirement,source_requirement,status,blocking_issue,notes\n"
+        "INC_PREVIDENTIAL_BALANCE,inclusion,previdential_balance,add,sign,,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "INC_CGA_BALANCE,inclusion,cga_balance,add,sign,guard,EUR_million,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "INC_CONSOLIDATION_ELIMINATIONS,inclusion,consolidation,adjust,sign,guard,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "INC_HISTORICAL_ADJUSTMENTS,inclusion,historical,adjust,sign,guard,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "INC_FEFSS_FLOW,inclusion,fefss,add,sign,guard,EUR_million,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "INC_BANK_SPECIAL_OBLIGATIONS,inclusion,bank,show,sign,guard,EUR_million,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_CGA_BALANCE,exclusion,cga,exclude,sign,guard,EUR_million,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_PREVIDENTIAL_BALANCE,exclusion,previdential,exclude,sign,guard,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_FEFSS_STOCK,exclusion,fefss_stock,exclude,sign,guard,EUR_million,source,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_BANK_SPECIAL_OBLIGATIONS,exclusion,bank,exclude,sign,guard,EUR_million,"
+        "source,blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_INTRA_PUBLIC_TRANSFERS,exclusion,transfers,eliminate,sign,guard,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n"
+        "EXC_EARLY_RETIREMENT_ADJUSTMENT,exclusion,early_retirement,exclude,sign,guard,"
+        "EUR_million,source,blocked_primary_source_missing,primary source missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_joint_balance_definitions(definitions, rules)
+    assert "Missing double-counting guard on joint balance rule row 2" in errors
 
 
 def test_publication_artifacts_require_all_figures(tmp_path: Path) -> None:
