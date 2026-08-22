@@ -1,7 +1,7 @@
 # Replicate bank pension cost
 
 Instruction file: `prompts/12_replicate_2012_bank_pension_cost.md`
-Date: 2026-08-19
+Date: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -12,6 +12,7 @@ Status: `partial_bounded_reconstruction`
 - Added `data/processed/bank_pension_cost_2012.csv` to reconcile the European Commission rounded benchmark to the official-account amount.
 - Updated the annual special-regime ledger for 2012 from the rounded EC placeholder to the official EUR 516.0m financing and pension-payment execution.
 - Added validation for the official amount, benchmark residual, units, year, perimeter metadata, and financing residual identity.
+- Added `evidence/bank_pension_cost_2012_component_requirements.csv` to gate component splits, lifecycle extensions, and manuscript language around the 2012 amount.
 - Preserved existing validated outputs.
 - Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
 
@@ -23,7 +24,7 @@ The official report also identifies EUR 515.8m from the State Budget and EUR 0.1
 
 ## Current Stop Condition
 
-The result remains bounded because the registered evidence does not split the EUR 516.0m by bank-level pension populations, monthly cash flows, or retained-liability components. Those gaps are recorded in `evidence/data_quality_registry.csv`.
+The result remains bounded because the registered evidence does not split the EUR 516.0m by bank-level pension populations, monthly cash flows, retained-liability components, or post-2012 asset and financing lifecycle paths. Those gaps are recorded in `evidence/data_quality_registry.csv` and enforced by `evidence/bank_pension_cost_2012_component_requirements.csv`.
 
 ## Validation
 

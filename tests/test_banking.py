@@ -16,6 +16,7 @@ from portugal_pensions.banking import (
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
     validate_bank_pension_cost_2012,
+    validate_bank_pension_cost_2012_component_requirements,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
     validate_bank_state_financing_reconciliation,
@@ -456,6 +457,57 @@ def test_bank_pension_cost_2012_checks_financing_residual(tmp_path: Path) -> Non
 
     errors = validate_bank_pension_cost_2012(str(cost))
     assert "Bank pension cost financing residual identity fails" in errors
+
+
+def test_repository_bank_pension_cost_2012_component_requirements_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_pension_cost_2012_component_requirements(
+            str(root / "evidence" / "bank_pension_cost_2012_component_requirements.csv")
+        )
+        == []
+    )
+
+
+def test_bank_pension_cost_2012_component_requirements_block_overclaim(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "bank_pension_cost_2012_component_requirements.csv"
+    requirements.write_text(
+        "requirement_id,replication_step,required_inputs,available_inputs,"
+        "permitted_output,status,blocking_issue,notes\n"
+        "R1,ec_approximate_benchmark,EC benchmark,about 500.0 EUR_million,"
+        "contextual rounded benchmark,approximate_benchmark_registered,none,notes\n"
+        "R2,official_2012_pension_expenditure,official account,500.0 EUR_million,"
+        "2012 bridge,official_account_reconciles_ec_approximation,none,notes\n"
+        "R3,state_current_transfer_financing,official financing,516.0 EUR_million,"
+        "2012 bridge,official_account_extracted,none,notes\n"
+        "R4,same_report_financing_identity,identity,0.0 EUR_million,"
+        "diagnostic identity,reconciled_same_report,none,notes\n"
+        "R5,component_split,bank records,not_available,complete_split,"
+        "bounded_claim_boundary,missing records,notes\n"
+        "R6,post_2012_lifecycle_extension,lifecycle records,not_available,"
+        "complete_loss,official_account_extracted,missing records,notes\n"
+        "R7,claim_boundary,boundary,516.0 EUR_million,complete lifecycle claim,"
+        "bounded_claim_boundary,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_pension_cost_2012_component_requirements(str(requirements))
+    assert "Bank pension cost official expenditure requirement must preserve 516.0" in errors
+    assert "Bank pension cost component split must remain blocked" in errors
+    assert (
+        "Bank pension cost component split must name missing primary bank-level records" in errors
+    )
+    assert "Bank pension cost lifecycle extension must remain blocked" in errors
+    assert (
+        "Bank pension cost lifecycle extension must name missing primary lifecycle records"
+        in errors
+    )
+    assert (
+        "Bank pension cost claim boundary must block lifecycle loss and net-benefit claims"
+        in errors
+    )
 
 
 def test_repository_bank_transfer_debt_financing_effects_is_valid() -> None:

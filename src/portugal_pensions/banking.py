@@ -1300,6 +1300,114 @@ def validate_bank_pension_cost_2012(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_pension_cost_2012_component_requirements(path: str) -> list[str]:
+    """Return validation errors for bounded 2012 bank pension-cost requirements."""
+    requirements = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "requirement_id",
+        "replication_step",
+        "required_inputs",
+        "available_inputs",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [
+            "Bank pension cost 2012 requirements missing columns: " + ", ".join(missing_columns)
+        ]
+
+    errors: list[str] = []
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank pension cost requirement_id: {_field(duplicate_row, 'requirement_id')}"
+        )
+
+    required_steps = {
+        "ec_approximate_benchmark",
+        "official_2012_pension_expenditure",
+        "state_current_transfer_financing",
+        "same_report_financing_identity",
+        "component_split",
+        "post_2012_lifecycle_extension",
+        "claim_boundary",
+    }
+    allowed_statuses = {
+        "approximate_benchmark_registered",
+        "official_account_reconciles_ec_approximation",
+        "official_account_extracted",
+        "reconciled_same_report",
+        "blocked_missing_component_split",
+        "blocked_missing_lifecycle_inputs",
+        "bounded_claim_boundary",
+    }
+
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank pension cost requirement row {row_number}")
+        step = _field(record, "replication_step")
+        if step not in required_steps:
+            errors.append(
+                f"Unexpected bank pension cost requirement step on row {row_number}: {step}"
+            )
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(
+                f"Unexpected bank pension cost requirement status on row {row_number}: {status}"
+            )
+
+        available_inputs = _field(record, "available_inputs")
+        permitted_output = _field(record, "permitted_output")
+        blocking_issue = _field(record, "blocking_issue").lower()
+        if step == "ec_approximate_benchmark" and "500.0" not in available_inputs:
+            errors.append("Bank pension cost EC benchmark requirement must preserve 500.0")
+        if step == "official_2012_pension_expenditure" and "516.0" not in available_inputs:
+            errors.append("Bank pension cost official expenditure requirement must preserve 516.0")
+        if step == "same_report_financing_identity" and "0.0" not in available_inputs:
+            errors.append("Bank pension cost financing identity requirement must preserve 0.0")
+        if step == "component_split":
+            if status != "blocked_missing_component_split":
+                errors.append("Bank pension cost component split must remain blocked")
+            if "primary" not in blocking_issue or "bank-level" not in blocking_issue:
+                errors.append(
+                    "Bank pension cost component split must name missing primary bank-level records"
+                )
+            if "no_component_split" not in permitted_output:
+                errors.append(
+                    "Bank pension cost component split must limit output to bounded total"
+                )
+        if step == "post_2012_lifecycle_extension":
+            if status != "blocked_missing_lifecycle_inputs":
+                errors.append("Bank pension cost lifecycle extension must remain blocked")
+            if "primary" not in blocking_issue or "lifecycle" not in blocking_issue:
+                errors.append(
+                    "Bank pension cost lifecycle extension must name missing primary "
+                    "lifecycle records"
+                )
+            if "no_lifecycle_loss" not in permitted_output:
+                errors.append(
+                    "Bank pension cost lifecycle extension must block loss classification"
+                )
+        if step == "claim_boundary" and (
+            "not_lifecycle_loss" not in permitted_output
+            or "not_net_benefit" not in permitted_output
+        ):
+            errors.append(
+                "Bank pension cost claim boundary must block lifecycle loss and net-benefit claims"
+            )
+
+    observed_steps = set(requirements["replication_step"].dropna().astype(str))
+    for step in required_steps:
+        if step not in observed_steps:
+            errors.append(f"Missing bank pension cost requirement step: {step}")
+
+    return errors
+
+
 def validate_bank_transfer_debt_financing_effects(path: str) -> list[str]:
     """Return validation errors for bank-transfer debt and financing-cost effects."""
     debt = pd.read_csv(path, dtype=str)

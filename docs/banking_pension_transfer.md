@@ -95,7 +95,10 @@ The annual ledger is now represented in `evidence/bank_special_regime_annual.csv
 `data/processed/bank_transfer_long_run.csv`. It covers 2012-2025. For 2012,
 `data/processed/bank_pension_cost_2012.csv` reconciles the European Commission's
 rounded EUR 0.5bn benchmark to the official EUR 516.0m banking substitute-regime
-pension-payment execution reported by Tribunal de Contas. Later annual financing
+pension-payment execution reported by Tribunal de Contas.
+`evidence/bank_pension_cost_2012_component_requirements.csv` records the companion
+gate: the EUR 516.0m value is a 2012 official-account bridge, not a bank-level
+component split, net benefit, or lifecycle loss estimate. Later annual financing
 components remain blank with blocked statuses until official annual account tables are
 extracted. Missing values in this ledger are not zeros.
 
