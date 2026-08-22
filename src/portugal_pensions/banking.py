@@ -22,6 +22,15 @@ class BankTransferBalance:
     residual_burden: float
 
 
+@dataclass(frozen=True, slots=True)
+class ActuarialPresentValueBounds:
+    """Present-value range computed from explicit cash-flow and rate bounds."""
+
+    lower_pv: float
+    upper_pv: float
+    precision_decimals: int
+
+
 def _finite(value: float, name: str) -> float:
     if not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be numeric")
@@ -85,6 +94,56 @@ def required_assets_for_cash_flows(
 ) -> float:
     """Alias with domain semantics for pension-liability sensitivity analysis."""
     return present_value(cash_flows, annual_discount_rate)
+
+
+def actuarial_present_value_bounds(
+    *,
+    cash_flow_lower: Sequence[float],
+    cash_flow_upper: Sequence[float],
+    annual_discount_rates: Sequence[float],
+    precision_decimals: int = 1,
+) -> ActuarialPresentValueBounds:
+    """Compute a defensible PV envelope from explicit nonnegative cash-flow bounds.
+
+    The helper intentionally refuses to infer beneficiary-level cash flows. Callers must
+    provide lower and upper annual payment paths, plus the tested discount-rate grid.
+    """
+    if len(cash_flow_lower) != len(cash_flow_upper):
+        raise ValueError("cash_flow_lower and cash_flow_upper must have the same length")
+    if not cash_flow_lower:
+        raise ValueError("cash-flow bounds must contain at least one period")
+    if not annual_discount_rates:
+        raise ValueError("annual_discount_rates must contain at least one rate")
+    if precision_decimals < 0:
+        raise ValueError("precision_decimals must be nonnegative")
+
+    lower_flows: list[float] = []
+    upper_flows: list[float] = []
+    for index, (lower, upper) in enumerate(
+        zip(cash_flow_lower, cash_flow_upper, strict=True), start=1
+    ):
+        lower_amount = _finite(lower, f"cash_flow_lower[{index - 1}]")
+        upper_amount = _finite(upper, f"cash_flow_upper[{index - 1}]")
+        if lower_amount < 0.0 or upper_amount < 0.0:
+            raise ValueError("cash-flow bounds must be nonnegative")
+        if lower_amount > upper_amount:
+            raise ValueError(f"cash_flow_lower[{index - 1}] exceeds cash_flow_upper")
+        lower_flows.append(lower_amount)
+        upper_flows.append(upper_amount)
+
+    rates = [
+        _finite(rate, f"annual_discount_rates[{index}]")
+        for index, rate in enumerate(annual_discount_rates)
+    ]
+    for rate in rates:
+        if rate <= -1.0:
+            raise ValueError("annual_discount_rates must be greater than -1")
+
+    return ActuarialPresentValueBounds(
+        lower_pv=round(present_value(lower_flows, max(rates)), precision_decimals),
+        upper_pv=round(present_value(upper_flows, min(rates)), precision_decimals),
+        precision_decimals=precision_decimals,
+    )
 
 
 def validate_bank_pension_transfer_registry(path: str) -> list[str]:
@@ -501,6 +560,115 @@ def validate_bank_asset_liability_institution_requirements(
         if "not_underfunding_finding" not in _field(record, "economic_interpretation_rule"):
             errors.append(
                 "Bank asset-liability requirement must block underfunding interpretation "
+                f"on row {row_number}"
+            )
+    return errors
+
+
+def validate_actuarial_identifiability_registry(path: str) -> list[str]:
+    """Return validation errors for the bank actuarial identifiability registry."""
+    registry = pd.read_csv(path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "record_id",
+        "quantity",
+        "valuation_target",
+        "required_inputs",
+        "available_inputs",
+        "identifiability",
+        "status",
+        "permitted_method",
+        "precision_rule",
+        "sensitivity_dimension",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(registry.columns))
+    if missing_columns:
+        return [f"Actuarial identifiability registry missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = registry[registry.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate actuarial identifiability record_id: {_field(duplicate_row, 'record_id')}"
+        )
+
+    required_dimensions = {
+        "statutory_valuation",
+        "discount_rate",
+        "longevity",
+        "indexation",
+        "bank_level_position",
+        "synthetic_microdata",
+        "interpretation",
+    }
+    observed_dimensions = set(registry["sensitivity_dimension"].astype(str))
+    for dimension in sorted(required_dimensions.difference(observed_dimensions)):
+        errors.append(f"Missing actuarial identifiability dimension: {dimension}")
+
+    allowed_identifiability = {
+        "partially_identified",
+        "not_identified",
+        "not_identified_without_bank_schedules",
+        "not_identified_without_cashflows",
+        "not_identified_without_demographics",
+        "not_identified_without_full_transfer_panel",
+        "not_identified_without_indexation_path",
+    }
+    blocked_status_terms = {"blocked", "prohibited"}
+    for row_number, record in enumerate(registry.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on actuarial identifiability row {row_number}")
+
+        identifiability = _field(record, "identifiability")
+        if identifiability not in allowed_identifiability:
+            errors.append(f"Unexpected actuarial identifiability class on row {row_number}")
+
+        status = _field(record, "status")
+        if not any(term in status for term in blocked_status_terms):
+            errors.append(f"Actuarial identifiability row {row_number} must remain blocked")
+
+        precision_rule = _field(record, "precision_rule")
+        if "point" in precision_rule and "no_point" not in precision_rule:
+            errors.append(
+                "Actuarial identifiability precision rule must not allow unsupported "
+                f"point estimates on row {row_number}"
+            )
+        if "exact" in precision_rule:
+            errors.append(
+                "Actuarial identifiability precision rule must not claim exact precision "
+                f"on row {row_number}"
+            )
+
+        required_inputs = _field(record, "required_inputs")
+        permitted_method = _field(record, "permitted_method")
+        dimension = _field(record, "sensitivity_dimension")
+        blocking_issue = _field(record, "blocking_issue").lower()
+        if dimension in {"discount_rate", "longevity", "indexation"}:
+            if "cash_flow_schedule" not in required_inputs:
+                errors.append(
+                    "Actuarial sensitivity rows must require cash_flow_schedule "
+                    f"on row {row_number}"
+                )
+            if "bounds" not in permitted_method and "empty_sensitivity_surface" not in (
+                permitted_method
+            ):
+                errors.append(
+                    "Actuarial sensitivity rows must be limited to bounds or empty "
+                    f"surfaces on row {row_number}"
+                )
+        if dimension == "synthetic_microdata" and status != "prohibited":
+            errors.append("Synthetic microdata actuarial row must be prohibited")
+        if dimension == "interpretation" and (
+            "alternative_rate_not_underfunding_finding" not in precision_rule
+        ):
+            errors.append(
+                "Actuarial interpretation row must block alternative-rate underfunding language"
+            )
+        if status.startswith("blocked") and "primary" not in blocking_issue:
+            errors.append(
+                "Blocked actuarial identifiability rows must name missing primary inputs "
                 f"on row {row_number}"
             )
     return errors

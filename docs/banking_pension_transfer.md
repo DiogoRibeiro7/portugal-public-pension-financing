@@ -37,6 +37,12 @@ statutory equality or discount-rate sensitivity surface can be reproduced. A
 larger liability under an alternative discount rate is treated as sensitivity
 evidence, not by itself as an underfunding finding.
 
+`evidence/actuarial_identifiability_registry.csv` records which bank-pension
+actuarial quantities are point-identifiable, partially identifiable or blocked
+from the current public inputs. It separates statutory valuation, discount-rate
+sensitivity, longevity sensitivity and indexation sensitivity, and prohibits
+synthetic beneficiary microdata from being presented as observed evidence.
+
 `data/processed/bank_transfer_legal_coverage.csv` is the machine-readable
 coverage gate for this reconstruction. It maps each required timeline instrument
 and DL127 extraction requirement to the registry record IDs that support it, and
