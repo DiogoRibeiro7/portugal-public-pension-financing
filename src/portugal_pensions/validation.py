@@ -3152,6 +3152,7 @@ def validate_internal_replication_review(
         "REPL_LEGAL_CHRONOLOGY",
         "REPL_MANUSCRIPT_LANGUAGE",
         "REPL_MISSING_VALUES",
+        "REPL_SECTION_LANGUAGE_GATES",
         "REPL_STATE_FINANCING",
     }
     observed_review_ids = set(review["review_id"].dropna().astype(str))
@@ -3201,6 +3202,21 @@ def validate_internal_replication_review(
             errors.append(f"Blocked internal replication row {review_id} must name a blocker")
         if decision == "unresolved_requires_sources" and status != "blocked_missing_inputs":
             errors.append(f"Unresolved internal replication row {review_id} must be blocked")
+        if review_id == "REPL_SECTION_LANGUAGE_GATES":
+            input_artifacts = set(_registry_field(record, "input_artifacts").split(";"))
+            required_artifacts = {
+                "data/processed/manuscript_claim_language_audit.csv",
+                "evidence/article_evidence_claim_boundaries.csv",
+                "evidence/manuscript_section_boundaries.csv",
+                "paper/manuscript.tex",
+            }
+            for artifact in sorted(required_artifacts.difference(input_artifacts)):
+                errors.append(
+                    f"Section-language replication row missing input artifact: {artifact}"
+                )
+            target_claim_ids = set(_registry_field(record, "target_claim_ids").split(";"))
+            if "CLAIM_LANGUAGE_001" not in target_claim_ids:
+                errors.append("Section-language replication row must cover CLAIM_LANGUAGE_001")
 
         residual = _registry_field(record, "residual")
         if residual not in {"not_applicable", ""}:

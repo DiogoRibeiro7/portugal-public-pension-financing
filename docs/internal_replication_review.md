@@ -19,6 +19,8 @@ transfer schedules, pension cash-flow paths, or full ESA restatement tables.
 - The 2011 main bank-transfer panel and the 2012 BPN case remain separate perimeters.
 - The 4 percent discount rate is treated as a statutory valuation assumption, not as an economic
   discount-rate conclusion.
+- Present loaded manuscript terms now map to manuscript section-boundary IDs, and article-facing
+  claims remain bounded by explicit blocked-inference rows.
 
 ## Alternative definitions
 
@@ -36,4 +38,5 @@ transfer schedules, pension cash-flow paths, or full ESA restatement tables.
 
 The review leaves the following conclusions unresolved: employee remittance losses, employer
 underpayment amounts, post-2006 public-worker reallocation magnitudes, combined CGA-RGSS balance
-signs, bank-level net benefit or subsidy, and lifecycle public-finance gain or loss.
+signs, bank-level net benefit or subsidy, and lifecycle public-finance gain or loss. Later
+manuscript revisions require a rerun of the section-boundary and loaded-language checks.

@@ -663,6 +663,41 @@ def test_internal_replication_review_requires_article_claim_coverage(tmp_path: P
     assert "Article evidence claim missing replication review: CLAIM_REQUIRED" in errors
 
 
+def test_internal_replication_review_requires_section_language_gate(tmp_path: Path) -> None:
+    review = tmp_path / "internal_replication_review.csv"
+    article = tmp_path / "article_evidence.csv"
+    article.write_text(
+        "evidence_id,claim_id\nAE_REQUIRED,CLAIM_LANGUAGE_001\n",
+        encoding="utf-8",
+    )
+    header = (
+        "review_id,target_area,target_claim_ids,input_artifacts,source_ids,period,unit,"
+        "perimeter,accounting_basis,check_type,independent_result,residual,"
+        "alternative_definition_effect,decision,status,blocking_issue,notes\n"
+    )
+    row = (
+        "REPL_SECTION_LANGUAGE_GATES,area,OTHER_CLAIM,paper/manuscript.tex,SRC,"
+        "2011-2025,mixed,perimeter,basis,check,result,not_applicable,alternative,"
+        "no_overstatement_detected,partial_bounded_review,none,notes\n"
+    )
+    review.write_text(header + row, encoding="utf-8")
+
+    errors = validate_internal_replication_review(review, article)
+    assert (
+        "Section-language replication row missing input artifact: "
+        "data/processed/manuscript_claim_language_audit.csv"
+    ) in errors
+    assert (
+        "Section-language replication row missing input artifact: "
+        "evidence/article_evidence_claim_boundaries.csv"
+    ) in errors
+    assert (
+        "Section-language replication row missing input artifact: "
+        "evidence/manuscript_section_boundaries.csv"
+    ) in errors
+    assert "Section-language replication row must cover CLAIM_LANGUAGE_001" in errors
+
+
 def test_release_reproducibility_audit_requires_pinned_requirements(tmp_path: Path) -> None:
     audit = tmp_path / "release_reproducibility_audit.csv"
     artifact = tmp_path / "artifact.txt"
