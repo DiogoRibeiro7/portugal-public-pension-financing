@@ -6,3 +6,4 @@ SUB_RELEASE_AUDIT,data/processed/release_reproducibility_audit.csv,readiness_aud
 SUB_ARCHIVE_MANIFEST,MANIFEST.sha256,archive_manifest,yes,ready,none,validate-manifest,Checksum manifest for tracked source state
 SUB_ARTICLE_EVIDENCE,evidence/article_evidence.csv,article_evidence_gate,yes,partial_bounded,missing_final_manuscript_inputs,validate-evidence,Maps current manuscript claims to source transformations and output artifacts
 SUB_MANUSCRIPT,paper/manuscript.tex,bounded_manuscript,yes,partial_bounded,missing_final_manuscript_inputs,validate-evidence,Current manuscript is bounded and not a final public report
+SUB_MANUSCRIPT_PDF,paper/manuscript.pdf,bounded_manuscript_pdf,yes,partial_bounded,missing_final_manuscript_inputs,validate-submission-package,Compiled manuscript artifact for reviewer orientation only

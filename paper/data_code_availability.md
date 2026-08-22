@@ -4,9 +4,9 @@ This repository is a bounded research snapshot, not a final public-report releas
 
 ## Code
 
-The analysis code, validation code, tests, evidence registries, manuscript source, and release
-readiness artifacts are tracked in the Git repository. The current archive checksum contract is
-`MANIFEST.sha256`.
+The analysis code, validation code, tests, evidence registries, manuscript source, bounded
+manuscript PDF, and release readiness artifacts are tracked in the Git repository. The current
+archive checksum contract is `MANIFEST.sha256`.
 
 ## Public raw sources
 
@@ -40,6 +40,6 @@ These gaps are recorded in `evidence/data_quality_registry.csv`,
 ## Reuse boundary
 
 The current manuscript is reproducible only for the bounded claims listed in
-`evidence/article_evidence.csv`. It should not be cited as establishing employee remittance losses,
-employer underpayment amounts, post-2006 reallocation magnitudes, bank-transfer subsidy, or
-lifecycle public-finance gain or loss.
+`evidence/article_evidence.csv`. The compiled PDF is a bounded review artifact only. It should not
+be cited as establishing employee remittance losses, employer underpayment amounts, post-2006
+reallocation magnitudes, bank-transfer subsidy, or lifecycle public-finance gain or loss.
