@@ -29,6 +29,7 @@ from .banking import (
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
     validate_bank_pension_cost_2012,
+    validate_bank_pension_cost_2012_component_requirements,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
     validate_bank_state_financing_reconciliation,
@@ -870,6 +871,15 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     bank_pension_cost = evidence_dir.parent / "data" / "processed" / "bank_pension_cost_2012.csv"
     if bank_pension_cost.is_file():
         errors.extend(validate_bank_pension_cost_2012(str(bank_pension_cost)))
+    bank_pension_cost_requirements = (
+        evidence_dir / "bank_pension_cost_2012_component_requirements.csv"
+    )
+    if bank_pension_cost_requirements.is_file():
+        errors.extend(
+            validate_bank_pension_cost_2012_component_requirements(
+                str(bank_pension_cost_requirements)
+            )
+        )
     bank_debt_financing = (
         evidence_dir.parent / "data" / "processed" / "bank_transfer_debt_financing_effects.csv"
     )
