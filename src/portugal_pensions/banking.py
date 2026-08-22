@@ -1813,6 +1813,94 @@ def validate_bank_esa_treatment_bridge(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_esa_restatement_requirements(path: str) -> list[str]:
+    """Return validation errors for ESA restatement source requirements."""
+    requirements = pd.read_csv(path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "requirement_id",
+        "reconstruction_step",
+        "required_inputs",
+        "available_inputs",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [f"Bank ESA restatement requirements missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank ESA requirement_id: {_field(duplicate_row, 'requirement_id')}"
+        )
+    step_duplicates = requirements[
+        requirements.duplicated(subset=["reconstruction_step"], keep=False)
+    ]
+    for _, duplicate_row in step_duplicates.iterrows():
+        errors.append(
+            "Duplicate bank ESA reconstruction step: "
+            f"{_field(duplicate_row, 'reconstruction_step')}"
+        )
+
+    required_steps = {
+        "edp_transaction_level_bridge",
+        "esa2010_financial_transaction_classification",
+        "esa95_headline_deficit_counterfactual",
+        "esa95_percent_gdp_arithmetic",
+        "machine_readable_esa2010_restatement",
+        "machine_readable_esa95_series",
+        "same_transaction_bridge",
+    }
+    observed_steps = set(requirements["reconstruction_step"].astype(str))
+    for step in sorted(required_steps.difference(observed_steps)):
+        errors.append(f"Missing bank ESA restatement step: {step}")
+
+    allowed_statuses = {
+        "blocked_missing_machine_readable_accounts",
+        "classification_confirmed_from_ec",
+        "interpretive_bridge",
+        "replicated_from_cge_and_ec",
+    }
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank ESA requirement row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank ESA requirement status on row {row_number}")
+        step = _field(record, "reconstruction_step")
+        permitted_output = _field(record, "permitted_output")
+        if step.startswith("machine_readable") or step == "edp_transaction_level_bridge":
+            if status != "blocked_missing_machine_readable_accounts":
+                errors.append(
+                    f"Machine-readable ESA requirement must remain blocked on row {row_number}"
+                )
+            if "blocked" not in permitted_output:
+                errors.append(
+                    f"Machine-readable ESA requirement must block output on row {row_number}"
+                )
+            if "primary" not in _field(record, "blocking_issue").lower():
+                errors.append(
+                    "Blocked ESA restatement rows must name missing primary sources "
+                    f"on row {row_number}"
+                )
+        if step == "same_transaction_bridge" and permitted_output != "interpretive_bridge_only":
+            errors.append("Same-transaction ESA bridge must remain interpretive only")
+        if step == "esa2010_financial_transaction_classification" and (
+            "no_direct_deficit_impact" not in permitted_output
+        ):
+            errors.append("ESA-2010 requirement must preserve no-direct-impact classification")
+        if step == "esa95_percent_gdp_arithmetic" and (
+            "5993.2" not in _field(record, "available_inputs")
+            or "3.5" not in _field(record, "available_inputs")
+        ):
+            errors.append("ESA-95 arithmetic requirement must preserve 5993.2 and 3.5 anchors")
+    return errors
+
+
 def _validate_bank_asset_liability_audit(audit: pd.DataFrame) -> list[str]:
     required_columns = {
         "audit_id",
