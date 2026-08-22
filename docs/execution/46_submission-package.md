@@ -2,6 +2,7 @@
 
 Instruction file: `prompts/46_journal_submission_replication_package.md`
 Date: 2026-08-19
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -17,12 +18,14 @@ Status: `partial_bounded_reconstruction`
 - Added `data/processed/submission_package_manifest.csv`.
 - Expanded `docs/replication_guide.md` with the current package contents and certified gate.
 - Added validation and tests for the bounded submission package.
+- Added the tracked bounded manuscript PDF to the package manifest and validation gate.
 
 ## Result
 
 Prepared a bounded submission package scaffold. It is suitable for reviewer orientation and
 independent reproduction of the currently gated article-evidence claims, but it is not a final
-journal submission package because release-readiness blockers remain open.
+journal submission package because the manuscript PDF remains bounded and release-readiness
+blockers remain open.
 
 ## Current Stop Condition
 
@@ -33,4 +36,4 @@ rules.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran repository quality checks after regenerating `MANIFEST.sha256`.

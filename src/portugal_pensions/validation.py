@@ -137,6 +137,7 @@ REQUIRED_SUBMISSION_PACKAGE_ITEMS: frozenset[str] = frozenset(
         "SUB_ARTICLE_EVIDENCE",
         "SUB_AVAILABILITY",
         "SUB_MANUSCRIPT",
+        "SUB_MANUSCRIPT_PDF",
         "SUB_METHODS_APPENDIX",
         "SUB_RELEASE_AUDIT",
         "SUB_REPLICATION_GUIDE",
@@ -3429,6 +3430,12 @@ def validate_submission_package(
             errors.append(f"Ready submission package row {item_id} must not name a blocker")
         if current_status == "partial_bounded" and blocking_issue in {"", "none"}:
             errors.append(f"Partial submission package row {item_id} must name a blocker")
+        if item_id == "SUB_MANUSCRIPT_PDF":
+            if artifact != Path("paper/manuscript.pdf"):
+                errors.append("Manuscript PDF submission row must point to paper/manuscript.pdf")
+            pdf_path = root / artifact
+            if pdf_path.is_file() and pdf_path.stat().st_size == 0:
+                errors.append("Submission package manuscript PDF artifact is empty")
 
     for artifact_path, phrases in required_phrases.items():
         if not artifact_path.is_file():

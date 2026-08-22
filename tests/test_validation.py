@@ -754,6 +754,23 @@ def test_submission_package_requires_bounded_status_blocker(tmp_path: Path) -> N
     assert "Partial submission package row SUB_REPLICATION_GUIDE must name a blocker" in errors
 
 
+def test_submission_package_requires_nonempty_manuscript_pdf(tmp_path: Path) -> None:
+    paper_dir = tmp_path / "paper"
+    paper_dir.mkdir()
+    (paper_dir / "manuscript.pdf").write_bytes(b"")
+    manifest = tmp_path / "submission_package_manifest.csv"
+    manifest.write_text(
+        "item_id,artifact_path,artifact_role,required_for_submission,current_status,"
+        "blocking_issue,validation_gate,notes\n"
+        "SUB_MANUSCRIPT_PDF,paper/manuscript.pdf,bounded_pdf,yes,partial_bounded,"
+        "missing_final_manuscript_inputs,gate,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_submission_package(manifest, tmp_path)
+    assert "Submission package manuscript PDF artifact is empty" in errors
+
+
 def test_claim_language_audit_rejects_count_mismatch(tmp_path: Path) -> None:
     manuscript = tmp_path / "manuscript.tex"
     audit = tmp_path / "language.csv"
