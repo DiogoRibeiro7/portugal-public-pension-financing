@@ -29,6 +29,7 @@ from .banking import (
     validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
+    validate_bank_state_financing_reconciliation,
     validate_bank_transfer_debt_financing_effects,
     validate_bank_transfer_legal_coverage,
     validate_bank_worker_rgss_contributions,
@@ -763,10 +764,25 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 str(bank_worker_mapping),
             )
         )
-    if (evidence_dir / "bank_special_regime_annual.csv").is_file():
+    bank_special_regime_annual = evidence_dir / "bank_special_regime_annual.csv"
+    bank_transfer_long_run = (
+        evidence_dir.parent / "data" / "processed" / "bank_transfer_long_run.csv"
+    )
+    bank_state_financing_requirements = (
+        evidence_dir / "bank_state_financing_reconciliation_requirements.csv"
+    )
+    if bank_special_regime_annual.is_file():
+        errors.extend(validate_bank_special_regime_annual(str(bank_special_regime_annual)))
+    if (
+        bank_special_regime_annual.is_file()
+        and bank_transfer_long_run.is_file()
+        and bank_state_financing_requirements.is_file()
+    ):
         errors.extend(
-            validate_bank_special_regime_annual(
-                str(evidence_dir / "bank_special_regime_annual.csv")
+            validate_bank_state_financing_reconciliation(
+                str(bank_special_regime_annual),
+                str(bank_transfer_long_run),
+                str(bank_state_financing_requirements),
             )
         )
     if (evidence_dir / "state_financing_rule_registry.csv").is_file():

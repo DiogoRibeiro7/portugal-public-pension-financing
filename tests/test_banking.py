@@ -16,6 +16,7 @@ from portugal_pensions.banking import (
     validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
+    validate_bank_state_financing_reconciliation,
     validate_bank_transfer_debt_financing_effects,
     validate_bank_transfer_legal_coverage,
     validate_bank_worker_rgss_contributions,
@@ -319,6 +320,18 @@ def test_repository_bank_special_regime_annual_is_valid() -> None:
     )
 
 
+def test_repository_bank_state_financing_reconciliation_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_state_financing_reconciliation(
+            str(root / "evidence" / "bank_special_regime_annual.csv"),
+            str(root / "data" / "processed" / "bank_transfer_long_run.csv"),
+            str(root / "evidence" / "bank_state_financing_reconciliation_requirements.csv"),
+        )
+        == []
+    )
+
+
 def test_repository_bank_benefit_risk_distribution_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
@@ -525,6 +538,52 @@ def test_bank_special_regime_annual_checks_residual_identity(tmp_path: Path) -> 
 
     errors = validate_bank_special_regime_annual(str(ledger), end_year=2012)
     assert "Bank special-regime residual identity fails on row 2" in errors
+
+
+def test_bank_state_financing_reconciliation_blocks_loss_classification(
+    tmp_path: Path,
+) -> None:
+    annual = tmp_path / "bank_special_regime_annual.csv"
+    long_run = tmp_path / "bank_transfer_long_run.csv"
+    requirements = tmp_path / "bank_state_financing_reconciliation_requirements.csv"
+    annual.write_text(
+        "year,perimeter,unit,price_basis,accounting_basis,state_specific_transfer,"
+        "pension_expenditure,administrative_cost,attributable_investment_income,"
+        "asset_drawdown,other_financing,timing_adjustment,reconciliation_residual,"
+        "source_ids,status,notes\n"
+        "2012,perimeter,EUR_million,current_prices,budgetary_public_accounts,"
+        "100,100,0,0,0,0,0,0,SRC,complete,notes\n",
+        encoding="utf-8",
+    )
+    long_run.write_text(
+        "year,perimeter,unit,price_basis,accounting_basis,state_specific_transfer,"
+        "pension_expenditure,administrative_cost,attributable_investment_income,"
+        "asset_drawdown,other_financing,timing_adjustment,reconciliation_residual,"
+        "source_ids,status,notes\n"
+        "2012,perimeter,EUR_million,current_prices,budgetary_public_accounts,"
+        "100,101,0,0,0,0,0,1,SRC,complete,notes\n",
+        encoding="utf-8",
+    )
+    requirements.write_text(
+        "requirement_id,component,period,required_source,observed_evidence,"
+        "allowed_use,status,blocking_issue,notes\n"
+        "REQ1,reconciliation_residual,2012-2025,source,observed,"
+        "classify_as_social_security_loss,blocked_missing_full_component_set,"
+        "primary records missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_state_financing_reconciliation(
+        str(annual),
+        str(long_run),
+        str(requirements),
+        end_year=2012,
+    )
+    assert "Bank special-regime annual and long-run ledgers must match exactly" in errors
+    assert (
+        "Bank State-financing residual requirement must block loss classification on row 2"
+        in errors
+    )
 
 
 def test_bank_asset_liability_sensitivity_requires_rate_surface(tmp_path: Path) -> None:
