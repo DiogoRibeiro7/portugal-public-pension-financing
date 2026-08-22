@@ -2,7 +2,7 @@
 
 Instruction file: `prompts/18_write_paper.md`
 Date: 2026-08-19
-Updated: 2026-08-20
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -13,6 +13,7 @@ Status: `partial_bounded_reconstruction`
 - Added source-level article-evidence references for every currently supported article-evidence row.
 - Added validation that the manuscript references article evidence and keeps evidence-boundary language.
 - Added tests for repository manuscript validity and missing evidence references.
+- Added `evidence/manuscript_section_boundaries.csv` to gate section-level labels, evidence references, dependency gates and blocked overclaim classes.
 
 ## Result
 
@@ -20,7 +21,7 @@ Created a bounded manuscript draft. It reports extracted and replicated evidence
 
 ## Current Stop Condition
 
-Completion beyond this bounded draft requires the unresolved source work recorded in the falsification report, article-evidence gate and data-quality registry.
+Completion beyond this bounded draft requires the unresolved source work recorded in the falsification report, article-evidence gate, manuscript section-boundary gate and data-quality registry.
 
 ## Validation
 

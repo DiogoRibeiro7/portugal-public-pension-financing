@@ -1073,6 +1073,16 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     manuscript = evidence_dir.parent / "paper" / "manuscript.tex"
     if manuscript.is_file() and article_evidence.is_file():
         errors.extend(validate_manuscript_draft(manuscript, article_evidence))
+    manuscript_boundaries = evidence_dir / "manuscript_section_boundaries.csv"
+    article_boundaries = evidence_dir / "article_evidence_claim_boundaries.csv"
+    if manuscript.is_file() and manuscript_boundaries.is_file() and article_boundaries.is_file():
+        errors.extend(
+            validate_manuscript_section_boundaries(
+                manuscript,
+                manuscript_boundaries,
+                article_boundaries,
+            )
+        )
     language_audit = (
         evidence_dir.parent / "data" / "processed" / "manuscript_claim_language_audit.csv"
     )
@@ -3399,6 +3409,156 @@ def validate_submission_package(
                     f"Submission package artifact {artifact_path.relative_to(root)} "
                     f"missing phrase: {phrase}"
                 )
+
+    return errors
+
+
+def validate_manuscript_section_boundaries(
+    manuscript_path: Path,
+    boundary_path: Path,
+    article_boundary_path: Path,
+) -> list[str]:
+    """Return validation errors for manuscript section evidence boundaries."""
+    for name, path in (
+        ("manuscript_path", manuscript_path),
+        ("boundary_path", boundary_path),
+        ("article_boundary_path", article_boundary_path),
+    ):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+    text = manuscript_path.read_text(encoding="utf-8")
+    lowered_text = text.lower()
+    boundaries = pd.read_csv(boundary_path, dtype=str)
+    article_boundaries = pd.read_csv(article_boundary_path, dtype=str)
+    required_columns = {
+        "section_id",
+        "section_title",
+        "required_labels",
+        "required_evidence_ids",
+        "permitted_claim_class",
+        "blocked_claim_class",
+        "dependency_gate",
+        "status",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(boundaries.columns))
+    if missing_columns:
+        return ["Manuscript section boundaries missing columns: " + ", ".join(missing_columns)]
+
+    errors: list[str] = []
+    duplicates = boundaries[boundaries.duplicated(subset=["section_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate manuscript section boundary row: "
+            f"{_registry_field(duplicate_row, 'section_id')}"
+        )
+
+    required_sections = {
+        "MS_INTRO",
+        "MS_ACCOUNTING",
+        "MS_CGA",
+        "MS_CONTRIBUTIONS",
+        "MS_REFORM",
+        "MS_BANK",
+        "MS_BALANCE",
+        "MS_COUNTERFACTUAL",
+        "MS_LIMITATIONS",
+    }
+    observed_sections = set(boundaries["section_id"].dropna().astype(str))
+    for section_id in sorted(required_sections.difference(observed_sections)):
+        errors.append(f"Missing manuscript section boundary: {section_id}")
+    for section_id in sorted(observed_sections.difference(required_sections)):
+        errors.append(f"Unexpected manuscript section boundary: {section_id}")
+
+    article_evidence_ids = set(article_boundaries["evidence_id"].dropna().astype(str))
+    allowed_statuses = {"bounded_section"}
+    for row_number, record in enumerate(boundaries.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on manuscript section row {row_number}")
+
+        section_id = _registry_field(record, "section_id")
+        section_title = _registry_field(record, "section_title")
+        if section_title and f"\\section{{{section_title}}}" not in text:
+            errors.append(f"Manuscript missing section title for {section_id}: {section_title}")
+
+        status = _registry_field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected manuscript section status on row {row_number}")
+
+        for label in _registry_field(record, "required_labels").split(";"):
+            label = label.strip()
+            if label and label not in text:
+                errors.append(f"Manuscript section {section_id} missing label {label}")
+
+        required_evidence_ids = _registry_field(record, "required_evidence_ids")
+        if required_evidence_ids != "not_applicable":
+            for evidence_id in required_evidence_ids.split(";"):
+                evidence_id = evidence_id.strip()
+                if not evidence_id:
+                    continue
+                if evidence_id not in article_evidence_ids:
+                    errors.append(
+                        "Manuscript section "
+                        f"{section_id} uses unknown evidence boundary {evidence_id}"
+                    )
+                if evidence_id not in text:
+                    errors.append(
+                        f"Manuscript section {section_id} does not reference {evidence_id}"
+                    )
+
+        blocked_claim_class = _registry_field(record, "blocked_claim_class").lower()
+        if not any(
+            token in blocked_claim_class
+            for token in (
+                "definitive",
+                "subsidy",
+                "lifecycle",
+                "underpayment",
+                "combined-balance",
+                "numeric",
+                "welfare",
+                "final",
+            )
+        ):
+            errors.append(f"Manuscript section {section_id} must block overclaim language")
+
+        dependency_gate = _registry_field(record, "dependency_gate")
+        if dependency_gate == "not_applicable":
+            errors.append(f"Manuscript section {section_id} must name dependency gate")
+
+    banned_claim_patterns = {
+        "definitive remittance loss": (
+            r"\b(?:is|was|shows|showed|reports|reported|demonstrates|proved|proves) "
+            r"(?:a |an |the )?definitive remittance loss\b"
+        ),
+        "quantified employer underpayment": (
+            r"\b(?:is|was|shows|showed|reports|reported|demonstrates|proved|proves) "
+            r"(?:a |an |the )?quantified employer underpayment\b"
+        ),
+        "bank-transfer subsidy": (
+            r"\b(?:is|was|shows|showed|reports|reported|demonstrates|proved|proves) "
+            r"(?:a |an |the )?bank-transfer subsidy\b"
+        ),
+        "lifecycle public-finance gain": (
+            r"\b(?:is|was|shows|showed|reports|reported|demonstrates|proved|proves) "
+            r"(?:a |an |the )?lifecycle public-finance gain\b"
+        ),
+        "lifecycle public-finance loss": (
+            r"\b(?:is|was|shows|showed|reports|reported|demonstrates|proved|proves) "
+            r"(?:a |an |the )?lifecycle public-finance loss\b"
+        ),
+        "combined-balance sign claim": (
+            r"\b(?:is|was|shows|showed|reports|reported|demonstrates|proved|proves) "
+            r"(?:a |an |the )?combined-balance sign claim\b"
+        ),
+        "numeric counterfactual result is reported": (
+            r"\bnumeric counterfactual result is reported\b"
+        ),
+    }
+    for phrase, pattern in sorted(banned_claim_patterns.items()):
+        if re.search(pattern, lowered_text):
+            errors.append(f"Manuscript contains blocked section-boundary phrase: {phrase}")
 
     return errors
 
