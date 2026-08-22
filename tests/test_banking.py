@@ -12,6 +12,7 @@ from portugal_pensions.banking import (
     validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_classification_requirements,
     validate_bank_benefit_risk_distribution,
+    validate_bank_debt_financing_classification_requirements,
     validate_bank_esa_restatement_requirements,
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
@@ -553,6 +554,63 @@ def test_bank_transfer_debt_financing_effects_checks_interest_identity(
 
     errors = validate_bank_transfer_debt_financing_effects(str(debt))
     assert "Bank debt-financing interest identity fails on row 7" in errors
+
+
+def test_repository_bank_debt_financing_classification_requirements_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_debt_financing_classification_requirements(
+            str(root / "evidence" / "bank_debt_financing_classification_requirements.csv")
+        )
+        == []
+    )
+
+
+def test_bank_debt_financing_classification_requirements_block_overclaim(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "bank_debt_financing_classification_requirements.csv"
+    requirements.write_text(
+        "requirement_id,classification_step,required_inputs,available_inputs,"
+        "permitted_output,status,blocking_issue,notes\n"
+        "R1,asset_receipt_basis,receipt,3263.1 EUR_million,"
+        "observed basis,official_account_extract,none,notes\n"
+        "R2,aggregate_transfer_basis,aggregate,5993.2 EUR_million,"
+        "context,aggregate_transfer_registered,none,notes\n"
+        "R3,interest_sensitivity_basis,rates,2.6 percent;3.7 percent,"
+        "sensitivity,sensitivity_observed_rate,none,notes\n"
+        "R4,observed_pension_cost_basis,cost,500.0 EUR_million,"
+        "cash cost,official_account_extract,none,notes\n"
+        "R5,gross_debt_stock_classification,asset mix,not_available,complete,"
+        "bounded_claim_boundary,missing records,notes\n"
+        "R6,double_counting_control,securities,not_available,complete,"
+        "bounded_claim_boundary,missing records,notes\n"
+        "R7,consolidated_net_effect,lifecycle,not_available,complete,"
+        "official_account_extract,missing records,notes\n"
+        "R8,claim_boundary,boundary,3263.1 EUR_million,net effect,"
+        "bounded_claim_boundary,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_debt_financing_classification_requirements(str(requirements))
+    assert (
+        "Bank debt-financing aggregate transfer requirement must preserve "
+        "5993.2 and 3.5 percent anchors"
+    ) in errors
+    assert (
+        "Bank debt-financing interest sensitivity requirement must preserve 7.3 percent" in errors
+    )
+    assert "Bank debt-financing pension cost requirement must preserve 516.0" in errors
+    assert "Bank debt-financing gross-debt classification must remain blocked" in errors
+    assert (
+        "Bank debt-financing double-counting control must name missing primary "
+        "consolidation records"
+    ) in errors
+    assert "Bank debt-financing net-effect classification must remain blocked" in errors
+    assert (
+        "Bank debt-financing claim boundary must keep sensitivities separate "
+        "from net public-finance effects"
+    ) in errors
 
 
 def test_repository_bpn_2012_pension_transfer_is_valid() -> None:
