@@ -52,6 +52,7 @@ REQUIRED_EVIDENCE_FILES: tuple[str, ...] = (
     "source_coverage_matrix.csv",
     "unit_registry.csv",
     "claim_registry.csv",
+    "public_claim_registry.csv",
     "legal_contribution_registry.csv",
     "employer_perimeter_registry.csv",
     "rgss_rate_decomposition.csv",
@@ -603,6 +604,14 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     if (evidence_dir / "source_registry.csv").is_file():
         errors.extend(
             validate_source_registry(evidence_dir / "source_registry.csv", evidence_dir.parent)
+        )
+    public_claim_registry = evidence_dir / "public_claim_registry.csv"
+    working_group_replication = (
+        evidence_dir.parent / "data" / "processed" / "working_group_2026_replication.csv"
+    )
+    if public_claim_registry.is_file() and working_group_replication.is_file():
+        errors.extend(
+            validate_public_claim_registry(public_claim_registry, working_group_replication)
         )
     if (evidence_dir / "data_license_registry.csv").is_file() and (
         evidence_dir / "source_registry.csv"
@@ -2118,6 +2127,146 @@ def validate_manuscript_draft(
         if phrase.lower() in lowered_text:
             errors.append(f"Manuscript contains unsupported phrase: {phrase}")
 
+    return errors
+
+
+def validate_public_claim_registry(
+    public_claim_path: Path,
+    replication_path: Path,
+) -> list[str]:
+    """Return validation errors for public claim replication targets."""
+    for name, path in (
+        ("public_claim_path", public_claim_path),
+        ("replication_path", replication_path),
+    ):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+
+    claims = pd.read_csv(public_claim_path, dtype=str, keep_default_na=False)
+    replication = pd.read_csv(replication_path, dtype=str, keep_default_na=False)
+    required_claim_columns = {
+        "claim_id",
+        "claim_target",
+        "claimant_or_report",
+        "report_component",
+        "claim_text",
+        "quantity",
+        "unit",
+        "period",
+        "perimeter",
+        "primary_source_ids",
+        "identification_source_ids",
+        "processed_dataset",
+        "replication_status",
+        "replicated_value",
+        "method_status",
+        "blocking_issue",
+        "notes",
+    }
+    required_replication_columns = {
+        "claim_id",
+        "claim_target",
+        "input_artifacts",
+        "transformation",
+        "replication_status",
+        "replicated_value",
+        "residual",
+        "unit",
+        "blocking_issue",
+        "notes",
+    }
+    errors: list[str] = []
+    missing_claim_columns = sorted(required_claim_columns.difference(claims.columns))
+    if missing_claim_columns:
+        return [f"Public claim registry missing columns: {', '.join(missing_claim_columns)}"]
+    missing_replication_columns = sorted(
+        required_replication_columns.difference(replication.columns)
+    )
+    if missing_replication_columns:
+        return [
+            "Working group replication table missing columns: "
+            f"{', '.join(missing_replication_columns)}"
+        ]
+
+    required_targets = {
+        "post_2006_public_worker_contributions",
+        "fefss_capitalization",
+        "share_of_fefss",
+        "combined_cga_previdential_balance",
+        "adjusted_2025_deficit",
+    }
+    observed_targets = set(claims["claim_target"])
+    for target in sorted(required_targets.difference(observed_targets)):
+        errors.append(f"Missing public claim target: {target}")
+
+    allowed_statuses = {
+        "reproduced",
+        "approximately_reproduced",
+        "not_reproduced",
+        "not_identifiable",
+        "blocked_primary_source_missing",
+    }
+    duplicates = claims[claims.duplicated(subset=["claim_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(f"Duplicate public claim_id: {_registry_field(duplicate_row, 'claim_id')}")
+
+    replication_ids = set(replication["claim_id"])
+    for row_number, record in enumerate(claims.to_dict("records"), start=2):
+        claim_id = _registry_field(record, "claim_id")
+        if claim_id not in replication_ids:
+            errors.append(f"Public claim missing replication companion row: {claim_id}")
+        for column in required_claim_columns.difference(
+            {
+                "quantity",
+                "primary_source_ids",
+                "identification_source_ids",
+                "replicated_value",
+            }
+        ):
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on public claim row {row_number}")
+        status = _registry_field(record, "replication_status")
+        if status not in allowed_statuses:
+            errors.append(
+                f"Unexpected public claim replication_status on row {row_number}: {status}"
+            )
+        if status in {"not_identifiable", "blocked_primary_source_missing"}:
+            if _registry_field(record, "quantity") or _registry_field(record, "replicated_value"):
+                errors.append(
+                    "Blocked public claim rows must not contain copied or replicated values "
+                    f"on row {row_number}"
+                )
+            if "primary" not in _registry_field(record, "blocking_issue").lower():
+                errors.append(
+                    "Blocked public claim row must name the missing primary "
+                    f"source on row {row_number}"
+                )
+        if _registry_field(record, "processed_dataset"):
+            processed_dataset = Path(_registry_field(record, "processed_dataset"))
+            if processed_dataset.is_absolute() or ".." in processed_dataset.parts:
+                errors.append(f"Unsafe processed_dataset on public claim row {row_number}")
+
+    claim_ids = set(claims["claim_id"])
+    for row_number, record in enumerate(replication.to_dict("records"), start=2):
+        claim_id = _registry_field(record, "claim_id")
+        if claim_id not in claim_ids:
+            errors.append(f"Replication companion references unknown public claim: {claim_id}")
+        status = _registry_field(record, "replication_status")
+        if status not in allowed_statuses:
+            errors.append(
+                f"Unexpected working group replication_status on row {row_number}: {status}"
+            )
+        if status in {"not_identifiable", "blocked_primary_source_missing"}:
+            if _registry_field(record, "replicated_value") or _registry_field(record, "residual"):
+                errors.append(
+                    "Blocked working group replication rows must not contain values "
+                    f"on row {row_number}"
+                )
+            if "primary" not in _registry_field(record, "blocking_issue").lower():
+                errors.append(
+                    "Blocked working group replication row must name the missing primary "
+                    f"source on row {row_number}"
+                )
     return errors
 
 
