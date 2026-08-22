@@ -451,6 +451,7 @@ def validate_bank_asset_liability_outputs(
     audit_path: str,
     asset_trace_path: str,
     sensitivity_path: str,
+    asset_trace_controls_path: str | None = None,
 ) -> list[str]:
     """Return validation errors for bank asset-liability audit outputs."""
     audit = pd.read_csv(audit_path, dtype=str)
@@ -461,6 +462,97 @@ def validate_bank_asset_liability_outputs(
         *_validate_bank_asset_trace(asset_trace),
         *_validate_bank_asset_liability_sensitivity(sensitivity),
     ]
+    if asset_trace_controls_path is not None:
+        controls = pd.read_csv(asset_trace_controls_path, dtype=str, keep_default_na=False)
+        errors.extend(validate_bank_asset_trace_controls_frame(controls))
+    return errors
+
+
+def validate_bank_asset_trace_controls(path: str) -> list[str]:
+    """Return validation errors for the bank transferred-asset tracing controls."""
+    controls = pd.read_csv(path, dtype=str, keep_default_na=False)
+    return validate_bank_asset_trace_controls_frame(controls)
+
+
+def validate_bank_asset_trace_controls_frame(controls: pd.DataFrame) -> list[str]:
+    """Return validation errors for a bank transferred-asset tracing controls frame."""
+    required_columns = {
+        "control_id",
+        "trace_scope",
+        "required_evidence",
+        "observed_evidence",
+        "ownership_destination",
+        "accounting_treatment",
+        "composition_status",
+        "ring_fence_status",
+        "permitted_long_run_use",
+        "status",
+        "blocking_issue",
+        "source_ids",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(controls.columns))
+    if missing_columns:
+        return [f"Bank asset trace controls missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = controls[controls.duplicated(subset=["control_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank asset trace control_id: {_field(duplicate_row, 'control_id')}"
+        )
+
+    required_scopes = {
+        "asset_disposal_or_retention_path",
+        "bank_level_asset_composition",
+        "cash_component",
+        "other_asset_component",
+        "portuguese_public_debt_securities_component",
+        "recorded_2011_state_receipt",
+        "social_security_or_fefss_ownership",
+    }
+    observed_scopes = set(controls["trace_scope"].astype(str))
+    for scope in sorted(required_scopes.difference(observed_scopes)):
+        errors.append(f"Missing bank asset trace control scope: {scope}")
+
+    receipt = controls[controls["trace_scope"].astype(str) == "recorded_2011_state_receipt"]
+    if receipt.empty or "3263.1" not in _field(receipt.iloc[0], "observed_evidence"):
+        errors.append("Bank asset trace controls must preserve observed 2011 receipt 3263.1")
+
+    for row_number, record in enumerate(controls.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank asset trace control row {row_number}")
+        if _field(record, "ownership_destination") != "State":
+            errors.append(f"Bank asset trace control row {row_number} must assign assets to State")
+        if (
+            "not_social_security_or_fefss_ring_fenced" not in _field(record, "ring_fence_status")
+            and _field(record, "ring_fence_status")
+            != "no_social_security_or_fefss_ownership_record"
+        ):
+            errors.append(
+                "Bank asset trace controls must block Social Security or FEFSS ring-fence "
+                f"assumptions on row {row_number}"
+            )
+        permitted_use = _field(record, "permitted_long_run_use")
+        if permitted_use.startswith("attribute_social_security_asset_income"):
+            errors.append(
+                "Bank asset trace controls must not attribute investment income to Social "
+                f"Security on row {row_number}"
+            )
+        status = _field(record, "status")
+        if (
+            status.startswith("status_blocked")
+            and "primary" not in _field(record, "blocking_issue").lower()
+        ):
+            errors.append(
+                "Blocked bank asset trace controls must name missing primary records "
+                f"on row {row_number}"
+            )
+        if _field(record, "trace_scope") != "recorded_2011_state_receipt" and (
+            "blocked" not in status and status != "blocked_no_ownership_record"
+        ):
+            errors.append(f"Unobserved bank asset trace control row {row_number} must be blocked")
     return errors
 
 

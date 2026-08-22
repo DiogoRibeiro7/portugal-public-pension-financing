@@ -139,6 +139,13 @@ anchors imply potential annual interest savings of EUR 84.8406m at 2.6 percent, 
 120.7347m at 3.7 percent, and EUR 238.2063m at 7.3 percent. These are sensitivity
 calculations, not a net welfare result.
 
+`data/processed/bank_asset_trace_controls.csv` keeps the asset-side treatment
+bounded. The observed EUR 3263.1m is recorded as a State financing-resource row,
+not as a ring-fenced Social Security or FEFSS asset pool. Cash, Portuguese
+public-debt securities, other assets and post-transfer disposal or consolidation
+remain blocked until primary Treasury, debt-management or transfer-schedule
+records support them.
+
 The gross-debt and consolidated public-finance classification remains unresolved until
 the final cash, public-debt-security, and other-asset composition is known and can be
 matched to the pension-obligation lifecycle.

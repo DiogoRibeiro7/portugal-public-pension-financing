@@ -9,6 +9,7 @@ from portugal_pensions.banking import (
     validate_actuarial_identifiability_registry,
     validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
+    validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
     validate_bank_pension_cost_2012,
@@ -282,6 +283,16 @@ def test_repository_bank_asset_liability_institution_requirements_are_valid() ->
         validate_bank_asset_liability_institution_requirements(
             str(root / "data" / "processed" / "bank_asset_liability_institution_requirements.csv"),
             str(root / "data" / "processed" / "bank_asset_trace.csv"),
+        )
+        == []
+    )
+
+
+def test_repository_bank_asset_trace_controls_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_asset_trace_controls(
+            str(root / "data" / "processed" / "bank_asset_trace_controls.csv")
         )
         == []
     )
@@ -604,6 +615,32 @@ def test_bank_asset_liability_requirements_block_underfunding_language(
     assert (
         "Bank asset-liability requirement must block underfunding interpretation on row 2" in errors
     )
+
+
+def test_bank_asset_trace_controls_block_ring_fenced_assumptions(tmp_path: Path) -> None:
+    controls = tmp_path / "bank_asset_trace_controls.csv"
+    controls.write_text(
+        "control_id,trace_scope,required_evidence,observed_evidence,"
+        "ownership_destination,accounting_treatment,composition_status,"
+        "ring_fence_status,permitted_long_run_use,status,blocking_issue,"
+        "source_ids,notes\n"
+        "C1,recorded_2011_state_receipt,required,3263.1 EUR_million,"
+        "Social Security,treatment,aggregate_only,social_security_ring_fenced,"
+        "attribute_social_security_asset_income,partial_aggregate_extract,"
+        "records missing,SRC,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_asset_trace_controls(str(controls))
+    assert "Missing bank asset trace control scope: cash_component" in errors
+    assert "Bank asset trace control row 2 must assign assets to State" in errors
+    assert (
+        "Bank asset trace controls must block Social Security or FEFSS ring-fence "
+        "assumptions on row 2"
+    ) in errors
+    assert (
+        "Bank asset trace controls must not attribute investment income to Social Security on row 2"
+    ) in errors
 
 
 def test_actuarial_identifiability_blocks_false_precision(tmp_path: Path) -> None:
