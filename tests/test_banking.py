@@ -3,8 +3,10 @@ from pathlib import Path
 import pytest
 
 from portugal_pensions.banking import (
+    actuarial_present_value_bounds,
     bank_transfer_balance,
     present_value,
+    validate_actuarial_identifiability_registry,
     validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
@@ -37,6 +39,27 @@ def test_bank_transfer_balance_detects_unfinanced_residual() -> None:
 def test_discount_rate_rejects_invalid_value() -> None:
     with pytest.raises(ValueError):
         present_value([1.0], -1.0)
+
+
+def test_actuarial_present_value_bounds_use_explicit_inputs() -> None:
+    result = actuarial_present_value_bounds(
+        cash_flow_lower=[90.0, 90.0],
+        cash_flow_upper=[110.0, 110.0],
+        annual_discount_rates=[0.02, 0.06],
+    )
+
+    assert result.lower_pv == pytest.approx(165.0)
+    assert result.upper_pv == pytest.approx(213.6)
+    assert result.precision_decimals == 1
+
+
+def test_actuarial_present_value_bounds_reject_inverted_cashflow_bounds() -> None:
+    with pytest.raises(ValueError, match="exceeds"):
+        actuarial_present_value_bounds(
+            cash_flow_lower=[120.0],
+            cash_flow_upper=[100.0],
+            annual_discount_rates=[0.04],
+        )
 
 
 def test_repository_bank_transfer_registry_is_valid() -> None:
@@ -259,6 +282,16 @@ def test_repository_bank_asset_liability_institution_requirements_are_valid() ->
         validate_bank_asset_liability_institution_requirements(
             str(root / "data" / "processed" / "bank_asset_liability_institution_requirements.csv"),
             str(root / "data" / "processed" / "bank_asset_trace.csv"),
+        )
+        == []
+    )
+
+
+def test_repository_actuarial_identifiability_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_actuarial_identifiability_registry(
+            str(root / "evidence" / "actuarial_identifiability_registry.csv")
         )
         == []
     )
@@ -570,4 +603,32 @@ def test_bank_asset_liability_requirements_block_underfunding_language(
     assert "Unexpected statutory equality status on row 2" in errors
     assert (
         "Bank asset-liability requirement must block underfunding interpretation on row 2" in errors
+    )
+
+
+def test_actuarial_identifiability_blocks_false_precision(tmp_path: Path) -> None:
+    registry = tmp_path / "actuarial_identifiability_registry.csv"
+    registry.write_text(
+        "record_id,quantity,valuation_target,required_inputs,available_inputs,"
+        "identifiability,status,permitted_method,precision_rule,sensitivity_dimension,"
+        "blocking_issue,notes\n"
+        "R1,discount_rate_sensitivity,target,cash_flow_schedule,grid,"
+        "not_identified_without_cashflows,complete,point_estimate,exact_point_estimate,"
+        "discount_rate,inputs missing,notes\n"
+        "R2,underfunding_classification,target,cash_flow_schedule,grid,"
+        "not_identified_without_full_transfer_panel,blocked_missing_full_panel,"
+        "classification_blocked,no_point_estimate,interpretation,"
+        "primary inputs missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_actuarial_identifiability_registry(str(registry))
+    assert "Missing actuarial identifiability dimension: longevity" in errors
+    assert "Actuarial identifiability row 2 must remain blocked" in errors
+    assert (
+        "Actuarial identifiability precision rule must not allow unsupported point "
+        "estimates on row 2"
+    ) in errors
+    assert (
+        "Actuarial interpretation row must block alternative-rate underfunding language" in errors
     )

@@ -19,6 +19,7 @@ from .accounting import (
     validate_state_financing_rule_registry,
 )
 from .banking import (
+    validate_actuarial_identifiability_registry,
     validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
@@ -801,6 +802,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 str(bank_asset_trace),
             )
         )
+    actuarial_identifiability = evidence_dir / "actuarial_identifiability_registry.csv"
+    if actuarial_identifiability.is_file():
+        errors.extend(validate_actuarial_identifiability_registry(str(actuarial_identifiability)))
     bank_benefit_risk = (
         evidence_dir.parent / "data" / "processed" / "bank_benefit_risk_distribution.csv"
     )
