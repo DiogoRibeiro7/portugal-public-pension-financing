@@ -531,6 +531,118 @@ def validate_pension_flow_of_funds(path: str) -> list[str]:
     return errors
 
 
+def validate_flow_of_funds_bridge_selection_requirements(path: str) -> list[str]:
+    """Return validation errors for flow-of-funds bridge-selection requirements."""
+    requirements = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "requirement_id",
+        "selection_target",
+        "required_matrix_rows",
+        "observed_bridge_definition_ids",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [
+            "Flow-of-funds bridge-selection requirements missing columns: "
+            + ", ".join(missing_columns)
+        ]
+
+    errors: list[str] = []
+    duplicated_ids = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicated_ids.iterrows():
+        errors.append(
+            "Duplicate flow-of-funds bridge-selection requirement_id: "
+            f"{_field(duplicate_row, 'requirement_id')}"
+        )
+
+    required_targets = {
+        "cga_2011_balance_decomposition",
+        "bank_2011_asset_transfer_context",
+        "bank_2012_cash_identity",
+        "bank_2012_financing_split",
+        "bpn_2012_separate_case",
+        "complete_combined_balance",
+        "row_selection_rule",
+        "consolidation_boundary",
+    }
+    allowed_statuses = {
+        "bridge_selection_registered",
+        "blocked_missing_system_rows",
+        "selection_rule_registered",
+    }
+
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on flow-of-funds selection row {row_number}")
+        target = _field(record, "selection_target")
+        if target not in required_targets:
+            errors.append(f"Unexpected flow-of-funds selection target on row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected flow-of-funds selection status on row {row_number}")
+
+        required_rows = _field(record, "required_matrix_rows")
+        observed_bridges = _field(record, "observed_bridge_definition_ids")
+        permitted_output = _field(record, "permitted_output")
+        blocking_issue = _field(record, "blocking_issue").lower()
+
+        if target == "cga_2011_balance_decomposition" and (
+            "reported_global_balance" not in required_rows
+            or "pt_pension_fund_effect" not in required_rows
+            or "cga_2011_balance_decomposition" not in observed_bridges
+        ):
+            errors.append("CGA flow selection must preserve the checked 2011 bridge")
+        if target == "bank_2011_asset_transfer_context" and (
+            "bank_2011_recorded_asset_receipt" not in observed_bridges
+            or "bank_2011_total_transfer_value" not in observed_bridges
+        ):
+            errors.append("Bank transfer selection must keep receipt and total value separate")
+        if target == "bank_2012_cash_identity" and (
+            "state_current_transfer_financing" not in required_rows
+            or "pension_payment_current_expenditure" not in required_rows
+            or "bank_2012_cash_identity" not in observed_bridges
+        ):
+            errors.append("Bank 2012 cash selection must preserve the financing identity")
+        if target == "bpn_2012_separate_case" and (
+            "bpn_2012_legal_transfer" not in observed_bridges
+            or "bpn_2012_account_extract" not in observed_bridges
+            or "separate_case" not in permitted_output
+        ):
+            errors.append("BPN flow selection must remain a separate-case selection")
+        if target == "complete_combined_balance":
+            if status != "blocked_missing_system_rows":
+                errors.append("Complete combined-balance selection must remain blocked")
+            if "primary" not in blocking_issue or "rgss" not in blocking_issue:
+                errors.append(
+                    "Complete combined-balance selection must name missing primary system rows"
+                )
+            if "no_complete_combined_balance" not in permitted_output:
+                errors.append("Complete combined-balance selection must block complete output")
+        if target == "row_selection_rule" and (
+            "bridge_definition_id" not in required_rows
+            or "record_id" not in required_rows
+            or "explicit_row_selection" not in permitted_output
+        ):
+            errors.append("Flow selection rule must require explicit matrix row selection")
+        if target == "consolidation_boundary" and (
+            "consolidates_in_general_government" not in required_rows
+            or "consolidation_flags" not in permitted_output
+        ):
+            errors.append("Flow consolidation boundary must preserve consolidation flags")
+
+    observed_targets = set(requirements["selection_target"].dropna().astype(str))
+    for target in required_targets:
+        if target not in observed_targets:
+            errors.append(f"Missing flow-of-funds selection target: {target}")
+
+    return errors
+
+
 def _validate_flow_bridge_identities(matrix: pd.DataFrame) -> list[str]:
     errors: list[str] = []
     bridge = matrix[matrix["bridge_definition_id"].fillna("") != "not_applicable"].copy()
