@@ -14,6 +14,7 @@ from portugal_pensions.validation import (
     validate_literature_map,
     validate_manifest,
     validate_manuscript_draft,
+    validate_public_claim_registry,
     validate_publication_artifacts,
     validate_release_reproducibility_audit,
     validate_source_acquisition_log,
@@ -143,6 +144,17 @@ def test_repository_publication_artifacts_are_valid() -> None:
             root / "paper" / "figures" / "figure_registry.csv",
             root / "paper" / "tables" / "table_registry.csv",
             root,
+        )
+        == []
+    )
+
+
+def test_repository_public_claim_registry_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_public_claim_registry(
+            root / "evidence" / "public_claim_registry.csv",
+            root / "data" / "processed" / "working_group_2026_replication.csv",
         )
         == []
     )
@@ -634,6 +646,104 @@ def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
         tmp_path,
     )
     assert "Article evidence AE uses blocking claim status: to_replicate" in errors
+
+
+def test_public_claim_registry_requires_all_targets(tmp_path: Path) -> None:
+    claims = tmp_path / "public_claim_registry.csv"
+    replication = tmp_path / "working_group_2026_replication.csv"
+    claims.write_text(
+        "claim_id,claim_target,claimant_or_report,report_component,claim_text,quantity,"
+        "unit,period,perimeter,primary_source_ids,identification_source_ids,"
+        "processed_dataset,replication_status,replicated_value,method_status,"
+        "blocking_issue,notes\n"
+        "WG2026_PUBLIC_WORKER_CONTRIB,post_2006_public_worker_contributions,"
+        "2026_social_security_working_group,main_report,claim,,EUR_million,2006-2025,"
+        "public workers,missing_primary_report,none,"
+        "data/processed/working_group_2026_replication.csv,"
+        "blocked_primary_source_missing,,method_not_specified,"
+        "primary report missing,notes\n",
+        encoding="utf-8",
+    )
+    replication.write_text(
+        "claim_id,claim_target,input_artifacts,transformation,replication_status,"
+        "replicated_value,residual,unit,blocking_issue,notes\n"
+        "WG2026_PUBLIC_WORKER_CONTRIB,post_2006_public_worker_contributions,"
+        "primary package,not_implemented_missing_primary_method,"
+        "blocked_primary_source_missing,,,EUR_million,primary report missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_public_claim_registry(claims, replication)
+    assert "Missing public claim target: adjusted_2025_deficit" in errors
+    assert "Missing public claim target: fefss_capitalization" in errors
+
+
+def test_public_claim_registry_rejects_blocked_values(tmp_path: Path) -> None:
+    claims = tmp_path / "public_claim_registry.csv"
+    replication = tmp_path / "working_group_2026_replication.csv"
+    claims.write_text(
+        "claim_id,claim_target,claimant_or_report,report_component,claim_text,quantity,"
+        "unit,period,perimeter,primary_source_ids,identification_source_ids,"
+        "processed_dataset,replication_status,replicated_value,method_status,"
+        "blocking_issue,notes\n"
+        "WG2026_PUBLIC_WORKER_CONTRIB,post_2006_public_worker_contributions,"
+        "2026_social_security_working_group,main_report,claim,10,EUR_million,2006-2025,"
+        "public workers,missing_primary_report,none,"
+        "data/processed/working_group_2026_replication.csv,"
+        "blocked_primary_source_missing,10,method_not_specified,"
+        "primary report missing,notes\n"
+        "WG2026_FEFSS_CAPITALIZATION,fefss_capitalization,"
+        "2026_social_security_working_group,main_report,claim,,EUR_million,2006-2025,"
+        "reserve,missing_primary_report,none,"
+        "data/processed/working_group_2026_replication.csv,"
+        "blocked_primary_source_missing,,method_not_specified,"
+        "primary report missing,notes\n"
+        "WG2026_SHARE_OF_FEFSS,share_of_fefss,"
+        "2026_social_security_working_group,main_report,claim,,percent,2006-2025,"
+        "share,missing_primary_report,none,"
+        "data/processed/working_group_2026_replication.csv,"
+        "blocked_primary_source_missing,,method_not_specified,"
+        "primary report missing,notes\n"
+        "WG2026_COMBINED_BALANCE,combined_cga_previdential_balance,"
+        "2026_social_security_working_group,main_report,claim,,EUR_million,2006-2025,"
+        "combined balance,missing_primary_report,none,"
+        "data/processed/working_group_2026_replication.csv,"
+        "blocked_primary_source_missing,,method_not_specified,"
+        "primary report missing,notes\n"
+        "WG2026_ADJUSTED_2025_DEFICIT,adjusted_2025_deficit,"
+        "2026_social_security_working_group,main_report,claim,,EUR_million,2025,"
+        "adjusted balance,missing_primary_report,none,"
+        "data/processed/working_group_2026_replication.csv,"
+        "blocked_primary_source_missing,,method_not_specified,"
+        "primary report missing,notes\n",
+        encoding="utf-8",
+    )
+    replication.write_text(
+        "claim_id,claim_target,input_artifacts,transformation,replication_status,"
+        "replicated_value,residual,unit,blocking_issue,notes\n"
+        "WG2026_PUBLIC_WORKER_CONTRIB,post_2006_public_worker_contributions,"
+        "primary package,not_implemented_missing_primary_method,"
+        "blocked_primary_source_missing,10,0,EUR_million,primary report missing,notes\n"
+        "WG2026_FEFSS_CAPITALIZATION,fefss_capitalization,"
+        "primary package,not_implemented_missing_primary_method,"
+        "blocked_primary_source_missing,,,EUR_million,primary report missing,notes\n"
+        "WG2026_SHARE_OF_FEFSS,share_of_fefss,"
+        "primary package,not_implemented_missing_primary_method,"
+        "blocked_primary_source_missing,,,percent,primary report missing,notes\n"
+        "WG2026_COMBINED_BALANCE,combined_cga_previdential_balance,"
+        "primary package,not_implemented_missing_primary_method,"
+        "blocked_primary_source_missing,,,EUR_million,primary report missing,notes\n"
+        "WG2026_ADJUSTED_2025_DEFICIT,adjusted_2025_deficit,"
+        "primary package,not_implemented_missing_primary_method,"
+        "blocked_primary_source_missing,,,EUR_million,primary report missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_public_claim_registry(claims, replication)
+    assert (
+        "Blocked public claim rows must not contain copied or replicated values on row 2" in errors
+    )
+    assert "Blocked working group replication rows must not contain values on row 2" in errors
 
 
 def test_publication_artifacts_require_all_figures(tmp_path: Path) -> None:
