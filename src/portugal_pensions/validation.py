@@ -22,6 +22,7 @@ from .banking import (
     validate_actuarial_identifiability_registry,
     validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
+    validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
     validate_bank_pension_cost_2012,
@@ -781,14 +782,20 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     bank_sensitivity = (
         evidence_dir.parent / "data" / "processed" / "bank_asset_liability_sensitivity.csv"
     )
+    bank_asset_trace_controls = (
+        evidence_dir.parent / "data" / "processed" / "bank_asset_trace_controls.csv"
+    )
     if bank_asset_liability.is_file() and bank_asset_trace.is_file() and bank_sensitivity.is_file():
         errors.extend(
             validate_bank_asset_liability_outputs(
                 str(bank_asset_liability),
                 str(bank_asset_trace),
                 str(bank_sensitivity),
+                str(bank_asset_trace_controls) if bank_asset_trace_controls.is_file() else None,
             )
         )
+    if bank_asset_trace_controls.is_file():
+        errors.extend(validate_bank_asset_trace_controls(str(bank_asset_trace_controls)))
     bank_asset_liability_requirements = (
         evidence_dir.parent
         / "data"
