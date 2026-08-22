@@ -250,6 +250,144 @@ def validate_bank_transfer_legal_coverage(coverage_path: str, registry_path: str
     return errors
 
 
+def validate_bank_worker_rgss_contributions(
+    contributions_path: str, mapping_path: str
+) -> list[str]:
+    """Return validation errors for bank-worker RGSS contribution-flow separation."""
+    contributions = pd.read_csv(contributions_path, dtype=str, keep_default_na=False)
+    mapping = pd.read_csv(mapping_path, dtype=str, keep_default_na=False)
+    required_contribution_columns = {
+        "record_id",
+        "year",
+        "population_id",
+        "legal_source_ids",
+        "legal_basis",
+        "contingency_scope",
+        "employee_contributions",
+        "employer_contributions",
+        "unit",
+        "accounting_basis",
+        "perimeter",
+        "separation_from_pension_transfer",
+        "reconciliation_source_ids",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    required_mapping_columns = {
+        "population_id",
+        "legal_source_id",
+        "instrument",
+        "effective_date",
+        "population",
+        "rgss_integration_status",
+        "covered_contingencies",
+        "retained_or_excluded_contingencies",
+        "relationship_to_2011_pension_transfer",
+        "source_registry_status",
+        "contribution_flow_status",
+        "notes",
+    }
+    missing_contribution_columns = sorted(
+        required_contribution_columns.difference(contributions.columns)
+    )
+    if missing_contribution_columns:
+        return [
+            "Bank-worker RGSS contributions missing columns: "
+            f"{', '.join(missing_contribution_columns)}"
+        ]
+    missing_mapping_columns = sorted(required_mapping_columns.difference(mapping.columns))
+    if missing_mapping_columns:
+        return [
+            "Bank-worker legal population mapping missing columns: "
+            f"{', '.join(missing_mapping_columns)}"
+        ]
+
+    errors: list[str] = []
+    required_populations = {
+        "active_bank_workers_cafeb_integration",
+        "new_bank_workers_rgss",
+        "pensioners_in_payment_dl127_excluded",
+    }
+    contribution_populations = set(contributions["population_id"])
+    mapping_populations = set(mapping["population_id"])
+    for population_id in sorted(required_populations.difference(contribution_populations)):
+        errors.append(f"Missing bank-worker contribution population: {population_id}")
+    for population_id in sorted(required_populations.difference(mapping_populations)):
+        errors.append(f"Missing bank-worker legal population mapping: {population_id}")
+
+    allowed_statuses = {
+        "blocked_missing_official_flow_inputs",
+        "not_applicable",
+        "reconciled_to_official_accounts",
+    }
+    allowed_units = {"EUR_million", "not_applicable"}
+    duplicates = contributions[contributions.duplicated(subset=["record_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank-worker contribution record_id: {_field(duplicate_row, 'record_id')}"
+        )
+    duplicate_mappings = mapping[mapping.duplicated(subset=["population_id"], keep=False)]
+    for _, duplicate_row in duplicate_mappings.iterrows():
+        errors.append(
+            f"Duplicate bank-worker population mapping: {_field(duplicate_row, 'population_id')}"
+        )
+
+    for row_number, record in enumerate(contributions.to_dict("records"), start=2):
+        for column in required_contribution_columns.difference(
+            {"employee_contributions", "employer_contributions"}
+        ):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank-worker contribution row {row_number}")
+        if _field(record, "unit") not in allowed_units:
+            errors.append(f"Unexpected bank-worker contribution unit on row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank-worker contribution status on row {row_number}")
+        if _field(record, "population_id") not in mapping_populations:
+            errors.append(
+                f"Bank-worker contribution row {row_number} references unknown population"
+            )
+        if "pension_fund_assets" not in _field(record, "separation_from_pension_transfer"):
+            errors.append(
+                "Bank-worker contribution rows must state they are not pension-fund assets "
+                f"on row {row_number}"
+            )
+        if status == "blocked_missing_official_flow_inputs":
+            if _field(record, "employee_contributions") or _field(record, "employer_contributions"):
+                errors.append(
+                    "Blocked bank-worker contribution rows must not contain contribution values "
+                    f"on row {row_number}"
+                )
+            if "primary" not in _field(record, "blocking_issue").lower():
+                errors.append(
+                    "Blocked bank-worker contribution row must name missing primary inputs "
+                    f"on row {row_number}"
+                )
+        for column in {"employee_contributions", "employer_contributions"}:
+            value = _field(record, column)
+            if value:
+                _nonnegative(value, column)
+
+    for row_number, record in enumerate(mapping.to_dict("records"), start=2):
+        for column in required_mapping_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank-worker mapping row {row_number}")
+        if _field(record, "source_registry_status") not in {
+            "official_detail_registered",
+            "source_acquired",
+        }:
+            errors.append(f"Unexpected bank-worker mapping source status on row {row_number}")
+        if _field(record, "contribution_flow_status") not in allowed_statuses:
+            errors.append(f"Unexpected bank-worker mapping flow status on row {row_number}")
+        if "pension_fund" not in _field(record, "relationship_to_2011_pension_transfer"):
+            errors.append(
+                "Bank-worker mapping rows must identify relationship to pension-fund transfer "
+                f"on row {row_number}"
+            )
+    return errors
+
+
 def validate_bank_asset_liability_outputs(
     audit_path: str,
     asset_trace_path: str,
