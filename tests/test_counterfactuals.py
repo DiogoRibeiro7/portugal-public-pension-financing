@@ -7,6 +7,7 @@ from portugal_pensions.counterfactuals import (
     compound_reserve,
     funding_substitution,
     public_worker_reallocation_flow,
+    validate_counterfactual_execution_requirements,
     validate_counterfactual_financing_regimes,
     validate_fefss_return_inputs,
     validate_public_worker_liability_assumptions,
@@ -140,6 +141,60 @@ def test_funded_reserve_rule_requires_additional_expenditure(tmp_path: Path) -> 
         "CF3 must record funded-reserve contributions as additional expenditure"
         in validate_counterfactual_financing_regimes(str(registry), str(regimes))
     )
+
+
+def test_repository_counterfactual_execution_requirements_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_counterfactual_execution_requirements(
+            str(root / "evidence" / "counterfactual_execution_requirements.csv")
+        )
+        == []
+    )
+
+
+def test_counterfactual_execution_requirements_block_numeric_overclaim(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "counterfactual_execution_requirements.csv"
+    requirements.write_text(
+        "requirement_id,scenario_id,execution_step,required_inputs,available_inputs,"
+        "permitted_output,status,blocking_issue,notes\n"
+        "R1,CF1,legal_compliance_cash_identity,legal contribution due,not_available,"
+        "history,complete,missing records,notes\n"
+        "R2,CF2,funding_substitution_offset,observed State transfer,helper,"
+        "history,complete,missing records,notes\n"
+        "R3,CF3,funded_reserve_budget_cost,contribution path,not_available,"
+        "free_reserve,complete,missing records,notes\n"
+        "R4,CF3,reserve_stock_flow_consistency,annual reserve inflow,helper,"
+        "path,blocked_missing_contribution_and_return_series,"
+        "missing primary records,notes\n"
+        "R5,CF4,bank_lifecycle_comparison,transferred assets,not_available,"
+        "asset_exhaustion,complete,missing records,notes\n"
+        "R6,ALL,stock_flow_matrix_bridge,explicit selections,other_gate,"
+        "scenario,blocked_missing_system_rows,missing primary records,notes\n"
+        "R7,ALL,numeric_output_boundary,complete inputs,not_available,"
+        "numeric_claim,complete,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_counterfactual_execution_requirements(str(requirements))
+    assert "CF1 execution requirement must include state transfer" in errors
+    assert "CF1 legal-compliance execution must remain blocked" in errors
+    assert "CF2 execution requirement must preserve implemented helper" in errors
+    assert "CF2 execution requirement must preserve one-for-one offset" in errors
+    assert "CF3 funded-reserve budget-cost execution must remain blocked" in errors
+    assert "CF3 funded-reserve execution must preserve expenditure treatment" in errors
+    assert "CF3 funded-reserve execution must block free reserve accumulation" in errors
+    assert "CF3 reserve stock-flow execution must preserve helper" in errors
+    assert "CF3 reserve stock-flow execution must require matching flow costs" in errors
+    assert "CF4 execution requirement must include investment income" in errors
+    assert "CF4 bank lifecycle execution must remain blocked" in errors
+    assert "CF4 execution must block asset-exhaustion-only comparison" in errors
+    assert "Counterfactual stock-flow bridge must cite flow-of-funds selection gate" in errors
+    assert "Counterfactual stock-flow bridge must require matrix rows" in errors
+    assert "Counterfactual numeric-output boundary must remain bounded" in errors
+    assert "Counterfactual numeric-output boundary must block numeric claims" in errors
 
 
 def test_public_worker_reallocation_requires_full_year_coverage(tmp_path: Path) -> None:

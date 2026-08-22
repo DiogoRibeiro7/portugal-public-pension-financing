@@ -2,7 +2,7 @@
 
 Instruction file: `prompts/14_counterfactual_financing.md`
 Date: 2026-08-19
-Updated: 2026-08-20
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -12,6 +12,7 @@ Status: `partial_bounded_reconstruction`
 - Preserved the distinction between cash-flow substitutions, additional reserve expenditure, stock valuation sensitivity and bank-transfer lifecycle analysis.
 - Added validation that each registered scenario is represented, duplicate scenario components are rejected and funded-reserve rows explicitly treat contributions as additional expenditure unless an offset is named.
 - Added tests for repository validity, scenario coverage and funded-reserve stock-flow treatment.
+- Added `evidence/counterfactual_execution_requirements.csv` to gate numeric histories, funded-reserve budget costs, stock-flow matrix links and bank lifecycle comparisons.
 
 ## Result
 
@@ -19,7 +20,7 @@ Implemented the preregistered counterfactual regimes as a checked rule table. Qu
 
 ## Current Stop Condition
 
-Completion beyond this bounded rule implementation requires CGA component ledgers, public-worker RGSS contribution paths, FEFSS return series and full bank pension cash-flow schedules. Missing inputs are recorded as gaps rather than substituted with estimates.
+Completion beyond this bounded rule implementation requires CGA component ledgers, public-worker RGSS contribution paths, FEFSS return series, explicit flow-of-funds row selections and full bank pension cash-flow schedules. Missing inputs are recorded as gaps rather than substituted with estimates, and `evidence/counterfactual_execution_requirements.csv` blocks numeric counterfactual claims until those inputs are registered.
 
 ## Validation
 
