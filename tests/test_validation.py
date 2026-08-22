@@ -10,6 +10,7 @@ from portugal_pensions.validation import (
     validate_data_license_registry,
     validate_evidence_directory,
     validate_extraction_audit,
+    validate_falsification_decision_requirements,
     validate_falsification_review,
     validate_internal_replication_review,
     validate_joint_balance_definitions,
@@ -135,6 +136,16 @@ def test_repository_falsification_review_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
         validate_falsification_review(root / "data" / "processed" / "falsification_review.csv")
+        == []
+    )
+
+
+def test_repository_falsification_decision_requirements_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_falsification_decision_requirements(
+            root / "evidence" / "falsification_decision_requirements.csv"
+        )
         == []
     )
 
@@ -1084,6 +1095,49 @@ def test_falsification_review_requires_all_challenges(tmp_path: Path) -> None:
     )
 
     assert "Missing required falsification test: FALS_002" in validate_falsification_review(review)
+
+
+def test_falsification_decision_requirements_block_overclaims(tmp_path: Path) -> None:
+    decisions = tmp_path / "falsification_decision_requirements.csv"
+    decisions.write_text(
+        "requirement_id,test_id,claim_boundary,required_inputs,current_status,"
+        "permitted_language,blocked_language,status,blocking_issue,notes\n"
+        "R1,FALS_001,remittance,withholding,current,claim,gap,"
+        "blocked_requires_sources,missing records,notes\n"
+        "R2,FALS_002,employer,rates,current,claim,gap,"
+        "partial_bounded_review,missing records,notes\n"
+        "R3,FALS_003,state,inputs,current,claim,conclusion,"
+        "blocked_requires_sources,missing primary records,notes\n"
+        "R4,FALS_004,rgss,inputs,current,claim,conclusion,"
+        "blocked_requires_sources,missing primary records,notes\n"
+        "R5,FALS_005,balance,inputs,current,claim,deficit,"
+        "blocked_requires_sources,missing primary records,notes\n"
+        "R6,FALS_006,bank,inputs,current,identity,claim,"
+        "partial_bounded_review,missing records,notes\n"
+        "R7,FALS_007,discount,inputs,current,claim,adverse,"
+        "blocked_requires_sources,missing primary records,notes\n"
+        "R8,FALS_008,lifecycle,inputs,current,claim,adverse,"
+        "blocked_requires_sources,missing primary records,notes\n"
+        "R9,ALL,gate,inputs,current,claim,claim,"
+        "partial_bounded_review,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_falsification_decision_requirements(decisions)
+    assert "Blocked falsification decisions must name missing primary inputs on row 2" in errors
+    assert "FALS_001 decision must block remittance-gap claims" in errors
+    assert "FALS_002 decision must block quantified employer-gap claims" in errors
+    assert "FALS_003 decision must block State financing-intent claims" in errors
+    assert "FALS_004 decision must block RGSS magnitude claims" in errors
+    assert "FALS_005 decision must block combined-balance sign claims" in errors
+    assert (
+        "FALS_006 decision must allow only the 2012 identity and block lifecycle claims" in errors
+    )
+    assert "FALS_007 decision must block selected-discount-rate claims" in errors
+    assert "FALS_008 decision must block lifecycle classification claims" in errors
+    assert (
+        "Overall falsification manuscript gate must permit only bounded source-backed language"
+    ) in errors
 
 
 def test_manifest_validation_accepts_matching_hash(tmp_path: Path) -> None:
