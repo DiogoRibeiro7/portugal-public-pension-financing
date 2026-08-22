@@ -1073,6 +1073,112 @@ def validate_bank_special_regime_annual(path: str, *, end_year: int = 2025) -> l
     return errors
 
 
+def validate_bank_state_financing_reconciliation(
+    annual_path: str,
+    long_run_path: str,
+    requirements_path: str,
+    *,
+    end_year: int = 2025,
+) -> list[str]:
+    """Return validation errors for long-run bank State-financing reconciliation."""
+    annual = pd.read_csv(annual_path, dtype=str, keep_default_na=False)
+    long_run = pd.read_csv(long_run_path, dtype=str, keep_default_na=False)
+    requirements = pd.read_csv(requirements_path, dtype=str, keep_default_na=False)
+
+    errors = [
+        *validate_bank_special_regime_annual(annual_path, end_year=end_year),
+        *validate_bank_special_regime_annual(long_run_path, end_year=end_year),
+    ]
+    if list(annual.columns) != list(long_run.columns) or not annual.equals(long_run):
+        errors.append("Bank special-regime annual and long-run ledgers must match exactly")
+
+    required_columns = {
+        "requirement_id",
+        "component",
+        "period",
+        "required_source",
+        "observed_evidence",
+        "allowed_use",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [
+            *errors,
+            "Bank State-financing reconciliation requirements missing columns: "
+            f"{', '.join(missing_columns)}",
+        ]
+
+    required_components = {
+        "administrative_cost",
+        "asset_drawdown",
+        "attributable_investment_income",
+        "other_financing",
+        "pension_expenditure",
+        "reconciliation_residual",
+        "state_specific_transfer",
+        "timing_adjustment",
+    }
+    observed_components = set(requirements["component"].astype(str))
+    for component in sorted(required_components.difference(observed_components)):
+        errors.append(f"Missing bank State-financing requirement component: {component}")
+
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate bank State-financing requirement_id: "
+            f"{_field(duplicate_row, 'requirement_id')}"
+        )
+    component_duplicates = requirements[requirements.duplicated(subset=["component"], keep=False)]
+    for _, duplicate_row in component_duplicates.iterrows():
+        errors.append(
+            "Duplicate bank State-financing requirement component: "
+            f"{_field(duplicate_row, 'component')}"
+        )
+
+    allowed_statuses = {
+        "blocked_missing_full_component_set",
+        "blocked_missing_primary_records",
+        "partial_2012_only",
+    }
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(
+                    f"Missing {column} on bank State-financing requirement row {row_number}"
+                )
+        if _field(record, "period") != "2012-2025":
+            errors.append(f"Unexpected bank State-financing period on row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank State-financing status on row {row_number}")
+        if "primary" not in _field(record, "blocking_issue").lower():
+            errors.append(
+                "Bank State-financing requirements must name missing primary records "
+                f"on row {row_number}"
+            )
+        allowed_use = _field(record, "allowed_use")
+        component = _field(record, "component")
+        if component == "reconciliation_residual" and (
+            "diagnostic_only" not in allowed_use or "social_security_loss" not in allowed_use
+        ):
+            errors.append(
+                "Bank State-financing residual requirement must block loss classification "
+                f"on row {row_number}"
+            )
+        if component in {"asset_drawdown", "attributable_investment_income"} and (
+            "without" not in allowed_use
+        ):
+            errors.append(
+                "Bank State-financing asset-income requirements must require ownership "
+                f"or lifecycle records on row {row_number}"
+            )
+
+    return errors
+
+
 def validate_bank_pension_cost_2012(path: str) -> list[str]:
     """Return validation errors for the 2012 transferred-bank pension cost bridge."""
     cost = pd.read_csv(path, dtype=str)

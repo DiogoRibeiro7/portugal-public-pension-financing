@@ -99,6 +99,12 @@ pension-payment execution reported by Tribunal de Contas. Later annual financing
 components remain blank with blocked statuses until official annual account tables are
 extracted. Missing values in this ledger are not zeros.
 
+`evidence/bank_state_financing_reconciliation_requirements.csv` records the
+component-level gate for this annual reconciliation. The residual is a diagnostic
+identity result, not a Social Security loss classification, until the State
+transfer, pension expenditure, administrative costs, asset income or drawdown,
+other financing and timing adjustments are all observed under the same perimeter.
+
 ## BPN Separate Case
 
 `data/processed/bpn_2012_pension_transfer.csv` keeps Decree-Law 88/2012 separate
