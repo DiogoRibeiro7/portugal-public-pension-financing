@@ -3,6 +3,7 @@ from pathlib import Path
 from portugal_pensions.validation import (
     validate_analysis_protocol,
     validate_article_evidence,
+    validate_article_evidence_claim_boundaries,
     validate_claim_language_audit,
     validate_combined_balance_replication,
     validate_concept_registry,
@@ -216,6 +217,17 @@ def test_repository_article_evidence_is_valid() -> None:
             root / "evidence" / "figure_registry.csv",
             root / "evidence" / "table_registry.csv",
             root,
+        )
+        == []
+    )
+
+
+def test_repository_article_evidence_claim_boundaries_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_article_evidence_claim_boundaries(
+            root / "evidence" / "article_evidence_claim_boundaries.csv",
+            root / "evidence" / "article_evidence.csv",
         )
         == []
     )
@@ -693,6 +705,38 @@ def test_article_evidence_rejects_blocking_claim_status(tmp_path: Path) -> None:
         tmp_path,
     )
     assert "Article evidence AE uses blocking claim status: to_replicate" in errors
+
+
+def test_article_evidence_claim_boundaries_reject_overclaims(tmp_path: Path) -> None:
+    article = tmp_path / "article_evidence.csv"
+    article.write_text(
+        "evidence_id,claim_id,manuscript_section,claim_status,source_ids,raw_value,"
+        "transformation,processed_dataset,output_artifact,unit,provenance_status,notes\n"
+        "AE1,CLAIM1,1,status,SRC,1,copy,data/processed/data.csv,"
+        "paper/figures/data/fig.csv,EUR_million,ready_for_bounded_article_use,notes\n"
+        "AE2,CLAIM2,1,status,SRC,1,copy,data/processed/data.csv,"
+        "paper/figures/data/fig.csv,EUR_million,bounded_only,notes\n",
+        encoding="utf-8",
+    )
+    boundaries = tmp_path / "article_evidence_claim_boundaries.csv"
+    boundaries.write_text(
+        "evidence_id,claim_id,output_artifact,required_source_transform,"
+        "permitted_article_use,blocked_inference,boundary_status,dependency_gate,notes\n"
+        "AE1,OTHER,paper/figures/data/other.csv,copy,free_use,minor wording,"
+        "ready_for_bounded_article_use,not_applicable,notes\n"
+        "AE2,CLAIM2,paper/figures/data/fig.csv,copy,bounded_article_use,"
+        "complete claim,bounded_only,gate,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_article_evidence_claim_boundaries(boundaries, article)
+    assert "Article evidence boundary AE1 claim_id mismatch" in errors
+    assert "Article evidence boundary AE1 output mismatch" in errors
+    assert "Unexpected permitted_article_use on article evidence boundary row 2" in errors
+    assert "Ready article evidence AE1 must use bounded article use" in errors
+    assert "Article evidence boundary AE1 must block an overclaim class" in errors
+    assert "Article evidence boundary AE1 must name dependency gate" in errors
+    assert "Bounded-only article evidence AE2 must be caveated" in errors
 
 
 def test_public_claim_registry_requires_all_targets(tmp_path: Path) -> None:

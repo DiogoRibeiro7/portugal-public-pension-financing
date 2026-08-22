@@ -2,7 +2,7 @@
 
 Instruction file: `prompts/17_generate_article_evidence.md`
 Date: 2026-08-19
-Updated: 2026-08-20
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -12,6 +12,7 @@ Status: `partial_bounded_reconstruction`
 - Added evidence-level `figure_registry.csv` and `table_registry.csv` with article-use status for publication artifacts.
 - Added validation that material quantitative/accounting claims have article evidence and that blocking claim statuses cannot pass the article gate.
 - Added tests for repository article evidence and blocking-claim rejection.
+- Added `evidence/article_evidence_claim_boundaries.csv` to gate permitted article use and blocked inferences for every article-evidence row.
 
 ## Result
 
@@ -19,7 +20,7 @@ Implemented a bounded article-evidence gate for currently supported extracted an
 
 ## Current Stop Condition
 
-Completion beyond this bounded gate requires the still-missing processed series and source work recorded in the data-quality registry. Any future material claim with `to_replicate`, `unresolved` or missing provenance must block article generation.
+Completion beyond this bounded gate requires the still-missing processed series and source work recorded in the data-quality registry. Any future material claim with `to_replicate`, `unresolved`, missing provenance, missing claim boundary or unsupported output artifact must block article generation.
 
 ## Validation
 

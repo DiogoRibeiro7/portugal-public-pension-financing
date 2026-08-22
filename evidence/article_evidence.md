@@ -1,6 +1,7 @@
 # Article Evidence
 
 This file summarizes the bounded article-evidence gate in `evidence/article_evidence.csv`.
+Claim-use boundaries for each row are recorded in `evidence/article_evidence_claim_boundaries.csv`.
 
 ## Ready For Bounded Use
 
@@ -14,3 +15,4 @@ This file summarizes the bounded article-evidence gate in `evidence/article_evid
 ## Gate
 
 The article must not treat bounded rows as complete lifecycle or causal findings. Rows marked `bounded_only` can support caveated discussion only. Any future material claim with status `to_replicate`, `unresolved`, missing source IDs, missing transformation, missing processed dataset or missing output artifact must block article generation.
+Each article-evidence row must also name its blocked inference class and dependency gate before it can support manuscript text.
