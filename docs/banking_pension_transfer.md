@@ -171,9 +171,11 @@ public-debt securities, other assets and post-transfer disposal or consolidation
 remain blocked until primary Treasury, debt-management or transfer-schedule
 records support them.
 
-The gross-debt and consolidated public-finance classification remains unresolved until
-the final cash, public-debt-security, and other-asset composition is known and can be
-matched to the pension-obligation lifecycle.
+`evidence/bank_debt_financing_classification_requirements.csv` records the
+classification gate for this section. The gross-debt and consolidated
+public-finance classification remains unresolved until the final cash,
+public-debt-security, and other-asset composition is known and can be matched to
+the pension-obligation lifecycle without double counting government bonds.
 
 ## Accounting-standard issue
 

@@ -1521,6 +1521,139 @@ def validate_bank_transfer_debt_financing_effects(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_debt_financing_classification_requirements(path: str) -> list[str]:
+    """Return validation errors for bank-transfer debt classification requirements."""
+    requirements = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "requirement_id",
+        "classification_step",
+        "required_inputs",
+        "available_inputs",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return ["Bank debt-financing requirements missing columns: " + ", ".join(missing_columns)]
+
+    errors: list[str] = []
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate bank debt-financing requirement_id: "
+            f"{_field(duplicate_row, 'requirement_id')}"
+        )
+
+    required_steps = {
+        "asset_receipt_basis",
+        "aggregate_transfer_basis",
+        "interest_sensitivity_basis",
+        "observed_pension_cost_basis",
+        "gross_debt_stock_classification",
+        "double_counting_control",
+        "consolidated_net_effect",
+        "claim_boundary",
+    }
+    allowed_statuses = {
+        "official_account_extract",
+        "aggregate_transfer_registered",
+        "sensitivity_observed_rate",
+        "blocked_missing_debt_stock_inputs",
+        "blocked_missing_consolidation_inputs",
+        "blocked_missing_lifecycle_inputs",
+        "bounded_claim_boundary",
+    }
+
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(
+                    f"Missing {column} on bank debt-financing requirement row {row_number}"
+                )
+        step = _field(record, "classification_step")
+        if step not in required_steps:
+            errors.append(
+                f"Unexpected bank debt-financing requirement step on row {row_number}: {step}"
+            )
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(
+                f"Unexpected bank debt-financing requirement status on row {row_number}: {status}"
+            )
+
+        available_inputs = _field(record, "available_inputs")
+        permitted_output = _field(record, "permitted_output")
+        blocking_issue = _field(record, "blocking_issue").lower()
+        if step == "asset_receipt_basis" and "3263.1" not in available_inputs:
+            errors.append("Bank debt-financing asset receipt requirement must preserve 3263.1")
+        if step == "aggregate_transfer_basis" and (
+            "5993.2" not in available_inputs or "3.5 percent" not in available_inputs
+        ):
+            errors.append(
+                "Bank debt-financing aggregate transfer requirement must preserve "
+                "5993.2 and 3.5 percent anchors"
+            )
+        if step == "interest_sensitivity_basis":
+            for anchor in ("2.6 percent", "3.7 percent", "7.3 percent"):
+                if anchor not in available_inputs:
+                    errors.append(
+                        "Bank debt-financing interest sensitivity requirement "
+                        f"must preserve {anchor}"
+                    )
+        if step == "observed_pension_cost_basis" and "516.0" not in available_inputs:
+            errors.append("Bank debt-financing pension cost requirement must preserve 516.0")
+        if step == "gross_debt_stock_classification":
+            if status != "blocked_missing_debt_stock_inputs":
+                errors.append("Bank debt-financing gross-debt classification must remain blocked")
+            if "primary" not in blocking_issue or "asset-composition" not in blocking_issue:
+                errors.append(
+                    "Bank debt-financing gross-debt classification must name missing "
+                    "primary asset-composition records"
+                )
+            if "no_gross_debt_classification" not in permitted_output:
+                errors.append(
+                    "Bank debt-financing gross-debt requirement must block classification"
+                )
+        if step == "double_counting_control":
+            if status != "blocked_missing_consolidation_inputs":
+                errors.append("Bank debt-financing double-counting control must remain blocked")
+            if "primary" not in blocking_issue or "consolidation" not in blocking_issue:
+                errors.append(
+                    "Bank debt-financing double-counting control must name missing "
+                    "primary consolidation records"
+                )
+            if "no_double_counted_security_effect" not in permitted_output:
+                errors.append(
+                    "Bank debt-financing double-counting control must block security effect"
+                )
+        if step == "consolidated_net_effect":
+            if status != "blocked_missing_lifecycle_inputs":
+                errors.append("Bank debt-financing net-effect classification must remain blocked")
+            if "primary" not in blocking_issue or "lifecycle" not in blocking_issue:
+                errors.append(
+                    "Bank debt-financing net-effect classification must name missing "
+                    "primary lifecycle records"
+                )
+            if "no_beneficial_harmful_classification" not in permitted_output:
+                errors.append(
+                    "Bank debt-financing net-effect requirement must block benefit/harm claims"
+                )
+        if step == "claim_boundary" and "not_net_public_finance_effect" not in permitted_output:
+            errors.append(
+                "Bank debt-financing claim boundary must keep sensitivities separate "
+                "from net public-finance effects"
+            )
+
+    observed_steps = set(requirements["classification_step"].dropna().astype(str))
+    for step in required_steps:
+        if step not in observed_steps:
+            errors.append(f"Missing bank debt-financing requirement step: {step}")
+
+    return errors
+
+
 def validate_bpn_2012_pension_transfer(path: str) -> list[str]:
     """Return validation errors for the separate BPN 2012 pension-transfer case."""
     bpn = pd.read_csv(path, dtype=str)

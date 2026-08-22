@@ -1,7 +1,7 @@
 # Quantify bank debt effects
 
 Instruction file: `prompts/42_bank_transfer_debt_and_financing_cost.md`
-Date: 2026-08-19
+Date: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -12,6 +12,7 @@ Status: `partial_bounded_reconstruction`
 - Replaced the placeholder debt file with `data/processed/bank_transfer_debt_financing_effects.csv`.
 - Added financing-cost sensitivities for the 2011 recorded asset receipt using 2.6 percent, 3.7 percent, and 7.3 percent observed-rate anchors.
 - Kept gross-debt classification and full lifecycle cost blocked because final cash, public-debt-security, other-asset composition, disposal path, and pension cash-flow ledgers are not registered.
+- Added `evidence/bank_debt_financing_classification_requirements.csv` to gate gross-debt treatment, government-bond double-counting, lifecycle net-effect classification, and claim language.
 - Preserved existing validated outputs.
 - Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
 
@@ -21,7 +22,7 @@ The ledger records three distinct facts. First, CGE 2011 reports EUR 3263.1m as 
 
 ## Current Stop Condition
 
-The result cannot classify the operation as beneficial or harmful to consolidated public finances. That requires the final asset composition, gross-debt stock treatment, asset disposal path, and full pension cash-flow or liability-cost path. These gaps are recorded in `evidence/data_quality_registry.csv`.
+The result cannot classify the operation as beneficial or harmful to consolidated public finances. That requires the final asset composition, gross-debt stock treatment, government-bond consolidation bridge, asset disposal path, and full pension cash-flow or liability-cost path. These gaps are recorded in `evidence/data_quality_registry.csv` and enforced by `evidence/bank_debt_financing_classification_requirements.csv`.
 
 ## Validation
 

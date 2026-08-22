@@ -25,6 +25,7 @@ from .banking import (
     validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_classification_requirements,
     validate_bank_benefit_risk_distribution,
+    validate_bank_debt_financing_classification_requirements,
     validate_bank_esa_restatement_requirements,
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
@@ -885,6 +886,15 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if bank_debt_financing.is_file():
         errors.extend(validate_bank_transfer_debt_financing_effects(str(bank_debt_financing)))
+    bank_debt_financing_requirements = (
+        evidence_dir / "bank_debt_financing_classification_requirements.csv"
+    )
+    if bank_debt_financing_requirements.is_file():
+        errors.extend(
+            validate_bank_debt_financing_classification_requirements(
+                str(bank_debt_financing_requirements)
+            )
+        )
     bpn_transfer = evidence_dir.parent / "data" / "processed" / "bpn_2012_pension_transfer.csv"
     if bpn_transfer.is_file():
         errors.extend(validate_bpn_2012_pension_transfer(str(bpn_transfer)))
