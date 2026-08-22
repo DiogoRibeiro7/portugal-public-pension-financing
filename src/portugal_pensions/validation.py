@@ -19,6 +19,7 @@ from .accounting import (
     validate_state_financing_rule_registry,
 )
 from .banking import (
+    validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
@@ -785,6 +786,19 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 str(bank_asset_liability),
                 str(bank_asset_trace),
                 str(bank_sensitivity),
+            )
+        )
+    bank_asset_liability_requirements = (
+        evidence_dir.parent
+        / "data"
+        / "processed"
+        / "bank_asset_liability_institution_requirements.csv"
+    )
+    if bank_asset_liability_requirements.is_file() and bank_asset_trace.is_file():
+        errors.extend(
+            validate_bank_asset_liability_institution_requirements(
+                str(bank_asset_liability_requirements),
+                str(bank_asset_trace),
             )
         )
     bank_benefit_risk = (
