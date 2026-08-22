@@ -37,6 +37,7 @@ from .banking import (
     validate_bank_transfer_debt_financing_effects,
     validate_bank_transfer_legal_coverage,
     validate_bank_worker_rgss_contributions,
+    validate_bpn_2012_boundary_requirements,
     validate_bpn_2012_pension_transfer,
 )
 from .counterfactuals import (
@@ -898,6 +899,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     bpn_transfer = evidence_dir.parent / "data" / "processed" / "bpn_2012_pension_transfer.csv"
     if bpn_transfer.is_file():
         errors.extend(validate_bpn_2012_pension_transfer(str(bpn_transfer)))
+    bpn_boundary_requirements = evidence_dir / "bpn_2012_boundary_requirements.csv"
+    if bpn_boundary_requirements.is_file():
+        errors.extend(validate_bpn_2012_boundary_requirements(str(bpn_boundary_requirements)))
     cga_ledger = evidence_dir.parent / "data" / "processed" / "cga_financing_ledger.csv"
     if cga_ledger.is_file():
         errors.extend(

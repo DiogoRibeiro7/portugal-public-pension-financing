@@ -24,6 +24,7 @@ from portugal_pensions.banking import (
     validate_bank_transfer_debt_financing_effects,
     validate_bank_transfer_legal_coverage,
     validate_bank_worker_rgss_contributions,
+    validate_bpn_2012_boundary_requirements,
     validate_bpn_2012_pension_transfer,
 )
 
@@ -657,6 +658,55 @@ def test_bpn_2012_pension_transfer_requires_panel_exclusion(tmp_path: Path) -> N
 
     errors = validate_bpn_2012_pension_transfer(str(transfer))
     assert "BPN case must remain excluded from the main 2011 DL127 panel" in errors
+
+
+def test_repository_bpn_2012_boundary_requirements_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bpn_2012_boundary_requirements(
+            str(root / "evidence" / "bpn_2012_boundary_requirements.csv")
+        )
+        == []
+    )
+
+
+def test_bpn_2012_boundary_requirements_block_panel_overclaim(tmp_path: Path) -> None:
+    requirements = tmp_path / "bpn_2012_boundary_requirements.csv"
+    requirements.write_text(
+        "requirement_id,boundary_step,required_inputs,available_inputs,"
+        "permitted_output,status,blocking_issue,notes\n"
+        "R1,legal_scope,scope,BPN scope,separate,legal_scope_registered,none,notes\n"
+        "R2,receiving_institution,institution,Social Security,boundary,"
+        "legal_scope_registered,none,notes\n"
+        "R3,legal_asset_transfer,amount,96.0 EUR_million,amount,"
+        "official_legal_amount_extracted,none,notes\n"
+        "R4,sams_retention,sams,7.319430 EUR_million,boundary,"
+        "official_legal_amount_extracted,none,notes\n"
+        "R5,account_extracts,accounts,0.1359 EUR_million;11 pensioners,"
+        "extract,official_account_extract,none,notes\n"
+        "R6,main_panel_boundary,panel,included_in_2011_dl127_panel,include,"
+        "official_account_extract,none,notes\n"
+        "R7,broader_perimeter_condition,bridge,not_available,include,"
+        "panel_boundary_registered,missing records,notes\n"
+        "R8,actuarial_lifecycle_extension,valuation,not_available,complete,"
+        "official_account_extract,missing records,notes\n"
+        "R9,claim_boundary,boundary,96.768004 EUR_million,complete result,"
+        "bounded_claim_boundary,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bpn_2012_boundary_requirements(str(requirements))
+    assert "BPN receiving-institution requirement must preserve CGA" in errors
+    assert "BPN legal asset-transfer requirement must preserve 96.768004" in errors
+    assert "BPN account-extract requirement must preserve 18" in errors
+    assert "BPN main-panel boundary must remain registered" in errors
+    assert "BPN main-panel boundary must preserve DL127 exclusion" in errors
+    assert "BPN broader-perimeter condition must remain blocked" in errors
+    assert (
+        "BPN broader-perimeter condition must name missing primary broader-perimeter records"
+    ) in errors
+    assert "BPN lifecycle extension must remain blocked" in errors
+    assert "BPN claim boundary must block DL127-panel and lifecycle-result claims" in errors
 
 
 def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: Path) -> None:

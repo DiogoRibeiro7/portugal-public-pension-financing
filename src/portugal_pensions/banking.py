@@ -1757,6 +1757,113 @@ def validate_bpn_2012_pension_transfer(path: str) -> list[str]:
     return errors
 
 
+def validate_bpn_2012_boundary_requirements(path: str) -> list[str]:
+    """Return validation errors for BPN separate-case boundary requirements."""
+    requirements = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "requirement_id",
+        "boundary_step",
+        "required_inputs",
+        "available_inputs",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [f"BPN 2012 boundary requirements missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate BPN boundary requirement_id: {_field(duplicate_row, 'requirement_id')}"
+        )
+
+    required_steps = {
+        "legal_scope",
+        "receiving_institution",
+        "legal_asset_transfer",
+        "sams_retention",
+        "account_extracts",
+        "main_panel_boundary",
+        "broader_perimeter_condition",
+        "actuarial_lifecycle_extension",
+        "claim_boundary",
+    }
+    allowed_statuses = {
+        "legal_scope_registered",
+        "official_legal_amount_extracted",
+        "official_account_extract",
+        "panel_boundary_registered",
+        "blocked_missing_broader_perimeter",
+        "blocked_missing_component_values",
+        "bounded_claim_boundary",
+    }
+
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on BPN boundary requirement row {row_number}")
+        step = _field(record, "boundary_step")
+        if step not in required_steps:
+            errors.append(f"Unexpected BPN boundary step on row {row_number}: {step}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected BPN boundary status on row {row_number}: {status}")
+
+        available_inputs = _field(record, "available_inputs")
+        permitted_output = _field(record, "permitted_output")
+        blocking_issue = _field(record, "blocking_issue").lower()
+        if step == "receiving_institution" and "CGA" not in available_inputs:
+            errors.append("BPN receiving-institution requirement must preserve CGA")
+        if step == "legal_asset_transfer" and "96.768004" not in available_inputs:
+            errors.append("BPN legal asset-transfer requirement must preserve 96.768004")
+        if step == "sams_retention" and "7.319430" not in available_inputs:
+            errors.append("BPN SAMS retention requirement must preserve 7.319430")
+        if step == "account_extracts":
+            for anchor in ("0.1359", "11", "18", "0.17927"):
+                if anchor not in available_inputs:
+                    errors.append(f"BPN account-extract requirement must preserve {anchor}")
+        if step == "main_panel_boundary":
+            if status != "panel_boundary_registered":
+                errors.append("BPN main-panel boundary must remain registered")
+            if "excluded_from_2011_dl127_panel" not in available_inputs:
+                errors.append("BPN main-panel boundary must preserve DL127 exclusion")
+            if "exclude_from_main_2011_panel" not in permitted_output:
+                errors.append("BPN main-panel boundary must require exclusion")
+        if step == "broader_perimeter_condition":
+            if status != "blocked_missing_broader_perimeter":
+                errors.append("BPN broader-perimeter condition must remain blocked")
+            if "primary" not in blocking_issue or "broader-perimeter" not in blocking_issue:
+                errors.append(
+                    "BPN broader-perimeter condition must name missing primary "
+                    "broader-perimeter records"
+                )
+            if "no_broader_panel_inclusion" not in permitted_output:
+                errors.append("BPN broader-perimeter condition must block panel inclusion")
+        if step == "actuarial_lifecycle_extension":
+            if status != "blocked_missing_component_values":
+                errors.append("BPN lifecycle extension must remain blocked")
+            if "primary" not in blocking_issue or "actuarial" not in blocking_issue:
+                errors.append("BPN lifecycle extension must name missing primary actuarial records")
+            if "no_actuarial_or_lifecycle_classification" not in permitted_output:
+                errors.append("BPN lifecycle extension must block lifecycle classification")
+        if step == "claim_boundary" and (
+            "not_2011_dl127_panel" not in permitted_output
+            or "not_lifecycle_result" not in permitted_output
+        ):
+            errors.append("BPN claim boundary must block DL127-panel and lifecycle-result claims")
+
+    observed_steps = set(requirements["boundary_step"].dropna().astype(str))
+    for step in required_steps:
+        if step not in observed_steps:
+            errors.append(f"Missing BPN boundary requirement step: {step}")
+
+    return errors
+
+
 def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
     """Return validation errors for bank-transfer benefit and risk distribution outputs."""
     distribution = pd.read_csv(path, dtype=str)
