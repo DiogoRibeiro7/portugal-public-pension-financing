@@ -27,6 +27,7 @@ from .banking import (
     validate_bank_special_regime_annual,
     validate_bank_transfer_debt_financing_effects,
     validate_bank_transfer_legal_coverage,
+    validate_bank_worker_rgss_contributions,
     validate_bpn_2012_pension_transfer,
 )
 from .counterfactuals import (
@@ -743,6 +744,19 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_bank_transfer_legal_coverage(
                 str(bank_transfer_legal_coverage),
                 str(evidence_dir / "bank_pension_transfer_registry.csv"),
+            )
+        )
+    bank_worker_contributions = (
+        evidence_dir.parent / "data" / "processed" / "bank_worker_rgss_contributions.csv"
+    )
+    bank_worker_mapping = (
+        evidence_dir.parent / "data" / "processed" / "bank_worker_legal_population_mapping.csv"
+    )
+    if bank_worker_contributions.is_file() and bank_worker_mapping.is_file():
+        errors.extend(
+            validate_bank_worker_rgss_contributions(
+                str(bank_worker_contributions),
+                str(bank_worker_mapping),
             )
         )
     if (evidence_dir / "bank_special_regime_annual.csv").is_file():

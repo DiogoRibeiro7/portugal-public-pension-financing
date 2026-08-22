@@ -13,6 +13,7 @@ from portugal_pensions.banking import (
     validate_bank_special_regime_annual,
     validate_bank_transfer_debt_financing_effects,
     validate_bank_transfer_legal_coverage,
+    validate_bank_worker_rgss_contributions,
     validate_bpn_2012_pension_transfer,
 )
 
@@ -144,6 +145,99 @@ def test_bank_transfer_legal_coverage_requires_all_institutions(tmp_path: Path) 
 
     errors = validate_bank_transfer_legal_coverage(str(coverage), str(registry))
     assert "Participating-institutions coverage must reference 18 registry records" in errors
+
+
+def test_repository_bank_worker_rgss_contributions_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_worker_rgss_contributions(
+            str(root / "data" / "processed" / "bank_worker_rgss_contributions.csv"),
+            str(root / "data" / "processed" / "bank_worker_legal_population_mapping.csv"),
+        )
+        == []
+    )
+
+
+def test_bank_worker_rgss_contributions_require_core_populations(tmp_path: Path) -> None:
+    contributions = tmp_path / "bank_worker_rgss_contributions.csv"
+    mapping = tmp_path / "bank_worker_legal_population_mapping.csv"
+    contributions.write_text(
+        "record_id,year,population_id,legal_source_ids,legal_basis,contingency_scope,"
+        "employee_contributions,employer_contributions,unit,accounting_basis,perimeter,"
+        "separation_from_pension_transfer,reconciliation_source_ids,status,blocking_issue,"
+        "notes\n"
+        "R1,2009,new_bank_workers_rgss,DR_DL54_2009,legal,scope,,,"
+        "EUR_million,cash,perimeter,not_pension_fund_assets,source,"
+        "blocked_missing_official_flow_inputs,primary source missing,notes\n",
+        encoding="utf-8",
+    )
+    mapping.write_text(
+        "population_id,legal_source_id,instrument,effective_date,population,"
+        "rgss_integration_status,covered_contingencies,retained_or_excluded_contingencies,"
+        "relationship_to_2011_pension_transfer,source_registry_status,"
+        "contribution_flow_status,notes\n"
+        "new_bank_workers_rgss,DR_DL54_2009,DL54,2009-03-03,population,status,"
+        "covered,retained,separate_not_pension_fund_asset,source_acquired,"
+        "blocked_missing_official_flow_inputs,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_worker_rgss_contributions(str(contributions), str(mapping))
+    assert (
+        "Missing bank-worker contribution population: active_bank_workers_cafeb_integration"
+        in errors
+    )
+    assert (
+        "Missing bank-worker legal population mapping: pensioners_in_payment_dl127_excluded"
+        in errors
+    )
+
+
+def test_bank_worker_rgss_contributions_reject_blocked_values(tmp_path: Path) -> None:
+    contributions = tmp_path / "bank_worker_rgss_contributions.csv"
+    mapping = tmp_path / "bank_worker_legal_population_mapping.csv"
+    contributions.write_text(
+        "record_id,year,population_id,legal_source_ids,legal_basis,contingency_scope,"
+        "employee_contributions,employer_contributions,unit,accounting_basis,perimeter,"
+        "separation_from_pension_transfer,reconciliation_source_ids,status,blocking_issue,"
+        "notes\n"
+        "R1,2009,new_bank_workers_rgss,DR_DL54_2009,legal,scope,1.0,,"
+        "EUR_million,cash,perimeter,not_pension_fund_assets,source,"
+        "blocked_missing_official_flow_inputs,primary source missing,notes\n"
+        "R2,2011,active_bank_workers_cafeb_integration,DR_DL1A_2011,legal,scope,,,"
+        "EUR_million,cash,perimeter,not_pension_fund_assets,source,"
+        "blocked_missing_official_flow_inputs,primary source missing,notes\n"
+        "R3,2011,pensioners_in_payment_dl127_excluded,DR_DL127_2011,legal,scope,,,"
+        "not_applicable,legal,perimeter,excluded_from_contribution_flow,source,"
+        "not_applicable,no contribution flow,notes\n",
+        encoding="utf-8",
+    )
+    mapping.write_text(
+        "population_id,legal_source_id,instrument,effective_date,population,"
+        "rgss_integration_status,covered_contingencies,retained_or_excluded_contingencies,"
+        "relationship_to_2011_pension_transfer,source_registry_status,"
+        "contribution_flow_status,notes\n"
+        "new_bank_workers_rgss,DR_DL54_2009,DL54,2009-03-03,population,status,"
+        "covered,retained,separate_not_pension_fund_asset,source_acquired,"
+        "blocked_missing_official_flow_inputs,notes\n"
+        "active_bank_workers_cafeb_integration,DR_DL1A_2011,DL1A,2011-01-04,"
+        "population,status,covered,retained,separate_not_pension_fund_asset,"
+        "source_acquired,blocked_missing_official_flow_inputs,notes\n"
+        "pensioners_in_payment_dl127_excluded,DR_DL127_2011,DL127,2011-12-31,"
+        "population,status,covered,retained,pension_liability_not_pension_fund_asset,"
+        "official_detail_registered,not_applicable,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_worker_rgss_contributions(str(contributions), str(mapping))
+    assert (
+        "Blocked bank-worker contribution rows must not contain contribution values on row 2"
+        in errors
+    )
+    assert (
+        "Bank-worker contribution rows must state they are not pension-fund assets on row 4"
+        in errors
+    )
 
 
 def test_repository_bank_asset_liability_outputs_are_valid() -> None:
