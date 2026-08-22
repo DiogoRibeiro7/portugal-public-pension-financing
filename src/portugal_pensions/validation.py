@@ -123,6 +123,7 @@ REQUIRED_RELEASE_READINESS_CHECKS: frozenset[str] = frozenset(
         "REL_FIGURE_COMPANIONS",
         "REL_GENERATED_EVIDENCE_POLICY",
         "REL_MANUSCRIPT_EVIDENCE_MATCH",
+        "REL_MANUSCRIPT_PDF",
         "REL_NOTEBOOK_SEQUENCE",
         "REL_PINNED_ENVIRONMENT",
         "REL_QUALITY_GATE",
@@ -3303,6 +3304,20 @@ def validate_release_reproducibility_audit(
             errors.append(f"Blocked release reproducibility row {check_id} must name a blocker")
         if status == "ready" and blocking_issue != "none":
             errors.append(f"Ready release reproducibility row {check_id} must not name a blocker")
+        if check_id == "REL_MANUSCRIPT_PDF":
+            input_artifacts = set(_registry_field(record, "input_artifacts").split(";"))
+            required_artifacts = {
+                "MANIFEST.sha256",
+                "paper/manuscript.pdf",
+                "paper/manuscript.tex",
+            }
+            for artifact in sorted(required_artifacts.difference(input_artifacts)):
+                errors.append(f"Manuscript PDF release row missing input artifact: {artifact}")
+            pdf_path = root / "paper" / "manuscript.pdf"
+            if not pdf_path.is_file():
+                errors.append("Missing compiled manuscript PDF artifact")
+            elif pdf_path.stat().st_size == 0:
+                errors.append("Compiled manuscript PDF artifact is empty")
 
         for artifact in _registry_field(record, "input_artifacts").split(";"):
             artifact_path = Path(artifact)

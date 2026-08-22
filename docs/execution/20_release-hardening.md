@@ -2,6 +2,7 @@
 
 Instruction file: `prompts/20_release_reproducibility.md`
 Date: 2026-08-19
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -17,13 +18,15 @@ Status: `partial_bounded_reconstruction`
 - Added `docs/reproducibility_report.md` and expanded `docs/replication_guide.md`.
 - Added `requirements-release.txt` for pinned direct dependencies used by the readiness snapshot.
 - Added validation and tests for release-readiness audit coverage and pinned requirements.
+- Added a compiled-manuscript PDF release gate tying `paper/manuscript.pdf` to
+  `paper/manuscript.tex` and `MANIFEST.sha256`.
 
 ## Result
 
 Recorded current release readiness and remaining blockers. The repository passes the quality,
 manifest, Zenodo, source-hash, publication-artifact, article-evidence, and manuscript gates, but it
-is not yet a final public-report release because clean sequential notebook execution and several
-primary-source inputs remain blocked.
+is not yet a final public-report release because the manuscript remains bounded, clean sequential
+notebook execution and several primary-source inputs remain blocked.
 
 ## Current Stop Condition
 
@@ -33,4 +36,4 @@ the readiness audit must remain partial under the repository evidence rules.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran repository quality checks after regenerating `MANIFEST.sha256`.

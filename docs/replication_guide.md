@@ -56,6 +56,7 @@ notebook-regenerated results.
 
 - `paper/data_code_availability.md`
 - `paper/reviewer_methods_appendix.md`
+- `paper/manuscript.pdf`
 - `data/processed/submission_package_manifest.csv`
 - `data/processed/release_reproducibility_audit.csv`
 - `MANIFEST.sha256`
