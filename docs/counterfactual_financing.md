@@ -12,3 +12,8 @@ The table is deliberately not a numerical scenario result table. Current registe
 - `CF4` requires the full bank pension stream: transferred assets, investment income, State financing and pension expenditure. Asset exhaustion dates alone are not an accepted comparison.
 
 Rows with blocked statuses mark missing evidence inputs and must not be interpreted as zero-valued results.
+
+`evidence/counterfactual_execution_requirements.csv` records the execution gate
+for turning these rules into numeric histories. It requires explicit financing
+offsets, reserve budget costs, selectable flow-of-funds rows and the full bank
+lifecycle stream before any numeric counterfactual claim is permitted.

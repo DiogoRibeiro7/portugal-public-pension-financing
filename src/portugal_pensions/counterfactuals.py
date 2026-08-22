@@ -236,6 +236,138 @@ def validate_counterfactual_financing_regimes(
     return errors
 
 
+def validate_counterfactual_execution_requirements(path: str) -> list[str]:
+    """Return validation errors for counterfactual execution prerequisites."""
+    requirements = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "requirement_id",
+        "scenario_id",
+        "execution_step",
+        "required_inputs",
+        "available_inputs",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    errors = _missing_columns(
+        requirements,
+        required_columns,
+        "counterfactual execution requirements",
+    )
+    if errors:
+        return errors
+
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate counterfactual execution requirement_id: "
+            f"{_field(duplicate_row, 'requirement_id')}"
+        )
+
+    required_steps = {
+        ("CF1", "legal_compliance_cash_identity"),
+        ("CF2", "funding_substitution_offset"),
+        ("CF3", "funded_reserve_budget_cost"),
+        ("CF3", "reserve_stock_flow_consistency"),
+        ("CF4", "bank_lifecycle_comparison"),
+        ("ALL", "stock_flow_matrix_bridge"),
+        ("ALL", "numeric_output_boundary"),
+    }
+    allowed_statuses = {
+        "blocked_missing_ledger_components",
+        "rule_implemented_requires_inputs",
+        "blocked_missing_contribution_and_return_series",
+        "blocked_missing_cash_flow_schedule",
+        "blocked_missing_system_rows",
+        "bounded_claim_boundary",
+    }
+
+    observed_steps: set[tuple[str, str]] = set()
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on counterfactual execution row {row_number}")
+
+        scenario_id = _field(record, "scenario_id")
+        execution_step = _field(record, "execution_step")
+        observed_steps.add((scenario_id, execution_step))
+        if (scenario_id, execution_step) not in required_steps:
+            errors.append(
+                "Unexpected counterfactual execution requirement on row "
+                f"{row_number}: {scenario_id} {execution_step}"
+            )
+
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected counterfactual execution status on row {row_number}")
+
+        required_inputs = _field(record, "required_inputs").lower()
+        available_inputs = _field(record, "available_inputs")
+        permitted_output = _field(record, "permitted_output")
+        blocking_issue = _field(record, "blocking_issue").lower()
+        notes = _field(record, "notes").lower()
+
+        if execution_step == "legal_compliance_cash_identity":
+            for token in ("legal contribution", "state transfer", "pension payments"):
+                if token not in required_inputs:
+                    errors.append(f"CF1 execution requirement must include {token}")
+            if status != "blocked_missing_ledger_components":
+                errors.append("CF1 legal-compliance execution must remain blocked")
+        if execution_step == "funding_substitution_offset":
+            if "funding_substitution" not in available_inputs:
+                errors.append("CF2 execution requirement must preserve implemented helper")
+            if "one-for-one" not in available_inputs and "one-for-one" not in notes:
+                errors.append("CF2 execution requirement must preserve one-for-one offset")
+            if status != "rule_implemented_requires_inputs":
+                errors.append("CF2 execution requirement must remain input-gated")
+        if execution_step == "funded_reserve_budget_cost":
+            if status != "blocked_missing_contribution_and_return_series":
+                errors.append("CF3 funded-reserve budget-cost execution must remain blocked")
+            if "additional historical expenditure" not in notes:
+                errors.append("CF3 funded-reserve execution must preserve expenditure treatment")
+            if "no_free_reserve_accumulation" not in permitted_output:
+                errors.append("CF3 funded-reserve execution must block free reserve accumulation")
+        if execution_step == "reserve_stock_flow_consistency":
+            if "compound_reserve" not in available_inputs:
+                errors.append("CF3 reserve stock-flow execution must preserve helper")
+            if "annual flow costs" not in notes:
+                errors.append("CF3 reserve stock-flow execution must require matching flow costs")
+        if execution_step == "bank_lifecycle_comparison":
+            for token in ("assets", "investment income", "state financing", "pension expenditure"):
+                if token not in required_inputs:
+                    errors.append(f"CF4 execution requirement must include {token}")
+            if status != "blocked_missing_cash_flow_schedule":
+                errors.append("CF4 bank lifecycle execution must remain blocked")
+            if "no_asset_exhaustion_only_comparison" not in permitted_output:
+                errors.append("CF4 execution must block asset-exhaustion-only comparison")
+        if execution_step == "stock_flow_matrix_bridge":
+            if "flow_of_funds_bridge_selection_requirements" not in available_inputs:
+                errors.append(
+                    "Counterfactual stock-flow bridge must cite flow-of-funds selection gate"
+                )
+            if "matrix_rows" not in permitted_output:
+                errors.append("Counterfactual stock-flow bridge must require matrix rows")
+        if execution_step == "numeric_output_boundary":
+            if status != "bounded_claim_boundary":
+                errors.append("Counterfactual numeric-output boundary must remain bounded")
+            if "no_numeric_counterfactual_claim" not in permitted_output:
+                errors.append("Counterfactual numeric-output boundary must block numeric claims")
+
+        if status.startswith("blocked") and "primary" not in blocking_issue:
+            errors.append(
+                "Blocked counterfactual execution rows must name missing primary inputs "
+                f"on row {row_number}"
+            )
+
+    for scenario_id, execution_step in required_steps.difference(observed_steps):
+        errors.append(
+            f"Missing counterfactual execution requirement: {scenario_id} {execution_step}"
+        )
+
+    return errors
+
+
 def validate_public_worker_reallocation(
     cohort_path: str,
     contribution_path: str,

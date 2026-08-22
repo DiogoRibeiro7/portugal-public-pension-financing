@@ -42,6 +42,7 @@ from .banking import (
     validate_bpn_2012_pension_transfer,
 )
 from .counterfactuals import (
+    validate_counterfactual_execution_requirements,
     validate_counterfactual_financing_regimes,
     validate_fefss_return_inputs,
     validate_public_worker_liability_assumptions,
@@ -986,6 +987,15 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_counterfactual_financing_regimes(
                 str(evidence_dir / "counterfactual_registry.csv"),
                 str(counterfactual_regimes),
+            )
+        )
+    counterfactual_execution_requirements = (
+        evidence_dir / "counterfactual_execution_requirements.csv"
+    )
+    if counterfactual_execution_requirements.is_file():
+        errors.extend(
+            validate_counterfactual_execution_requirements(
+                str(counterfactual_execution_requirements)
             )
         )
     fefss_returns = evidence_dir.parent / "data" / "processed" / "fefss_returns.csv"
