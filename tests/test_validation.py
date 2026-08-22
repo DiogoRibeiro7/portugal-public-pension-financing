@@ -18,6 +18,7 @@ from portugal_pensions.validation import (
     validate_manifest,
     validate_manuscript_draft,
     validate_public_claim_registry,
+    validate_publication_artifact_readiness,
     validate_publication_artifacts,
     validate_release_reproducibility_audit,
     validate_source_acquisition_log,
@@ -156,6 +157,17 @@ def test_repository_publication_artifacts_are_valid() -> None:
         validate_publication_artifacts(
             root / "paper" / "figures" / "figure_registry.csv",
             root / "paper" / "tables" / "table_registry.csv",
+            root,
+        )
+        == []
+    )
+
+
+def test_repository_publication_artifact_readiness_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_publication_artifact_readiness(
+            root / "evidence" / "publication_artifact_readiness_requirements.csv",
             root,
         )
         == []
@@ -1082,6 +1094,41 @@ def test_publication_artifacts_require_all_figures(tmp_path: Path) -> None:
 
     errors = validate_publication_artifacts(figure_registry, table_registry, tmp_path)
     assert "Missing required publication figure: FIG02" in errors
+
+
+def test_publication_artifact_readiness_blocks_unsupported_outputs(tmp_path: Path) -> None:
+    companion_dir = tmp_path / "paper" / "figures" / "data"
+    companion_dir.mkdir(parents=True)
+    for filename in ("fig01.csv", "fig02.csv"):
+        (companion_dir / filename).write_text("artifact_id,status\nFIG,blocked\n", encoding="utf-8")
+    readiness = tmp_path / "publication_artifact_readiness_requirements.csv"
+    readiness.write_text(
+        "artifact_id,artifact_type,publication_status,companion_csv,required_inputs,"
+        "available_inputs,permitted_use,status,blocking_issue,notes\n"
+        "FIG01,figure,ready_partial,paper/figures/data/fig01.csv,inputs,observed,"
+        "ready_article_use,ready_bounded,missing records,partial\n"
+        "FIG02,figure,blocked,paper/figures/data/fig02.csv,inputs,observed,"
+        "bounded_article_use,ready_bounded,missing records,notes\n"
+        "TAB01,figure,ready,paper/figures/data/fig01.csv,inputs,observed,"
+        "ready_article_use,ready_partial_bounded,none,notes\n"
+        "TAB02,table,ready,paper/figures/data/fig02.csv,inputs,observed,"
+        "bounded_article_use,ready_bounded,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_publication_artifact_readiness(readiness, tmp_path)
+    assert "Missing publication artifact readiness row: FIG03" in errors
+    assert "Partial artifact FIG01 must be bounded article use" in errors
+    assert "Partial artifact FIG01 must use bounded readiness status" in errors
+    assert "Partial artifact FIG01 must name missing primary inputs" in errors
+    assert "Partial artifact FIG01 must state its boundary" in errors
+    assert "Blocked artifact FIG02 must block article use" in errors
+    assert "Blocked artifact FIG02 must use blocked readiness status" in errors
+    assert "Blocked artifact FIG02 must name missing primary inputs" in errors
+    assert "Blocked artifact FIG02 must not claim available inputs" in errors
+    assert "Ready artifact TAB01 must be a table in this release" in errors
+    assert "Ready artifact TAB01 must remain bounded article use" in errors
+    assert "Ready artifact TAB01 must use ready_bounded status" in errors
 
 
 def test_falsification_review_requires_all_challenges(tmp_path: Path) -> None:

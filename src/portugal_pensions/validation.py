@@ -1044,6 +1044,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_publication_artifacts(figure_registry, table_registry, evidence_dir.parent)
         )
+    artifact_readiness = evidence_dir / "publication_artifact_readiness_requirements.csv"
+    if artifact_readiness.is_file():
+        errors.extend(
+            validate_publication_artifact_readiness(artifact_readiness, evidence_dir.parent)
+        )
     article_figure_registry = evidence_dir / "figure_registry.csv"
     article_table_registry = evidence_dir / "table_registry.csv"
     if (
@@ -2219,6 +2224,119 @@ def validate_publication_artifacts(
             source_must_be_processed=False,
         ),
     ]
+    return errors
+
+
+def validate_publication_artifact_readiness(path: Path, root: Path) -> list[str]:
+    """Return validation errors for figure and table readiness boundaries."""
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    if not isinstance(root, Path):
+        raise TypeError("root must be pathlib.Path")
+    readiness = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "artifact_id",
+        "artifact_type",
+        "publication_status",
+        "companion_csv",
+        "required_inputs",
+        "available_inputs",
+        "permitted_use",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(readiness.columns))
+    if missing_columns:
+        return [
+            "Publication artifact readiness requirements missing columns: "
+            + ", ".join(missing_columns)
+        ]
+
+    errors: list[str] = []
+    duplicates = readiness[readiness.duplicated(subset=["artifact_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate publication artifact readiness row: "
+            f"{_registry_field(duplicate_row, 'artifact_id')}"
+        )
+
+    required_artifacts = set(REQUIRED_PUBLICATION_FIGURES).union({"TAB01", "TAB02"})
+    observed_artifacts = set(readiness["artifact_id"].dropna().astype(str))
+    for artifact_id in sorted(required_artifacts.difference(observed_artifacts)):
+        errors.append(f"Missing publication artifact readiness row: {artifact_id}")
+    for artifact_id in sorted(observed_artifacts.difference(required_artifacts)):
+        errors.append(f"Unexpected publication artifact readiness row: {artifact_id}")
+
+    allowed_types = {"figure", "table"}
+    allowed_publication_statuses = {"ready", "ready_partial", "blocked"}
+    allowed_statuses = {
+        "ready_bounded",
+        "ready_partial_bounded",
+        "blocked_missing_processed_input",
+        "blocked_missing_count_series",
+        "blocked_missing_remittance_inputs",
+        "blocked_missing_employer_inputs",
+        "blocked_missing_public_worker_inputs",
+        "blocked_missing_cashflow_inputs",
+        "blocked_missing_combined_balance_inputs",
+    }
+
+    for row_number, record in enumerate(readiness.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on publication readiness row {row_number}")
+
+        artifact_id = _registry_field(record, "artifact_id")
+        artifact_type = _registry_field(record, "artifact_type")
+        if artifact_type not in allowed_types:
+            errors.append(f"Unexpected artifact_type on publication readiness row {row_number}")
+        publication_status = _registry_field(record, "publication_status")
+        if publication_status not in allowed_publication_statuses:
+            errors.append(
+                f"Unexpected publication_status on publication readiness row {row_number}"
+            )
+        status = _registry_field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected readiness status on publication readiness row {row_number}")
+
+        companion = Path(_registry_field(record, "companion_csv"))
+        if companion.is_absolute() or ".." in companion.parts:
+            errors.append(f"Unsafe companion path on publication readiness row {row_number}")
+        elif not (root / companion).is_file():
+            errors.append(f"Missing readiness companion CSV for {artifact_id}: {companion}")
+
+        permitted_use = _registry_field(record, "permitted_use")
+        blocking_issue = _registry_field(record, "blocking_issue").lower()
+        available_inputs = _registry_field(record, "available_inputs").lower()
+        notes = _registry_field(record, "notes").lower()
+
+        if publication_status == "blocked":
+            if permitted_use != "blocked_article_use":
+                errors.append(f"Blocked artifact {artifact_id} must block article use")
+            if not status.startswith("blocked"):
+                errors.append(f"Blocked artifact {artifact_id} must use blocked readiness status")
+            if "missing primary" not in blocking_issue:
+                errors.append(f"Blocked artifact {artifact_id} must name missing primary inputs")
+            if "not_available" not in available_inputs:
+                errors.append(f"Blocked artifact {artifact_id} must not claim available inputs")
+        elif publication_status == "ready_partial":
+            if permitted_use != "bounded_article_use":
+                errors.append(f"Partial artifact {artifact_id} must be bounded article use")
+            if status != "ready_partial_bounded":
+                errors.append(f"Partial artifact {artifact_id} must use bounded readiness status")
+            if "missing primary" not in blocking_issue:
+                errors.append(f"Partial artifact {artifact_id} must name missing primary inputs")
+            if "only" not in notes:
+                errors.append(f"Partial artifact {artifact_id} must state its boundary")
+        elif publication_status == "ready":
+            if artifact_type != "table":
+                errors.append(f"Ready artifact {artifact_id} must be a table in this release")
+            if permitted_use != "bounded_article_use":
+                errors.append(f"Ready artifact {artifact_id} must remain bounded article use")
+            if status != "ready_bounded":
+                errors.append(f"Ready artifact {artifact_id} must use ready_bounded status")
+
     return errors
 
 
