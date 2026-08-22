@@ -2,6 +2,7 @@
 
 Instruction file: `prompts/19_peer_review_replication.md`
 Date: 2026-08-20
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -14,6 +15,8 @@ Status: `partial_bounded_reconstruction`
 - Added `data/processed/internal_replication_review.csv` as a deterministic review ledger.
 - Added `docs/internal_replication_review.md` with alternative-definition outcomes and remaining blockers.
 - Added validation and tests for internal replication review coverage.
+- Added a section-and-language boundary review row covering the current manuscript section gate,
+  article-evidence claim-boundary gate and loaded-language audit.
 
 ## Result
 
@@ -21,6 +24,8 @@ Recorded a bounded hostile review of the current article-evidence claims. The re
 the registered arithmetic and classification checks where current evidence permits it, and leaves
 full legal-rate chronology, actuarial cash-flow sensitivity, complete ESA restatement, post-2012
 bank financing, and system-wide counterfactual histories blocked by missing primary-source inputs.
+It also checks that the current manuscript-facing boundary gates remain executable after the bounded
+manuscript and claim-language updates.
 
 ## Current Stop Condition
 
@@ -32,5 +37,4 @@ rules.
 
 ## Validation
 
-This branch runs `python -m portugal_pensions.cli validate-all` after regenerating
-`MANIFEST.sha256`.
+This branch ran repository quality checks after regenerating `MANIFEST.sha256`.
