@@ -2,6 +2,7 @@
 
 Instruction file: `prompts/45_manuscript_definitions_causal_language_and_claim_audit.md`
 Date: 2026-08-19
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -15,6 +16,8 @@ Status: `partial_bounded_reconstruction`
 - Updated `paper/claim_language_audit.md`.
 - Added a claim-registry boundary row for loaded language.
 - Added validation and tests for loaded-term counts and boundaries.
+- Added section-boundary IDs to the language audit ledger so present loaded terms are tied to
+  manuscript section gates.
 
 ## Result
 
@@ -23,11 +26,12 @@ only in bounded accounting, unresolved-evidence, or explicitly negated contexts.
 
 ## Current Stop Condition
 
-Completion beyond this record requires rerunning the language audit after each manuscript revision
-and resolving the underlying evidence blockers before any loaded headline conclusion can be used.
+Completion beyond this record requires rerunning the language audit after each manuscript revision,
+updating section-boundary mappings and resolving the underlying evidence blockers before any loaded
+headline conclusion can be used.
 Until those inputs exist, subsidy, loss, underfunding, diversion, artificiality, harm, and
 sustainability language remains blocked or bounded under the repository evidence rules.
 
 ## Validation
 
-This branch ran `python -m portugal_pensions.cli validate-all` after regenerating `MANIFEST.sha256`.
+This branch ran repository quality checks after regenerating `MANIFEST.sha256`.

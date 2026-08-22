@@ -3,7 +3,8 @@
 Status: `partial_bounded_reconstruction`
 
 The current manuscript has been audited against legally and politically loaded terms. The
-machine-readable audit is `data/processed/manuscript_claim_language_audit.csv`.
+machine-readable audit is `data/processed/manuscript_claim_language_audit.csv`, with section
+coverage checked against `evidence/manuscript_section_boundaries.csv`.
 
 ## Current Result
 
@@ -29,8 +30,8 @@ the banking transfer was a subsidy, that Social Security suffered a lifecycle lo
 surpluses are artificial, or that any institution is sustainable on an actuarial basis.
 
 Permitted uses are tied to defined accounting concepts, article-evidence rows, and unresolved
-evidence language. Any future manuscript use of these terms must update the audit ledger and pass
-validation.
+evidence language. Present loaded terms must also map to manuscript section-boundary IDs. Any future
+manuscript use of these terms must update the audit ledger and pass validation.
 
 ## Evidence Rule
 
