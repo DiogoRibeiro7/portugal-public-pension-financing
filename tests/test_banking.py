@@ -12,6 +12,7 @@ from portugal_pensions.banking import (
     validate_bank_asset_trace_controls,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
+    validate_bank_financial_statement_effects,
     validate_bank_pension_cost_2012,
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
@@ -323,6 +324,18 @@ def test_repository_bank_benefit_risk_distribution_is_valid() -> None:
     assert (
         validate_bank_benefit_risk_distribution(
             str(root / "data" / "processed" / "bank_benefit_risk_distribution.csv")
+        )
+        == []
+    )
+
+
+def test_repository_bank_financial_statement_effects_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_financial_statement_effects(
+            str(root / "data" / "processed" / "bank_financial_statement_effects.csv"),
+            str(root / "evidence" / "bank_financial_statement_source_evidence.csv"),
+            str(root / "data" / "processed" / "bank_asset_liability_institution_requirements.csv"),
         )
         == []
     )
@@ -641,6 +654,51 @@ def test_bank_asset_trace_controls_block_ring_fenced_assumptions(tmp_path: Path)
     assert (
         "Bank asset trace controls must not attribute investment income to Social Security on row 2"
     ) in errors
+
+
+def test_bank_financial_statement_effects_require_net_measured_channel(
+    tmp_path: Path,
+) -> None:
+    effects = tmp_path / "bank_financial_statement_effects.csv"
+    sources = tmp_path / "bank_financial_statement_source_evidence.csv"
+    requirements = tmp_path / "bank_asset_liability_institution_requirements.csv"
+    effects.write_text(
+        "institution,year,liability_derecognized,assets_surrendered,gain_loss,"
+        "capital_effect,retained_obligations,measurable_channel,net_value,unit,"
+        "source_id,status,notes\n"
+        "Bank A,2011,100,,,,,liability_derecognized,,EUR_million,SRC,complete,"
+        "notes\n",
+        encoding="utf-8",
+    )
+    sources.write_text(
+        "source_record_id,institution,years_required,required_documents,source_locator,"
+        "acquisition_status,extraction_status,required_fields,merger_resolution_flag,"
+        "blocking_issue,notes\n"
+        "SRC1,Bank A,2011;2012,annual report,locator,acquired,extracted,"
+        "liability_derecognized;assets_surrendered;gain_loss;capital_effect;"
+        "retained_obligations;accounting_policy_note,none,none,notes\n",
+        encoding="utf-8",
+    )
+    requirements.write_text(
+        "requirement_id,institution,legal_source_id,required_liability_fields,"
+        "required_asset_fields,statutory_equality_status,sensitivity_status,"
+        "economic_interpretation_rule,status,blocking_issue,notes\n"
+        "REQ1,Bank A,DR_DL127_2011,final_actuarial_liability_pv_legal_4pct,"
+        "final_assets_transferred_total,blocked,blocked,blocked,"
+        "blocked_missing_bank_level_values,primary schedules missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_financial_statement_effects(
+        str(effects),
+        str(sources),
+        str(requirements),
+    )
+    assert "Measured bank financial statement rows must include net_value on row 2" in errors
+    assert (
+        "Gross liability extinguishment is not a sufficient measurable channel on row 2" in errors
+    )
+    assert "Bank financial statement effects must cover 2011 and 2012 for Bank A" in errors
 
 
 def test_actuarial_identifiability_blocks_false_precision(tmp_path: Path) -> None:

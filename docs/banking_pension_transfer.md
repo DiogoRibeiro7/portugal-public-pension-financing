@@ -130,6 +130,15 @@ net-subsidy claim. The current ledger records legal risk movement and aggregate 
 extracts, but bank-level net positions remain blocked until liability, asset and retained-benefit
 values are acquired for each participating institution.
 
+`data/processed/bank_financial_statement_effects.csv` and
+`evidence/bank_financial_statement_source_evidence.csv` provide the audited
+financial-statement coverage frame for measuring bank-side liability relief.
+Rows cover 2011 and 2012 for each DL127 institution, but the measurable
+channels remain blank until audited statements identify liability
+derecognition, assets surrendered, accounting gain or loss, capital effects and
+retained obligations. Gross liability extinguishment alone is not treated as a
+net bank benefit.
+
 ## Debt and financing effects
 
 `data/processed/bank_transfer_debt_financing_effects.csv` records the 2011 financing
