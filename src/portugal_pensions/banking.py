@@ -766,6 +766,194 @@ def validate_actuarial_identifiability_registry(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_financial_statement_effects(
+    effects_path: str,
+    source_evidence_path: str,
+    institution_requirements_path: str,
+) -> list[str]:
+    """Return validation errors for bank-side audited-statement effect outputs."""
+    effects = pd.read_csv(effects_path, dtype=str, keep_default_na=False)
+    sources = pd.read_csv(source_evidence_path, dtype=str, keep_default_na=False)
+    requirements = pd.read_csv(institution_requirements_path, dtype=str, keep_default_na=False)
+
+    required_effect_columns = {
+        "institution",
+        "year",
+        "liability_derecognized",
+        "assets_surrendered",
+        "gain_loss",
+        "capital_effect",
+        "retained_obligations",
+        "measurable_channel",
+        "net_value",
+        "unit",
+        "source_id",
+        "status",
+        "notes",
+    }
+    required_source_columns = {
+        "source_record_id",
+        "institution",
+        "years_required",
+        "required_documents",
+        "source_locator",
+        "acquisition_status",
+        "extraction_status",
+        "required_fields",
+        "merger_resolution_flag",
+        "blocking_issue",
+        "notes",
+    }
+    missing_effect_columns = sorted(required_effect_columns.difference(effects.columns))
+    missing_source_columns = sorted(required_source_columns.difference(sources.columns))
+    if missing_effect_columns:
+        return [
+            f"Bank financial statement effects missing columns: {', '.join(missing_effect_columns)}"
+        ]
+    if missing_source_columns:
+        return [
+            "Bank financial statement source evidence missing columns: "
+            f"{', '.join(missing_source_columns)}"
+        ]
+
+    errors: list[str] = []
+    expected_institutions = set(requirements["institution"].astype(str))
+    effect_institutions = set(effects["institution"].astype(str))
+    source_institutions = set(sources["institution"].astype(str))
+    if len(expected_institutions) != 18:
+        errors.append(
+            f"Expected 18 source institutions for bank statements, found "
+            f"{len(expected_institutions)}"
+        )
+    for institution in sorted(expected_institutions.difference(effect_institutions)):
+        errors.append(f"Missing bank financial statement effect institution: {institution}")
+    for institution in sorted(effect_institutions.difference(expected_institutions)):
+        errors.append(f"Unknown bank financial statement effect institution: {institution}")
+    for institution in sorted(expected_institutions.difference(source_institutions)):
+        errors.append(f"Missing bank financial statement source institution: {institution}")
+    for institution in sorted(source_institutions.difference(expected_institutions)):
+        errors.append(f"Unknown bank financial statement source institution: {institution}")
+
+    duplicates = effects[effects.duplicated(subset=["institution", "year"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate bank financial statement effect row: "
+            f"{_field(duplicate_row, 'institution')} {_field(duplicate_row, 'year')}"
+        )
+    source_duplicates = sources[sources.duplicated(subset=["source_record_id"], keep=False)]
+    for _, duplicate_row in source_duplicates.iterrows():
+        errors.append(
+            "Duplicate bank financial statement source_record_id: "
+            f"{_field(duplicate_row, 'source_record_id')}"
+        )
+
+    for institution in sorted(expected_institutions):
+        institution_years = set(
+            effects.loc[effects["institution"].astype(str) == institution, "year"].astype(str)
+        )
+        if institution_years != {"2011", "2012"}:
+            errors.append(
+                f"Bank financial statement effects must cover 2011 and 2012 for {institution}"
+            )
+
+    value_columns = {
+        "assets_surrendered",
+        "capital_effect",
+        "gain_loss",
+        "liability_derecognized",
+        "net_value",
+        "retained_obligations",
+    }
+    allowed_channels = {
+        "accounting_gain_loss",
+        "actuarial_risk_transfer",
+        "capital_relief",
+        "liquidity_effect",
+        "net_position",
+        "not_measured",
+    }
+    for row_number, record in enumerate(effects.to_dict("records"), start=2):
+        for column in required_effect_columns.difference(value_columns):
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank financial statement row {row_number}")
+        if _field(record, "year") not in {"2011", "2012"}:
+            errors.append(f"Unexpected bank financial statement year on row {row_number}")
+        if _field(record, "unit") != "EUR_million":
+            errors.append(f"Unexpected bank financial statement unit on row {row_number}")
+        if _field(record, "measurable_channel") not in allowed_channels:
+            errors.append(f"Unexpected bank financial statement channel on row {row_number}")
+        status = _field(record, "status")
+        has_value = any(_field(record, column) for column in value_columns)
+        if status == "blocked_missing_audited_statement_extract":
+            if has_value:
+                errors.append(
+                    "Blocked bank financial statement rows must not contain measured "
+                    f"values on row {row_number}"
+                )
+            if _field(record, "measurable_channel") != "not_measured":
+                errors.append(
+                    "Blocked bank financial statement rows must keep channel not_measured "
+                    f"on row {row_number}"
+                )
+            if _field(record, "source_id") != "not_acquired":
+                errors.append(
+                    "Blocked bank financial statement rows must keep source_id not_acquired "
+                    f"on row {row_number}"
+                )
+        else:
+            if _field(record, "measurable_channel") == "not_measured":
+                errors.append(
+                    "Measured bank financial statement rows must identify a benefit "
+                    f"channel on row {row_number}"
+                )
+            if not _field(record, "net_value"):
+                errors.append(
+                    "Measured bank financial statement rows must include net_value "
+                    f"on row {row_number}"
+                )
+        if _field(record, "measurable_channel") == "liability_derecognized":
+            errors.append(
+                "Gross liability extinguishment is not a sufficient measurable channel "
+                f"on row {row_number}"
+            )
+
+    required_fields = {
+        "accounting_policy_note",
+        "assets_surrendered",
+        "capital_effect",
+        "gain_loss",
+        "liability_derecognized",
+        "retained_obligations",
+    }
+    for row_number, record in enumerate(sources.to_dict("records"), start=2):
+        for column in required_source_columns:
+            if not _field(record, column):
+                errors.append(
+                    f"Missing {column} on bank financial statement source row {row_number}"
+                )
+        if set(_field(record, "years_required").split(";")) != {"2011", "2012"}:
+            errors.append(
+                "Bank financial statement source rows must require 2011 and 2012 "
+                f"on row {row_number}"
+            )
+        missing_required_fields = required_fields.difference(
+            set(_field(record, "required_fields").split(";"))
+        )
+        for field in sorted(missing_required_fields):
+            errors.append(
+                f"Missing bank financial statement source required field {field} "
+                f"on row {row_number}"
+            )
+        if _field(record, "acquisition_status") == "not_acquired" and (
+            "primary" not in _field(record, "blocking_issue").lower()
+        ):
+            errors.append(
+                "Unacquired bank financial statement source rows must name missing "
+                f"primary statements on row {row_number}"
+            )
+    return errors
+
+
 def validate_bank_special_regime_annual(path: str, *, end_year: int = 2025) -> list[str]:
     """Return validation errors for the annual bank special-regime financing ledger."""
     annual = pd.read_csv(path, dtype=str)
