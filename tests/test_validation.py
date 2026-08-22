@@ -4,6 +4,7 @@ from portugal_pensions.validation import (
     validate_analysis_protocol,
     validate_article_evidence,
     validate_claim_language_audit,
+    validate_combined_balance_replication,
     validate_concept_registry,
     validate_conflict_and_uncertainty_registries,
     validate_data_license_registry,
@@ -155,6 +156,17 @@ def test_repository_public_claim_registry_is_valid() -> None:
         validate_public_claim_registry(
             root / "evidence" / "public_claim_registry.csv",
             root / "data" / "processed" / "working_group_2026_replication.csv",
+        )
+        == []
+    )
+
+
+def test_repository_combined_balance_replication_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_combined_balance_replication(
+            root / "data" / "processed" / "combined_balance_replication_2026.csv",
+            root / "data" / "processed" / "combined_balance_component_bridge_2026.csv",
         )
         == []
     )
@@ -744,6 +756,172 @@ def test_public_claim_registry_rejects_blocked_values(tmp_path: Path) -> None:
         "Blocked public claim rows must not contain copied or replicated values on row 2" in errors
     )
     assert "Blocked working group replication rows must not contain values on row 2" in errors
+
+
+def test_combined_balance_replication_requires_annual_series(tmp_path: Path) -> None:
+    replication = tmp_path / "combined_balance_replication_2026.csv"
+    bridge = tmp_path / "combined_balance_component_bridge_2026.csv"
+    replication.write_text(
+        "series_id,year,definition_id,definition_role,component,value,unit,source_ids,"
+        "component_bridge_ids,sign_effect_class,replication_status,blocking_issue,notes\n"
+        "WG2026_REPORTED_SERIES,2025,published_working_group_definition,"
+        "published_definition,reported_combined_total,,EUR_million,missing_primary_report,"
+        "BR_CGA_BALANCE,sign_relevant,blocked_primary_source_missing,"
+        "primary annual series missing,notes\n",
+        encoding="utf-8",
+    )
+    bridge.write_text(
+        "bridge_id,definition_id,component,component_role,operation,source_requirement,"
+        "sign_effect_class,bank_special_regime_visibility,replication_status,"
+        "blocking_issue,notes\n"
+        "BR_CGA_BALANCE,published_working_group_definition,cga_balance,base_component,"
+        "add,source,sign_relevant,not_applicable,blocked_primary_source_missing,"
+        "primary source missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_combined_balance_replication(replication, bridge)
+    assert "Missing combined-balance definition: alternative_cga_only" in errors
+    assert "Missing published combined-balance annual row: 2006" in errors
+    assert "Missing combined-balance component bridge row: BR_PREVIDENTIAL_BALANCE" in errors
+
+
+def test_combined_balance_replication_rejects_blocked_values(tmp_path: Path) -> None:
+    replication = tmp_path / "combined_balance_replication_2026.csv"
+    bridge = tmp_path / "combined_balance_component_bridge_2026.csv"
+    rows = [
+        (
+            "WG2026_REPORTED_SERIES",
+            str(year),
+            "published_working_group_definition",
+            "published_definition",
+            "reported_combined_total",
+            "10" if year == 2006 else "",
+            "EUR_million",
+            "missing_primary_report",
+            "BR_CGA_BALANCE;BR_PREVIDENTIAL_BALANCE",
+            "sign_relevant",
+            "blocked_primary_source_missing",
+            "primary annual series missing",
+            "notes",
+        )
+        for year in range(2006, 2026)
+    ]
+    rows.extend(
+        [
+            (
+                "WG2026_2025_ADJUSTED_DEFICIT",
+                "2025",
+                "published_working_group_adjusted_2025",
+                "published_definition",
+                "adjusted_current_balance_deficit",
+                "",
+                "EUR_million",
+                "missing_primary_report",
+                "BR_EARLY_RETIREMENT_ADJUSTMENT",
+                "sign_relevant",
+                "blocked_primary_source_missing",
+                "primary adjustment bridge missing",
+                "notes",
+            ),
+            (
+                "ALT_CGA_ONLY_2025",
+                "2025",
+                "alternative_cga_only",
+                "alternative_perimeter",
+                "total_balance",
+                "",
+                "EUR_million",
+                "missing_primary_report",
+                "BR_CGA_BALANCE",
+                "sign_relevant",
+                "blocked_primary_source_missing",
+                "primary balance source missing",
+                "notes",
+            ),
+            (
+                "ALT_CGA_PREVIDENTIAL_UNADJUSTED_2025",
+                "2025",
+                "alternative_cga_plus_previdential_unadjusted",
+                "alternative_perimeter",
+                "total_balance",
+                "",
+                "EUR_million",
+                "missing_primary_report",
+                "BR_CGA_BALANCE;BR_PREVIDENTIAL_BALANCE",
+                "sign_relevant",
+                "blocked_primary_source_missing",
+                "primary balance source missing",
+                "notes",
+            ),
+            (
+                "ALT_CGA_PREVIDENTIAL_FEFSS_2025",
+                "2025",
+                "alternative_cga_plus_previdential_plus_fefss",
+                "alternative_perimeter",
+                "total_balance",
+                "",
+                "EUR_million",
+                "missing_primary_report",
+                "BR_FEFSS_FLOW_ALTERNATIVE",
+                "sign_relevant",
+                "blocked_primary_source_missing",
+                "primary FEFSS source missing",
+                "notes",
+            ),
+            (
+                "ALT_BANK_SPECIAL_SENSITIVITY_2025",
+                "2025",
+                "bank_special_regime_sensitivity",
+                "sensitivity",
+                "total_balance_including_visible_bank_obligations",
+                "",
+                "EUR_million",
+                "missing_primary_report",
+                "BR_BANK_SPECIAL_SENSITIVITY",
+                "sensitivity_only",
+                "blocked_primary_source_missing",
+                "primary bank source missing",
+                "notes",
+            ),
+        ]
+    )
+    replication.write_text(
+        "series_id,year,definition_id,definition_role,component,value,unit,source_ids,"
+        "component_bridge_ids,sign_effect_class,replication_status,blocking_issue,notes\n"
+        + "\n".join(",".join(row) for row in rows)
+        + "\n",
+        encoding="utf-8",
+    )
+    bridge.write_text(
+        "bridge_id,definition_id,component,component_role,operation,source_requirement,"
+        "sign_effect_class,bank_special_regime_visibility,replication_status,"
+        "blocking_issue,notes\n"
+        "BR_CGA_BALANCE,published_working_group_definition,cga_balance,base_component,"
+        "add,source,sign_relevant,not_applicable,blocked_primary_source_missing,"
+        "primary source missing,notes\n"
+        "BR_PREVIDENTIAL_BALANCE,published_working_group_definition,previdential_balance,"
+        "base_component,add,source,sign_relevant,not_applicable,"
+        "blocked_primary_source_missing,primary source missing,notes\n"
+        "BR_EARLY_RETIREMENT_ADJUSTMENT,published_working_group_adjusted_2025,"
+        "early_retirement_adjustment,adjustment,adjust,source,sign_relevant,"
+        "not_applicable,blocked_primary_source_missing,primary source missing,notes\n"
+        "BR_OTHER_RECLASSIFICATIONS,published_working_group_definition,"
+        "other_reclassifications,reclassification,reclassify,source,sign_relevant,"
+        "not_applicable,blocked_primary_source_missing,primary source missing,notes\n"
+        "BR_FEFSS_FLOW_ALTERNATIVE,alternative_cga_plus_previdential_plus_fefss,"
+        "fefss_annual_flow,alternative_component,add_or_exclude_per_definition,source,"
+        "magnitude_only,not_applicable,blocked_primary_source_missing,"
+        "primary source missing,notes\n"
+        "BR_BANK_SPECIAL_SENSITIVITY,bank_special_regime_sensitivity,"
+        "bank_special_regime_pension_obligations,sensitivity_component,"
+        "separate_sensitivity,source,sensitivity_only,separate_sensitivity,"
+        "blocked_primary_source_missing,primary source missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_combined_balance_replication(replication, bridge)
+    assert "Blocked combined-balance row must not contain value on row 2" in errors
 
 
 def test_publication_artifacts_require_all_figures(tmp_path: Path) -> None:
