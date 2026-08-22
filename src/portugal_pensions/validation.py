@@ -1065,6 +1065,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
                 evidence_dir.parent,
             )
         )
+    article_boundaries = evidence_dir / "article_evidence_claim_boundaries.csv"
+    if article_evidence.is_file() and article_boundaries.is_file():
+        errors.extend(
+            validate_article_evidence_claim_boundaries(article_boundaries, article_evidence)
+        )
     manuscript = evidence_dir.parent / "paper" / "manuscript.tex"
     if manuscript.is_file() and article_evidence.is_file():
         errors.extend(validate_manuscript_draft(manuscript, article_evidence))
@@ -2470,6 +2475,104 @@ def validate_article_evidence(
             required_ids=None,
         )
     )
+    return errors
+
+
+def validate_article_evidence_claim_boundaries(
+    boundary_path: Path,
+    article_evidence_path: Path,
+) -> list[str]:
+    """Return validation errors for bounded article-evidence claim use."""
+    if not isinstance(boundary_path, Path):
+        raise TypeError("boundary_path must be pathlib.Path")
+    if not isinstance(article_evidence_path, Path):
+        raise TypeError("article_evidence_path must be pathlib.Path")
+    boundaries = pd.read_csv(boundary_path, dtype=str)
+    evidence = pd.read_csv(article_evidence_path, dtype=str)
+    required_columns = {
+        "evidence_id",
+        "claim_id",
+        "output_artifact",
+        "required_source_transform",
+        "permitted_article_use",
+        "blocked_inference",
+        "boundary_status",
+        "dependency_gate",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(boundaries.columns))
+    if missing_columns:
+        return ["Article evidence claim boundaries missing columns: " + ", ".join(missing_columns)]
+
+    errors: list[str] = []
+    duplicates = boundaries[boundaries.duplicated(subset=["evidence_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            "Duplicate article evidence boundary row: "
+            f"{_registry_field(duplicate_row, 'evidence_id')}"
+        )
+
+    evidence_records = {
+        _registry_field(record, "evidence_id"): record for record in evidence.to_dict("records")
+    }
+    boundary_ids = set(boundaries["evidence_id"].dropna().astype(str))
+    evidence_ids = set(evidence_records)
+    for evidence_id in sorted(evidence_ids.difference(boundary_ids)):
+        errors.append(f"Article evidence row missing claim boundary: {evidence_id}")
+    for evidence_id in sorted(boundary_ids.difference(evidence_ids)):
+        errors.append(f"Unexpected article evidence claim boundary: {evidence_id}")
+
+    allowed_uses = {"bounded_article_use", "caveated_discussion_only"}
+    allowed_statuses = {"ready_for_bounded_article_use", "bounded_only"}
+    for row_number, record in enumerate(boundaries.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on article evidence boundary row {row_number}")
+
+        evidence_id = _registry_field(record, "evidence_id")
+        evidence_record = evidence_records.get(evidence_id)
+        if evidence_record is not None:
+            if _registry_field(record, "claim_id") != _registry_field(evidence_record, "claim_id"):
+                errors.append(f"Article evidence boundary {evidence_id} claim_id mismatch")
+            if _registry_field(record, "output_artifact") != _registry_field(
+                evidence_record, "output_artifact"
+            ):
+                errors.append(f"Article evidence boundary {evidence_id} output mismatch")
+
+        permitted_use = _registry_field(record, "permitted_article_use")
+        if permitted_use not in allowed_uses:
+            errors.append(
+                f"Unexpected permitted_article_use on article evidence boundary row {row_number}"
+            )
+        boundary_status = _registry_field(record, "boundary_status")
+        if boundary_status not in allowed_statuses:
+            errors.append(
+                f"Unexpected boundary_status on article evidence boundary row {row_number}"
+            )
+        if boundary_status == "bounded_only" and permitted_use != "caveated_discussion_only":
+            errors.append(f"Bounded-only article evidence {evidence_id} must be caveated")
+        if boundary_status == "ready_for_bounded_article_use" and (
+            permitted_use != "bounded_article_use"
+        ):
+            errors.append(f"Ready article evidence {evidence_id} must use bounded article use")
+
+        blocked_inference = _registry_field(record, "blocked_inference").lower()
+        if not any(
+            token in blocked_inference
+            for token in (
+                "lifecycle",
+                "complete",
+                "net",
+                "subsidy",
+                "loss",
+                "gross-debt",
+                "panel",
+            )
+        ):
+            errors.append(f"Article evidence boundary {evidence_id} must block an overclaim class")
+        if _registry_field(record, "dependency_gate") == "not_applicable":
+            errors.append(f"Article evidence boundary {evidence_id} must name dependency gate")
+
     return errors
 
 
