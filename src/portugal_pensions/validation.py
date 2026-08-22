@@ -1017,6 +1017,9 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     falsification_review = evidence_dir.parent / "data" / "processed" / "falsification_review.csv"
     if falsification_review.is_file():
         errors.extend(validate_falsification_review(falsification_review))
+    falsification_decisions = evidence_dir / "falsification_decision_requirements.csv"
+    if falsification_decisions.is_file():
+        errors.extend(validate_falsification_decision_requirements(falsification_decisions))
     article_evidence = evidence_dir / "article_evidence.csv"
     internal_replication = (
         evidence_dir.parent / "data" / "processed" / "internal_replication_review.csv"
@@ -2061,6 +2064,121 @@ def validate_falsification_review(path: Path) -> list[str]:
             errors.append(f"Complete falsification row {row_number} cannot be not_testable_yet")
         if _registry_field(record, "unit") != "EUR_million":
             errors.append(f"Falsification review row {row_number} must use EUR_million unit")
+    return errors
+
+
+def validate_falsification_decision_requirements(path: Path) -> list[str]:
+    """Return validation errors for falsification-to-claim decision boundaries."""
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    requirements = pd.read_csv(path, dtype=str)
+    required_columns = {
+        "requirement_id",
+        "test_id",
+        "claim_boundary",
+        "required_inputs",
+        "current_status",
+        "permitted_language",
+        "blocked_language",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [
+            "Falsification decision requirements missing columns: " + ", ".join(missing_columns)
+        ]
+
+    errors: list[str] = []
+    duplicated_ids = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicated_ids.iterrows():
+        errors.append(
+            "Duplicate falsification decision requirement_id: "
+            f"{_registry_field(duplicate_row, 'requirement_id')}"
+        )
+
+    required_test_ids = set(REQUIRED_FALSIFICATION_TESTS).union({"ALL"})
+    observed_test_ids = set(requirements["test_id"].dropna().astype(str))
+    for test_id in sorted(required_test_ids.difference(observed_test_ids)):
+        errors.append(f"Missing falsification decision gate for: {test_id}")
+    for test_id in sorted(observed_test_ids.difference(required_test_ids)):
+        errors.append(f"Unexpected falsification decision gate for: {test_id}")
+
+    allowed_statuses = {
+        "blocked_requires_sources",
+        "partial_bounded_review",
+        "partially_reconciled_bounded",
+        "manuscript_gate_registered",
+    }
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _registry_field(record, column):
+                errors.append(f"Missing {column} on falsification decision row {row_number}")
+
+        status = _registry_field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected falsification decision status on row {row_number}")
+
+        test_id = _registry_field(record, "test_id")
+        required_inputs = _registry_field(record, "required_inputs").lower()
+        permitted_language = _registry_field(record, "permitted_language").lower()
+        blocked_language = _registry_field(record, "blocked_language").lower()
+        blocking_issue = _registry_field(record, "blocking_issue").lower()
+
+        if test_id != "ALL" and status.startswith("blocked"):
+            if "missing primary" not in blocking_issue:
+                errors.append(
+                    "Blocked falsification decisions must name missing primary inputs "
+                    f"on row {row_number}"
+                )
+            if "limitation" not in permitted_language and "requirement" not in permitted_language:
+                errors.append(
+                    "Blocked falsification decisions must limit permitted language "
+                    f"on row {row_number}"
+                )
+
+        if test_id == "FALS_001" and (
+            "payroll withholding" not in required_inputs or "remittance gap" not in blocked_language
+        ):
+            errors.append("FALS_001 decision must block remittance-gap claims")
+        if test_id == "FALS_002" and (
+            "payroll bases" not in required_inputs or "underpayment amount" not in blocked_language
+        ):
+            errors.append("FALS_002 decision must block quantified employer-gap claims")
+        if test_id == "FALS_003" and "intended-financing" not in blocked_language:
+            errors.append("FALS_003 decision must block State financing-intent claims")
+        if test_id == "FALS_004" and "magnitude claim" not in blocked_language:
+            errors.append("FALS_004 decision must block RGSS magnitude claims")
+        if test_id == "FALS_005" and (
+            "combined-balance sign" not in blocked_language
+            or "flow-of-funds" not in required_inputs
+        ):
+            errors.append("FALS_005 decision must block combined-balance sign claims")
+        if test_id == "FALS_006" and (
+            status != "partially_reconciled_bounded"
+            or "2012_cash_identity" not in permitted_language
+            or "lifecycle loss" not in blocked_language
+        ):
+            errors.append(
+                "FALS_006 decision must allow only the 2012 identity and block lifecycle claims"
+            )
+        if test_id == "FALS_007" and "selected discount rates" not in blocked_language:
+            errors.append("FALS_007 decision must block selected-discount-rate claims")
+        if test_id == "FALS_008" and (
+            "adverse" not in blocked_language or "benign" not in blocked_language
+        ):
+            errors.append("FALS_008 decision must block lifecycle classification claims")
+        if test_id == "ALL" and (
+            status != "manuscript_gate_registered"
+            or "source-backed" not in permitted_language
+            or "definitive" not in blocked_language
+        ):
+            errors.append(
+                "Overall falsification manuscript gate must permit only bounded "
+                "source-backed language"
+            )
+
     return errors
 
 

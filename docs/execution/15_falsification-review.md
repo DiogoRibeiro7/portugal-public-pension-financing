@@ -2,7 +2,7 @@
 
 Instruction file: `prompts/15_falsification_and_adversarial_review.md`
 Date: 2026-08-19
-Updated: 2026-08-20
+Updated: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -12,6 +12,7 @@ Status: `partial_bounded_reconstruction`
 - Added `paper/falsification_report.md` before manuscript drafting.
 - Added validation that every required challenge is present, duplicate rows fail and unresolved rows name their blocking issue.
 - Added tests for repository validity and required challenge coverage.
+- Added `evidence/falsification_decision_requirements.csv` to gate manuscript language against unresolved adversarial tests.
 
 ## Result
 
@@ -19,7 +20,7 @@ Implemented a bounded falsification review. The review does not overturn current
 
 ## Current Stop Condition
 
-Completion beyond this bounded review requires payroll withholding data, CGA quota and employer-revenue splits, State-transfer classifications, public-worker RGSS flow inputs, RGSS/FEFSS annual flows and full bank pension lifecycle schedules.
+Completion beyond this bounded review requires payroll withholding data, CGA quota and employer-revenue splits, State-transfer classifications, public-worker RGSS flow inputs, RGSS/FEFSS annual flows and full bank pension lifecycle schedules. `evidence/falsification_decision_requirements.csv` keeps definitive remittance, employer-gap, combined-balance, subsidy and lifecycle language blocked until those tests are resolved.
 
 ## Validation
 

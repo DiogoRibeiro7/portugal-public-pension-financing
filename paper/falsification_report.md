@@ -1,6 +1,7 @@
 # Falsification Report
 
 This report records adversarial tests that must be passed before the manuscript can state stronger conclusions. It is backed by `data/processed/falsification_review.csv`.
+The claim-language boundary is enforced in `evidence/falsification_decision_requirements.csv`.
 
 ## Current Result
 
@@ -22,3 +23,4 @@ The review does not overturn any registered result that is currently supported b
 ## Manuscript Gate
 
 Until the blocked inputs are acquired, the manuscript may state only bounded findings: source-backed legal mechanisms, extracted account values, reconciliation identities and explicit data gaps. It must not claim a definitive remittance loss, employer underpayment amount, combined-balance sign, bank-transfer subsidy or lifecycle public-finance loss.
+The decision gate keeps each unresolved challenge tied to its blocked language so later manuscript edits cannot convert missing-input limitations into final conclusions.
