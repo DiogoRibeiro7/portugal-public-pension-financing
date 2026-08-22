@@ -1606,6 +1606,120 @@ def validate_bank_benefit_risk_distribution(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_benefit_risk_classification_requirements(path: str) -> list[str]:
+    """Return validation errors for bank benefit/risk classification requirements."""
+    requirements = pd.read_csv(path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "requirement_id",
+        "classification_target",
+        "required_inputs",
+        "available_inputs",
+        "permitted_output",
+        "status",
+        "blocking_issue",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(requirements.columns))
+    if missing_columns:
+        return [
+            "Bank benefit-risk classification requirements missing columns: "
+            f"{', '.join(missing_columns)}"
+        ]
+
+    errors: list[str] = []
+    duplicates = requirements[requirements.duplicated(subset=["requirement_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank benefit-risk requirement_id: {_field(duplicate_row, 'requirement_id')}"
+        )
+    target_duplicates = requirements[
+        requirements.duplicated(subset=["classification_target"], keep=False)
+    ]
+    for _, duplicate_row in target_duplicates.iterrows():
+        errors.append(
+            "Duplicate bank benefit-risk classification target: "
+            f"{_field(duplicate_row, 'classification_target')}"
+        )
+
+    required_targets = {
+        "actuarial_risk_transfer",
+        "balance_sheet_relief",
+        "bank_level_net_position",
+        "demonstrable_net_subsidy",
+        "fiscal_accounting_effect",
+        "liquidity_effect",
+        "public_sector_lifecycle_effect",
+    }
+    observed_targets = set(requirements["classification_target"].astype(str))
+    for target in sorted(required_targets.difference(observed_targets)):
+        errors.append(f"Missing bank benefit-risk classification target: {target}")
+
+    allowed_statuses = {
+        "blocked_missing_actuarial_inputs",
+        "blocked_missing_asset_composition",
+        "blocked_missing_bank_level_values",
+        "blocked_missing_lifecycle_inputs",
+        "blocked_no_subsidy_classification",
+        "partial_bounded_reconstruction",
+    }
+    for row_number, record in enumerate(requirements.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank benefit-risk requirement row {row_number}")
+        status = _field(record, "status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank benefit-risk requirement status on row {row_number}")
+        if (
+            status.startswith("blocked")
+            and "primary" not in _field(record, "blocking_issue").lower()
+        ):
+            errors.append(
+                "Blocked bank benefit-risk requirements must name missing primary inputs "
+                f"on row {row_number}"
+            )
+        target = _field(record, "classification_target")
+        required_inputs = set(_field(record, "required_inputs").split(";"))
+        permitted_output = _field(record, "permitted_output")
+        if target == "demonstrable_net_subsidy":
+            for input_name in {
+                "bank_level_net_position",
+                "long_run_state_financing_residual",
+                "asset_lifecycle_path",
+            }:
+                if input_name not in required_inputs:
+                    errors.append(
+                        f"Missing subsidy classification input {input_name} on row {row_number}"
+                    )
+            if "blocked" not in permitted_output or "not_inferred" not in permitted_output:
+                errors.append(
+                    f"Subsidy classification requirement must block inference on row {row_number}"
+                )
+        if target == "bank_level_net_position":
+            for input_name in {
+                "assets_surrendered",
+                "liability_derecognized",
+                "retained_obligations",
+            }:
+                if input_name not in required_inputs:
+                    errors.append(f"Missing net-position input {input_name} on row {row_number}")
+            if "no_net_position_value" not in permitted_output:
+                errors.append(
+                    f"Bank net-position requirement must block values on row {row_number}"
+                )
+        if target == "fiscal_accounting_effect" and "not_bank_benefit" not in permitted_output:
+            errors.append(
+                "Fiscal-accounting requirement must not be treated as bank benefit "
+                f"on row {row_number}"
+            )
+        if target == "public_sector_lifecycle_effect" and "diagnostic_only" not in (
+            permitted_output
+        ):
+            errors.append(
+                f"Public-sector lifecycle requirement must remain diagnostic on row {row_number}"
+            )
+    return errors
+
+
 def validate_bank_esa_treatment_bridge(path: str) -> list[str]:
     """Return validation errors for the ESA-95/ESA-2010 bank-transfer bridge."""
     bridge = pd.read_csv(path, dtype=str)

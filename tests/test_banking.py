@@ -10,6 +10,7 @@ from portugal_pensions.banking import (
     validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
     validate_bank_asset_trace_controls,
+    validate_bank_benefit_risk_classification_requirements,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
@@ -342,6 +343,16 @@ def test_repository_bank_benefit_risk_distribution_is_valid() -> None:
     )
 
 
+def test_repository_bank_benefit_risk_classification_requirements_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_benefit_risk_classification_requirements(
+            str(root / "evidence" / "bank_benefit_risk_classification_requirements.csv")
+        )
+        == []
+    )
+
+
 def test_repository_bank_financial_statement_effects_are_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
@@ -522,6 +533,23 @@ def test_bank_benefit_risk_distribution_blocks_subsidy_without_values(tmp_path: 
     assert "Expected 18 bank-level net-position rows, found 0" in errors
     assert "Demonstrable net-subsidy row must not have a value while blocked" in errors
     assert "Demonstrable net-subsidy row must remain blocked" in errors
+
+
+def test_bank_benefit_risk_requirements_block_subsidy_inference(tmp_path: Path) -> None:
+    requirements = tmp_path / "bank_benefit_risk_classification_requirements.csv"
+    requirements.write_text(
+        "requirement_id,classification_target,required_inputs,available_inputs,"
+        "permitted_output,status,blocking_issue,notes\n"
+        "REQ1,demonstrable_net_subsidy,liability_derecognized,legal rule,"
+        "classify_from_liability_transfer,complete,records missing,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_benefit_risk_classification_requirements(str(requirements))
+    assert "Missing bank benefit-risk classification target: bank_level_net_position" in errors
+    assert "Unexpected bank benefit-risk requirement status on row 2" in errors
+    assert "Missing subsidy classification input bank_level_net_position on row 2" in errors
+    assert "Subsidy classification requirement must block inference on row 2" in errors
 
 
 def test_bank_special_regime_annual_checks_residual_identity(tmp_path: Path) -> None:

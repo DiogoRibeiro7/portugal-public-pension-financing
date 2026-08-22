@@ -23,6 +23,7 @@ from .banking import (
     validate_bank_asset_liability_institution_requirements,
     validate_bank_asset_liability_outputs,
     validate_bank_asset_trace_controls,
+    validate_bank_benefit_risk_classification_requirements,
     validate_bank_benefit_risk_distribution,
     validate_bank_esa_treatment_bridge,
     validate_bank_financial_statement_effects,
@@ -834,6 +835,15 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if bank_benefit_risk.is_file():
         errors.extend(validate_bank_benefit_risk_distribution(str(bank_benefit_risk)))
+    bank_benefit_risk_requirements = (
+        evidence_dir / "bank_benefit_risk_classification_requirements.csv"
+    )
+    if bank_benefit_risk_requirements.is_file():
+        errors.extend(
+            validate_bank_benefit_risk_classification_requirements(
+                str(bank_benefit_risk_requirements)
+            )
+        )
     bank_financial_statement_effects = (
         evidence_dir.parent / "data" / "processed" / "bank_financial_statement_effects.csv"
     )

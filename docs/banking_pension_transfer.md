@@ -136,6 +136,13 @@ net-subsidy claim. The current ledger records legal risk movement and aggregate 
 extracts, but bank-level net positions remain blocked until liability, asset and retained-benefit
 values are acquired for each participating institution.
 
+`evidence/bank_benefit_risk_classification_requirements.csv` defines the
+evidence gate for converting those channels into classifications. Fiscal
+accounting treatment is not a bank-benefit measure, bank-level net position
+requires liability, asset and retained-obligation values, and a demonstrable
+subsidy requires both bank-level net values and lifecycle public-finance
+evidence.
+
 `data/processed/bank_financial_statement_effects.csv` and
 `evidence/bank_financial_statement_source_evidence.csv` provide the audited
 financial-statement coverage frame for measuring bank-side liability relief.
