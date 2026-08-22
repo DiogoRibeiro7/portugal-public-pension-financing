@@ -18,6 +18,7 @@ from portugal_pensions.validation import (
     validate_literature_map,
     validate_manifest,
     validate_manuscript_draft,
+    validate_manuscript_section_boundaries,
     validate_public_claim_registry,
     validate_publication_artifact_readiness,
     validate_publication_artifacts,
@@ -244,6 +245,18 @@ def test_repository_manuscript_draft_is_valid() -> None:
     )
 
 
+def test_repository_manuscript_section_boundaries_are_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_manuscript_section_boundaries(
+            root / "paper" / "manuscript.tex",
+            root / "evidence" / "manuscript_section_boundaries.csv",
+            root / "evidence" / "article_evidence_claim_boundaries.csv",
+        )
+        == []
+    )
+
+
 def test_repository_internal_replication_review_is_valid() -> None:
     root = Path(__file__).resolve().parents[1]
     assert (
@@ -312,6 +325,48 @@ def test_manuscript_draft_requires_article_evidence_references(tmp_path: Path) -
     assert (
         "Manuscript does not reference article evidence row: AE_REQUIRED"
         in validate_manuscript_draft(manuscript, article)
+    )
+
+
+def test_manuscript_section_boundaries_reject_overclaims(tmp_path: Path) -> None:
+    manuscript = tmp_path / "manuscript.tex"
+    manuscript.write_text(
+        "\\section{Introduction}\n"
+        "\\paragraph{[Interpretation]}\n"
+        "% AE_KNOWN\n"
+        "This is a definitive remittance loss.\n",
+        encoding="utf-8",
+    )
+    boundaries = tmp_path / "manuscript_section_boundaries.csv"
+    boundaries.write_text(
+        "section_id,section_title,required_labels,required_evidence_ids,"
+        "permitted_claim_class,blocked_claim_class,dependency_gate,status,notes\n"
+        "MS_INTRO,Introduction,[Interpretation],AE_MISSING,claim,weak wording,"
+        "not_applicable,complete,notes\n",
+        encoding="utf-8",
+    )
+    article_boundaries = tmp_path / "article_evidence_claim_boundaries.csv"
+    article_boundaries.write_text(
+        "evidence_id,claim_id,output_artifact,required_source_transform,"
+        "permitted_article_use,blocked_inference,boundary_status,dependency_gate,notes\n"
+        "AE_KNOWN,CLAIM,artifact,transform,bounded_article_use,complete claim,"
+        "ready_for_bounded_article_use,gate,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_manuscript_section_boundaries(
+        manuscript,
+        boundaries,
+        article_boundaries,
+    )
+    assert "Missing manuscript section boundary: MS_ACCOUNTING" in errors
+    assert "Unexpected manuscript section status on row 2" in errors
+    assert "Manuscript section MS_INTRO uses unknown evidence boundary AE_MISSING" in errors
+    assert "Manuscript section MS_INTRO does not reference AE_MISSING" in errors
+    assert "Manuscript section MS_INTRO must block overclaim language" in errors
+    assert "Manuscript section MS_INTRO must name dependency gate" in errors
+    assert (
+        "Manuscript contains blocked section-boundary phrase: definitive remittance loss" in errors
     )
 
 
