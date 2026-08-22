@@ -14,10 +14,16 @@ Status: `partial_bounded_reconstruction`
 - Added validation that the manuscript references article evidence and keeps evidence-boundary language.
 - Added tests for repository manuscript validity and missing evidence references.
 - Added `evidence/manuscript_section_boundaries.csv` to gate section-level labels, evidence references, dependency gates and blocked overclaim classes.
+- Revised the bounded manuscript prose for clearer framing, transitions and accounting-perimeter
+  distinctions without adding unsupported claims.
+- Recompiled `paper/manuscript.pdf` from the revised source and synchronized the loaded-language
+  audit ledger.
 
 ## Result
 
-Created a bounded manuscript draft. It reports extracted and replicated evidence only, and it explicitly blocks remittance-loss, employer-underpayment, post-2006 reallocation, combined-balance, bank-subsidy and lifecycle-cost conclusions until required inputs are registered.
+Created and revised a bounded manuscript draft. It reports extracted and replicated evidence only,
+and it explicitly blocks remittance-loss, employer-underpayment, post-2006 reallocation,
+combined-balance, bank-subsidy and lifecycle-cost conclusions until required inputs are registered.
 
 ## Current Stop Condition
 
