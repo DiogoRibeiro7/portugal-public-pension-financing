@@ -15,6 +15,7 @@ from .accounting import (
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
+    validate_flow_of_funds_bridge_selection_requirements,
     validate_pension_flow_of_funds,
     validate_state_financing_rule_registry,
 )
@@ -918,6 +919,11 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     )
     if pension_flow_matrix.is_file():
         errors.extend(validate_pension_flow_of_funds(str(pension_flow_matrix)))
+    pension_flow_selection = evidence_dir / "flow_of_funds_bridge_selection_requirements.csv"
+    if pension_flow_selection.is_file():
+        errors.extend(
+            validate_flow_of_funds_bridge_selection_requirements(str(pension_flow_selection))
+        )
     employee_remittance = (
         evidence_dir.parent / "data" / "processed" / "employee_remittance_audit.csv"
     )

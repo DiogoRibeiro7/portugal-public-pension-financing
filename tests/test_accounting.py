@@ -8,6 +8,7 @@ from portugal_pensions.accounting import (
     validate_cga_financing_ledger,
     validate_employee_remittance_audit,
     validate_employer_contribution_audit,
+    validate_flow_of_funds_bridge_selection_requirements,
     validate_pension_flow_of_funds,
     validate_state_financing_rule_registry,
 )
@@ -190,6 +191,59 @@ def test_pension_flow_of_funds_rejects_duplicate_bridge_components(tmp_path: Pat
         "cga_2011_balance_decomposition reported_global_balance"
         in validate_pension_flow_of_funds(str(matrix))
     )
+
+
+def test_repository_flow_of_funds_bridge_selection_requirements_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_flow_of_funds_bridge_selection_requirements(
+            str(root / "evidence" / "flow_of_funds_bridge_selection_requirements.csv")
+        )
+        == []
+    )
+
+
+def test_flow_of_funds_bridge_selection_requirements_block_complete_balance(
+    tmp_path: Path,
+) -> None:
+    requirements = tmp_path / "flow_of_funds_bridge_selection_requirements.csv"
+    requirements.write_text(
+        "requirement_id,selection_target,required_matrix_rows,"
+        "observed_bridge_definition_ids,permitted_output,status,blocking_issue,notes\n"
+        "R1,cga_2011_balance_decomposition,reported_global_balance,"
+        "cga_2011_balance_decomposition,selectable_checked_bridge,"
+        "bridge_selection_registered,none,notes\n"
+        "R2,bank_2011_asset_transfer_context,recorded_asset_receipt,"
+        "bank_2011_recorded_asset_receipt,selectable_context_rows,"
+        "bridge_selection_registered,none,notes\n"
+        "R3,bank_2012_cash_identity,state_current_transfer_financing,"
+        "bank_2012_cash_identity,selectable_checked_bridge,"
+        "bridge_selection_registered,none,notes\n"
+        "R4,bank_2012_financing_split,oe_financing_component;cga_bpn_financing_component,"
+        "bank_2012_financing_split,selectable_checked_bridge,"
+        "bridge_selection_registered,none,notes\n"
+        "R5,bpn_2012_separate_case,asset_transfer_to_cga,bpn_2012_legal_transfer,"
+        "selectable_rows,bridge_selection_registered,none,notes\n"
+        "R6,complete_combined_balance,rgss_previdential_balance,not_available,"
+        "complete_combined_balance,bridge_selection_registered,missing records,notes\n"
+        "R7,row_selection_rule,bridge_definition_id;bridge_sign,"
+        "pension_flow_of_funds_long,combined_balance,selection_rule_registered,"
+        "none,notes\n"
+        "R8,consolidation_boundary,public-private boundary rows,"
+        "public_private_boundary,selection,selection_rule_registered,none,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_flow_of_funds_bridge_selection_requirements(str(requirements))
+    assert "CGA flow selection must preserve the checked 2011 bridge" in errors
+    assert "Bank transfer selection must keep receipt and total value separate" in errors
+    assert "Bank 2012 cash selection must preserve the financing identity" in errors
+    assert "BPN flow selection must remain a separate-case selection" in errors
+    assert "Complete combined-balance selection must remain blocked" in errors
+    assert "Complete combined-balance selection must name missing primary system rows" in errors
+    assert "Complete combined-balance selection must block complete output" in errors
+    assert "Flow selection rule must require explicit matrix row selection" in errors
+    assert "Flow consolidation boundary must preserve consolidation flags" in errors
 
 
 def test_complete_cga_financing_ledger_requires_components(tmp_path: Path) -> None:

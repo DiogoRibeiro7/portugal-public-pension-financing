@@ -16,6 +16,12 @@ Rows with a `bridge_definition_id` other than `not_applicable` are selectable co
 - `bpn_2012_legal_transfer`: DL88 BPN asset transfer to CGA.
 - `bpn_2012_account_extract`: BPN pensions paid by the CGA fund in 2012.
 
+`evidence/flow_of_funds_bridge_selection_requirements.csv` records the current
+selection contract. Any combined-balance calculation must cite explicit
+`record_id` and `bridge_definition_id` rows from the matrix, and complete
+system-wide combined balances remain blocked until RGSS/previdential, FEFSS, CGA
+component and bank-level flow rows are registered.
+
 ## Current Limits
 
 The matrix is not a complete system-wide annual account. RGSS/previdential balances, FEFSS annual cash flows, detailed CGA component flows and bank-level transfer schedules remain open data-quality gaps. Rows with blocked statuses mark those gaps explicitly and must not be interpreted as zero-valued transactions.
