@@ -15,6 +15,10 @@ claim is allowed:
 - CGA institutional accounts.
 - RGSS institutional accounts.
 - The Social Security previdential subsystem.
+- Competing combined-balance perimeters are recorded in
+  `data/processed/joint_balance_definitions.csv`; each row names the applicable
+  inclusion, exclusion, consolidation, historical-adjustment, and bank-special
+  sensitivity rules before any numerical series is accepted.
 - Special bank-pension transfer ledgers.
 - Consolidated general-government and ESA national-accounts measures.
 
