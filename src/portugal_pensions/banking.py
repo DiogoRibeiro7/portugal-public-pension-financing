@@ -166,6 +166,90 @@ def validate_bank_pension_transfer_registry(path: str) -> list[str]:
     return errors
 
 
+def validate_bank_transfer_legal_coverage(coverage_path: str, registry_path: str) -> list[str]:
+    """Return validation errors for the bank-transfer legal coverage gate."""
+    coverage = pd.read_csv(coverage_path, dtype=str, keep_default_na=False)
+    registry = pd.read_csv(registry_path, dtype=str, keep_default_na=False)
+    required_columns = {
+        "coverage_id",
+        "legal_source_id",
+        "instrument",
+        "requirement",
+        "registry_record_ids",
+        "coverage_status",
+        "limitation",
+        "notes",
+    }
+    missing_columns = sorted(required_columns.difference(coverage.columns))
+    if missing_columns:
+        return [f"Bank transfer legal coverage missing columns: {', '.join(missing_columns)}"]
+
+    errors: list[str] = []
+    duplicates = coverage[coverage.duplicated(subset=["coverage_id"], keep=False)]
+    for _, duplicate_row in duplicates.iterrows():
+        errors.append(
+            f"Duplicate bank transfer legal coverage_id: {_field(duplicate_row, 'coverage_id')}"
+        )
+
+    required_sources = {"DR_DL54_2009", "DR_DL1A_2011", "DR_DL127_2011", "DR_DL88_2012"}
+    observed_sources = set(coverage["legal_source_id"])
+    for source_id in sorted(required_sources.difference(observed_sources)):
+        errors.append(f"Missing bank transfer legal source coverage: {source_id}")
+
+    required_dl127_requirements = {
+        "asset_composition_constraints",
+        "assets_transferred",
+        "extinguishing_covered_bank_liabilities",
+        "independent_valuation_procedure",
+        "legal_discount_rate",
+        "liabilities_retained_by_banks",
+        "mortality_tables",
+        "participating_institutions",
+        "pensions_assumed",
+        "state_financing",
+        "transfer_schedule",
+        "valuation_date",
+    }
+    observed_dl127_requirements = set(
+        coverage.loc[coverage["legal_source_id"] == "DR_DL127_2011", "requirement"]
+    )
+    for requirement in sorted(required_dl127_requirements.difference(observed_dl127_requirements)):
+        errors.append(f"Missing DL127 legal coverage requirement: {requirement}")
+
+    allowed_statuses = {"official_detail_registered", "source_acquired"}
+    registry_ids = set(registry["record_id"])
+    for row_number, record in enumerate(coverage.to_dict("records"), start=2):
+        for column in required_columns:
+            if not _field(record, column):
+                errors.append(f"Missing {column} on bank transfer legal coverage row {row_number}")
+        status = _field(record, "coverage_status")
+        if status not in allowed_statuses:
+            errors.append(f"Unexpected bank transfer legal coverage status on row {row_number}")
+        source_id = _field(record, "legal_source_id")
+        limitation = _field(record, "limitation")
+        if source_id == "DR_DL127_2011" and "raw_pdf" not in limitation:
+            errors.append("DL127 coverage rows must preserve the raw-PDF limitation")
+        for record_id in _field(record, "registry_record_ids").split(";"):
+            if record_id and record_id not in registry_ids:
+                errors.append(
+                    f"Bank transfer legal coverage row {row_number} references unknown registry "
+                    f"record: {record_id}"
+                )
+
+    participating = coverage[coverage["requirement"].astype(str) == "participating_institutions"]
+    if participating.empty:
+        errors.append("Missing participating-institutions coverage row")
+    else:
+        institution_ids = [
+            record_id
+            for record_id in _field(participating.iloc[0], "registry_record_ids").split(";")
+            if record_id
+        ]
+        if len(institution_ids) != 18:
+            errors.append("Participating-institutions coverage must reference 18 registry records")
+    return errors
+
+
 def validate_bank_asset_liability_outputs(
     audit_path: str,
     asset_trace_path: str,

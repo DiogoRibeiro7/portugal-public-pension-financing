@@ -26,6 +26,7 @@ from .banking import (
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
     validate_bank_transfer_debt_financing_effects,
+    validate_bank_transfer_legal_coverage,
     validate_bpn_2012_pension_transfer,
 )
 from .counterfactuals import (
@@ -729,6 +730,19 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_bank_pension_transfer_registry(
                 str(evidence_dir / "bank_pension_transfer_registry.csv")
+            )
+        )
+    bank_transfer_legal_coverage = (
+        evidence_dir.parent / "data" / "processed" / "bank_transfer_legal_coverage.csv"
+    )
+    if (
+        bank_transfer_legal_coverage.is_file()
+        and (evidence_dir / "bank_pension_transfer_registry.csv").is_file()
+    ):
+        errors.extend(
+            validate_bank_transfer_legal_coverage(
+                str(bank_transfer_legal_coverage),
+                str(evidence_dir / "bank_pension_transfer_registry.csv"),
             )
         )
     if (evidence_dir / "bank_special_regime_annual.csv").is_file():

@@ -30,6 +30,11 @@ Source correction: the earlier local file `data/raw/legislation/DR_DL127_2011_is
 
 The registry is a legal reconstruction. It does not yet populate bank-level monetary values for liability present value, assets transferred, cash, Portuguese public debt securities, other assets, independent valuer identity or final adjustments.
 
+`data/processed/bank_transfer_legal_coverage.csv` is the machine-readable
+coverage gate for this reconstruction. It maps each required timeline instrument
+and DL127 extraction requirement to the registry record IDs that support it, and
+keeps the unresolved DL127 raw-PDF acquisition limitation explicit.
+
 ## Empirical question
 
 > Did the 2011 transfer leave Social Security or the consolidated public sector with an economically material net burden beyond the assets and financing received, and who captured the corresponding benefit?

@@ -12,6 +12,7 @@ from portugal_pensions.banking import (
     validate_bank_pension_transfer_registry,
     validate_bank_special_regime_annual,
     validate_bank_transfer_debt_financing_effects,
+    validate_bank_transfer_legal_coverage,
     validate_bpn_2012_pension_transfer,
 )
 
@@ -59,6 +60,90 @@ def test_bank_transfer_registry_requires_institution_count(tmp_path: Path) -> No
 
     errors = validate_bank_pension_transfer_registry(str(registry))
     assert "Expected 18 participating institutions, found 0" in errors
+
+
+def test_repository_bank_transfer_legal_coverage_is_valid() -> None:
+    root = Path(__file__).resolve().parents[1]
+    assert (
+        validate_bank_transfer_legal_coverage(
+            str(root / "data" / "processed" / "bank_transfer_legal_coverage.csv"),
+            str(root / "evidence" / "bank_pension_transfer_registry.csv"),
+        )
+        == []
+    )
+
+
+def test_bank_transfer_legal_coverage_requires_dl127_fields(tmp_path: Path) -> None:
+    coverage = tmp_path / "bank_transfer_legal_coverage.csv"
+    registry = tmp_path / "bank_pension_transfer_registry.csv"
+    coverage.write_text(
+        "coverage_id,legal_source_id,instrument,requirement,registry_record_ids,"
+        "coverage_status,limitation,notes\n"
+        "C1,DR_DL127_2011,DL127,pensions_assumed,DL127_OBJECT_1,"
+        "official_detail_registered,raw_pdf_not_acquired,notes\n",
+        encoding="utf-8",
+    )
+    registry.write_text(
+        "record_id,legal_source_id,instrument,publication_date,effective_date,category,"
+        "article,subject,legal_rule,value,unit,status,notes\n"
+        "DL127_OBJECT_1,DR_DL127_2011,DL127,2011-12-31,2011-12-31,"
+        "pensions_assumed,Artigo 1,subject,rule,,,official_detail_registered,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_transfer_legal_coverage(str(coverage), str(registry))
+    assert "Missing bank transfer legal source coverage: DR_DL54_2009" in errors
+    assert "Missing DL127 legal coverage requirement: legal_discount_rate" in errors
+
+
+def test_bank_transfer_legal_coverage_requires_all_institutions(tmp_path: Path) -> None:
+    coverage = tmp_path / "bank_transfer_legal_coverage.csv"
+    registry = tmp_path / "bank_pension_transfer_registry.csv"
+    coverage.write_text(
+        "coverage_id,legal_source_id,instrument,requirement,registry_record_ids,"
+        "coverage_status,limitation,notes\n"
+        "T1,DR_DL54_2009,DL54,timeline_event,R1,source_acquired,none,notes\n"
+        "T2,DR_DL1A_2011,DL1A,timeline_event,R2,source_acquired,none,notes\n"
+        "T3,DR_DL88_2012,DL88,timeline_event,R3,source_acquired,none,notes\n"
+        "D1,DR_DL127_2011,DL127,pensions_assumed,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D2,DR_DL127_2011,DL127,liabilities_retained_by_banks,R4,"
+        "official_detail_registered,raw_pdf_not_acquired,notes\n"
+        "D3,DR_DL127_2011,DL127,assets_transferred,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D4,DR_DL127_2011,DL127,state_financing,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D5,DR_DL127_2011,DL127,valuation_date,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D6,DR_DL127_2011,DL127,legal_discount_rate,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D7,DR_DL127_2011,DL127,mortality_tables,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D8,DR_DL127_2011,DL127,independent_valuation_procedure,R4,"
+        "official_detail_registered,raw_pdf_not_acquired,notes\n"
+        "D9,DR_DL127_2011,DL127,asset_composition_constraints,R4,"
+        "official_detail_registered,raw_pdf_not_acquired,notes\n"
+        "D10,DR_DL127_2011,DL127,transfer_schedule,R4,official_detail_registered,"
+        "raw_pdf_not_acquired,notes\n"
+        "D11,DR_DL127_2011,DL127,participating_institutions,R4,"
+        "official_detail_registered,raw_pdf_not_acquired,notes\n"
+        "D12,DR_DL127_2011,DL127,extinguishing_covered_bank_liabilities,R4,"
+        "official_detail_registered,raw_pdf_not_acquired,notes\n",
+        encoding="utf-8",
+    )
+    registry.write_text(
+        "record_id,legal_source_id,instrument,publication_date,effective_date,category,"
+        "article,subject,legal_rule,value,unit,status,notes\n"
+        "R1,SRC,DL,2009-01-01,2009-01-01,timeline,a,s,r,,,source_acquired,notes\n"
+        "R2,SRC,DL,2011-01-01,2011-01-01,timeline,a,s,r,,,source_acquired,notes\n"
+        "R3,SRC,DL,2012-01-01,2012-01-01,timeline,a,s,r,,,source_acquired,notes\n"
+        "R4,SRC,DL,2011-12-31,2011-12-31,field,a,s,r,,,"
+        "official_detail_registered,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_bank_transfer_legal_coverage(str(coverage), str(registry))
+    assert "Participating-institutions coverage must reference 18 registry records" in errors
 
 
 def test_repository_bank_asset_liability_outputs_are_valid() -> None:
