@@ -9,7 +9,8 @@ coverage checked against `evidence/manuscript_section_boundaries.csv`.
 ## Current Result
 
 The manuscript uses loaded terms only in bounded accounting, unresolved-evidence, or explicitly
-negated contexts. The audit covers:
+negated contexts. The current ledger has been synchronized with the bounded manuscript revision and
+covers:
 
 - `debt`
 - `underfunded`
