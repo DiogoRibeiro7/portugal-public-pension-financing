@@ -1,7 +1,7 @@
 # Analyze BPN transfer
 
 Instruction file: `prompts/40_bpn_2012_separate_case.md`
-Date: 2026-08-19
+Date: 2026-08-22
 Status: `partial_bounded_reconstruction`
 
 ## Actions
@@ -12,6 +12,7 @@ Status: `partial_bounded_reconstruction`
 - Replaced the placeholder `data/processed/bpn_2012_pension_transfer.csv` with a long-form separate-case ledger.
 - Added validation for required BPN measures, legal amounts, Tribunal de Contas account extracts, and exclusion from the main 2011 DL127 panel.
 - Recorded the panel boundary in the claim registry, reconciliation log, and data-quality registry.
+- Added `evidence/bpn_2012_boundary_requirements.csv` to gate broader-panel inclusion, actuarial/lifecycle classification, and manuscript claim language.
 - Preserved existing validated outputs.
 - Did not invent historical values, legal provisions, pension populations, actuarial cash flows, accounting classifications, or source URLs.
 
@@ -23,7 +24,7 @@ Tribunal de Contas 2012 account extracts record 11 BPN retirees, 18 survivor-pen
 
 ## Current Stop Condition
 
-The BPN case remains bounded because the registered evidence does not provide the full actuarial valuation, cash versus public-debt-security mix, bank-level worker population, monthly payment path, or post-2012 fund drawdown. The main 2011 bank-transfer estimates must not include BPN values unless a broader perimeter is explicitly defined.
+The BPN case remains bounded because the registered evidence does not provide the full actuarial valuation, cash versus public-debt-security mix, bank-level worker population, monthly payment path, or post-2012 fund drawdown. The main 2011 bank-transfer estimates must not include BPN values unless a broader perimeter is explicitly defined. This boundary is enforced by `evidence/bpn_2012_boundary_requirements.csv`.
 
 ## Validation
 

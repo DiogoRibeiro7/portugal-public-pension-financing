@@ -121,6 +121,9 @@ The main 2011 private-bank panel excludes BPN unless a broader perimeter is expl
 defined. The current BPN ledger is a bounded reconstruction: it records the legal
 transfer amount and 2012 Tribunal de Contas account extracts but not the full
 actuarial valuation or post-2012 drawdown path.
+`evidence/bpn_2012_boundary_requirements.csv` records the companion gate: BPN is a
+separate 2012 CGA case, not part of the 2011 DL127 panel or a lifecycle result,
+unless a broader perimeter and the missing component records are explicitly supplied.
 
 ## Competing explanations
 
