@@ -6,4 +6,9 @@ The current artifact layer is intentionally partial. It creates companion CSVs o
 
 Publication table companions live under `paper/tables/` and are listed in `paper/tables/table_registry.csv`.
 
-Run `python -m portugal_pensions.cli validate-evidence` to check figure coverage, companion CSV existence and source-dataset constraints.
+`evidence/publication_artifact_readiness_requirements.csv` records the readiness
+gate for the current artifact layer. It keeps blocked figures out of article use
+and limits partial figures to bounded source-backed claims until the missing
+processed series are registered.
+
+Run `python -m portugal_pensions.cli validate-evidence` to check figure coverage, companion CSV existence, source-dataset constraints and readiness boundaries.
