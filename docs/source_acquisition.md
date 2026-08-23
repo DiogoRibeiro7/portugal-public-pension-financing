@@ -25,12 +25,15 @@ The files are stored under `data/raw/source_catalogues/` and registered in
 Stored HTML captures use LF line endings so the registered hashes validate on
 Windows and Linux checkouts.
 
-A later 2026-08-23 acquisition added the official CGA 2024 annual report PDF:
+A later 2026-08-23 acquisition added official CGA annual report PDFs:
 
 - `CGA_REPORT_2024`, stored at `data/raw/cga/CGA_REPORT_2024.pdf`.
 - SHA-256:
   `9c32c61e76beb3d2d165408f1fa8c3135df1dfd7a4f908c9a932424e6a67f8b6`.
-- Selected 2024 financing, expenditure, and population values were extracted
+- `CGA_REPORT_2023`, stored at `data/raw/cga/CGA_REPORT_2023.pdf`.
+- SHA-256:
+  `85fbb2cce0614a498b653c8d1b3bdf8aedb8b62f025d5f75d5016b832df6a780`.
+- Selected 2023 and 2024 financing, expenditure, and population values were extracted
   into `data/processed/cga_financing_ledger.csv` and audited in
   `evidence/extraction_audit.csv`.
 
