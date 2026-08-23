@@ -33,7 +33,10 @@ A later 2026-08-23 acquisition added official CGA annual report PDFs:
 - `CGA_REPORT_2023`, stored at `data/raw/cga/CGA_REPORT_2023.pdf`.
 - SHA-256:
   `85fbb2cce0614a498b653c8d1b3bdf8aedb8b62f025d5f75d5016b832df6a780`.
-- Selected 2023 and 2024 financing, expenditure, and population values were extracted
+- `CGA_REPORT_2022`, stored at `data/raw/cga/CGA_REPORT_2022.pdf`.
+- SHA-256:
+  `1b0534dc566554e5552ced83edd98b4667ce07f08382030e7d13ed1d35dbe21f`.
+- Selected 2022-2024 financing, expenditure, and population values were extracted
   into `data/processed/cga_financing_ledger.csv` and audited in
   `evidence/extraction_audit.csv`.
 

@@ -13,9 +13,9 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains three partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2023-2024 CGA annual-report extracts from
-`CGA_REPORT_2023` and `CGA_REPORT_2024`.
+The ledger currently contains four partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2022-2024 CGA annual-report extracts from
+`CGA_REPORT_2022`, `CGA_REPORT_2023`, and `CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -30,6 +30,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2022 worker quotations: EUR 1,246.05687117 million.
+- 2022 employer contributions: EUR 2,646.09273500 million.
+- 2022 State Budget transfers: EUR 5,827.82 million.
+- 2022 pension expenditure: EUR 10,752.22497888 million.
+- 2022 other benefits: EUR 17.08731683 million.
+- 2022 subscribers: 386,216.
+- 2022 retirees: 482,938.
 - 2023 worker quotations: EUR 1,278.52621286 million.
 - 2023 employer contributions: EUR 2,719.38860724 million.
 - 2023 State Budget transfers: EUR 6,208.0845 million.
@@ -52,7 +59,7 @@ ledger field.
 ## Limitations
 
 CGE 2011 volume 1 does not provide a full CGA component ledger separating all
-required financing, expenditure, population, and payroll components. The 2024
+required financing, expenditure, population, and payroll components. The
 annual-report extracts resolve several high-value components but still leave
 other public transfers, investment income, administration, and contribution-base
 payroll unresolved.
