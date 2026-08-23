@@ -3500,6 +3500,7 @@ def validate_manuscript_section_boundaries(
         "MS_SOURCE_COVERAGE",
         "MS_ARCHITECTURE",
         "MS_ACCOUNTING",
+        "MS_DATA",
         "MS_CGA",
         "MS_CONTRIBUTIONS",
         "MS_REFORM",
