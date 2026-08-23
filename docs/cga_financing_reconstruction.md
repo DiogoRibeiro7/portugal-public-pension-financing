@@ -13,10 +13,10 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains five partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2021-2024 CGA annual-report extracts from
-`CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`, and
-`CGA_REPORT_2024`.
+The ledger currently contains six partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2020-2024 CGA annual-report extracts from
+`CGA_REPORT_2020`, `CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`,
+and `CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -31,6 +31,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2020 worker quotations: EUR 1,274.62763604 million.
+- 2020 employer contributions: EUR 2,707.57963028 million.
+- 2020 State Budget transfers: EUR 5,410.083453 million.
+- 2020 pension expenditure: EUR 10,131.42361827 million.
+- 2020 other benefits: EUR 21.49160065 million.
+- 2020 subscribers: 416,874.
+- 2020 retirees: 482,429.
 - 2021 worker quotations: EUR 1,286.29548744 million.
 - 2021 employer contributions: EUR 2,718.53039275 million.
 - 2021 State Budget transfers: EUR 5,488.799101 million.
