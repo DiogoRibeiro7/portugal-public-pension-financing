@@ -13,11 +13,11 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains ten partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2016-2024 CGA annual-report extracts from
-`CGA_REPORT_2016`, `CGA_REPORT_2017`, `CGA_REPORT_2018`, `CGA_REPORT_2019`,
-`CGA_REPORT_2020`, `CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`,
-and `CGA_REPORT_2024`.
+The ledger currently contains eleven partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2015-2024 CGA annual-report extracts from
+`CGA_REPORT_2015`, `CGA_REPORT_2016`, `CGA_REPORT_2017`, `CGA_REPORT_2018`,
+`CGA_REPORT_2019`, `CGA_REPORT_2020`, `CGA_REPORT_2021`, `CGA_REPORT_2022`,
+`CGA_REPORT_2023`, and `CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -32,6 +32,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2015 worker quotations: EUR 1,251.20368594 million.
+- 2015 employer contributions: EUR 2,594.29398748 million.
+- 2015 State Budget transfers: EUR 4,858.330040 million.
+- 2015 pension expenditure: EUR 9,643.30077242 million.
+- 2015 other benefits: EUR 17.28967514 million.
+- 2015 subscribers: 473,446.
+- 2015 retirees: 486,269.
 - 2016 worker quotations: EUR 1,279.87792524 million.
 - 2016 employer contributions: EUR 2,665.81717950 million.
 - 2016 State Budget transfers: EUR 4,926.016419 million.
@@ -100,7 +107,7 @@ The pensioner-count field records aposentados/reformados only. Survival and
 other pensionists are visible in the reports but are not loaded into that single
 ledger field.
 
-The 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
+The 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
 contributions as `Contribuição de Entidades`; these are loaded into the
 comparable ledger fields while retaining the source labels in the extraction
 audit.
