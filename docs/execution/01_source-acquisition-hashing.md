@@ -10,7 +10,7 @@ Status: `partial_bounded_reconstruction`
 - Checked the current repository architecture, registries, tests, and validation commands.
 - Attempted all 16 registered official sources without raw files.
 - Acquired and hashed 8 usable source pages under `data/raw/source_catalogues/`.
-- Acquired and hashed the official CGA 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, and 2024 annual report PDFs under
+- Acquired and hashed the official CGA 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, and 2024 annual report PDFs under
   `data/raw/cga/`.
 - Recorded 5 Diario da Republica shell-HTML captures as not usable evidence.
 - Recorded 3 failed acquisition attempts for later source work.
@@ -23,15 +23,15 @@ Status: `partial_bounded_reconstruction`
 ## Result
 
 Added a bounded raw-source acquisition and hashing pass for reachable registered
-official sources, then extended it with the CGA 2012, 2013, 2014, 2015, 2016,
-2017, 2018, 2019, 2020, 2021, 2022, 2023, and 2024 annual report PDFs.
+official sources, then extended it with the CGA 2011, 2012, 2013, 2014, 2015,
+2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, and 2024 annual report PDFs.
 
 ## Current Stop Condition
 
 Completion beyond this record requires acquiring the remaining official sources,
 especially the DGO archive routes, the Banco de Portugal ESA2010 page, Diario
 da Republica full-text/PDF forms that are not shell HTML, and older CGA annual
-reports needed for historical component extraction.
+reports needed for historical component extraction before 2011.
 
 ## Validation
 
