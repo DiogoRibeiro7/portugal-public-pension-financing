@@ -13,8 +13,9 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains fourteen partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2012-2024 CGA annual-report extracts from
+The ledger currently contains fourteen partial quantitative year rows: the 2011
+row combines `DGO_CGE_2011` balance fields with `CGA_REPORT_2011`
+annual-report components, and 2012-2024 CGA annual-report extracts from
 `CGA_REPORT_2012`, `CGA_REPORT_2013`, `CGA_REPORT_2014`, `CGA_REPORT_2015`,
 `CGA_REPORT_2016`, `CGA_REPORT_2017`, `CGA_REPORT_2018`, `CGA_REPORT_2019`,
 `CGA_REPORT_2020`, `CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`,
@@ -33,6 +34,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2011 worker quotations: EUR 1,427.88447644 million.
+- 2011 employer contributions: EUR 1,932.47407649 million.
+- 2011 State Budget transfers: EUR 4,452.564710 million.
+- 2011 pension expenditure: EUR 8,713.54592825 million.
+- 2011 other benefits: EUR 43.55300935 million.
+- 2011 subscribers: 559,164.
+- 2011 retirees: 453,129.
 - 2012 worker quotations: EUR 1,204.79904221 million.
 - 2012 employer contributions: EUR 1,621.80647907 million.
 - 2012 State Budget transfers: EUR 4,468.604472 million.
@@ -129,16 +137,16 @@ The pensioner-count field records aposentados/reformados only. Survival and
 other pensionists are visible in the reports but are not loaded into that single
 ledger field.
 
-The 2012, 2013, 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
+The 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
 contributions as `Contribuição de Entidades`; these are loaded into the
 comparable ledger fields while retaining the source labels in the extraction
 audit.
 
 ## Limitations
 
-CGE 2011 volume 1 does not provide a full CGA component ledger separating all
-required financing, expenditure, population, and payroll components. The
-annual-report extracts resolve several high-value components but still leave
+CGE 2011 volume 1 alone does not provide a full CGA component ledger separating
+all required financing, expenditure, population, and payroll components. The CGA
+annual-report extraction resolves several high-value components but still leaves
 other public transfers, investment income, administration, and contribution-base
 payroll unresolved.
 
