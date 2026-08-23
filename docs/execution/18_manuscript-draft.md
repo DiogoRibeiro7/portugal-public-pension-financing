@@ -21,6 +21,7 @@ Status: `partial_bounded_reconstruction`
 - Added an evidence-and-validation method section tied to the manuscript section-boundary gate.
 - Added a related-work and contribution section tied to the bounded literature map.
 - Added a research-questions section tied to the analysis protocol and missing-input boundary.
+- Added a scope-and-units section tied to the concept registry and non-equivalence rules.
 
 ## Result
 
