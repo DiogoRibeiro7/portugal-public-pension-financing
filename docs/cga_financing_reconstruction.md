@@ -13,11 +13,11 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains eleven partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2015-2024 CGA annual-report extracts from
-`CGA_REPORT_2015`, `CGA_REPORT_2016`, `CGA_REPORT_2017`, `CGA_REPORT_2018`,
-`CGA_REPORT_2019`, `CGA_REPORT_2020`, `CGA_REPORT_2021`, `CGA_REPORT_2022`,
-`CGA_REPORT_2023`, and `CGA_REPORT_2024`.
+The ledger currently contains twelve partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2014-2024 CGA annual-report extracts from
+`CGA_REPORT_2014`, `CGA_REPORT_2015`, `CGA_REPORT_2016`, `CGA_REPORT_2017`,
+`CGA_REPORT_2018`, `CGA_REPORT_2019`, `CGA_REPORT_2020`, `CGA_REPORT_2021`,
+`CGA_REPORT_2022`, `CGA_REPORT_2023`, and `CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -32,6 +32,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2014 worker quotations: EUR 1,292.82254270 million.
+- 2014 employer contributions: EUR 2,665.44809246 million.
+- 2014 State Budget transfers: EUR 4,130.842669 million.
+- 2014 pension expenditure: EUR 9,445.45235924 million.
+- 2014 other benefits: EUR 16.57673879 million.
+- 2014 subscribers: 484,526.
+- 2014 retirees: 482,706.
 - 2015 worker quotations: EUR 1,251.20368594 million.
 - 2015 employer contributions: EUR 2,594.29398748 million.
 - 2015 State Budget transfers: EUR 4,858.330040 million.
@@ -107,7 +114,7 @@ The pensioner-count field records aposentados/reformados only. Survival and
 other pensionists are visible in the reports but are not loaded into that single
 ledger field.
 
-The 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
+The 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
 contributions as `Contribuição de Entidades`; these are loaded into the
 comparable ledger fields while retaining the source labels in the extraction
 audit.
