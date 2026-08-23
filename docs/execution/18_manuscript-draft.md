@@ -19,6 +19,7 @@ Status: `partial_bounded_reconstruction`
 - Recompiled `paper/manuscript.pdf` from the revised source and synchronized the loaded-language
   audit ledger.
 - Added an evidence-and-validation method section tied to the manuscript section-boundary gate.
+- Added a related-work and contribution section tied to the bounded literature map.
 
 ## Result
 

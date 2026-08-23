@@ -3494,6 +3494,7 @@ def validate_manuscript_section_boundaries(
     required_sections = {
         "MS_INTRO",
         "MS_METHOD",
+        "MS_RELATED",
         "MS_ARCHITECTURE",
         "MS_ACCOUNTING",
         "MS_CGA",
