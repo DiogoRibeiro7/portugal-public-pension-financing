@@ -23,6 +23,7 @@ Status: `partial_bounded_reconstruction`
 - Added a research-questions section tied to the analysis protocol and missing-input boundary.
 - Added a scope-and-units section tied to the concept registry and non-equivalence rules.
 - Added a source-coverage and conflict-handling section tied to source status and reconciliation gates.
+- Added a section-boundary gate for the existing data and historical reconstruction section.
 
 ## Result
 
