@@ -13,12 +13,12 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains thirteen partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2013-2024 CGA annual-report extracts from
-`CGA_REPORT_2013`, `CGA_REPORT_2014`, `CGA_REPORT_2015`, `CGA_REPORT_2016`,
-`CGA_REPORT_2017`, `CGA_REPORT_2018`, `CGA_REPORT_2019`, `CGA_REPORT_2020`,
-`CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`, and
-`CGA_REPORT_2024`.
+The ledger currently contains fourteen partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2012-2024 CGA annual-report extracts from
+`CGA_REPORT_2012`, `CGA_REPORT_2013`, `CGA_REPORT_2014`, `CGA_REPORT_2015`,
+`CGA_REPORT_2016`, `CGA_REPORT_2017`, `CGA_REPORT_2018`, `CGA_REPORT_2019`,
+`CGA_REPORT_2020`, `CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`,
+and `CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -33,6 +33,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2012 worker quotations: EUR 1,204.79904221 million.
+- 2012 employer contributions: EUR 1,621.80647907 million.
+- 2012 State Budget transfers: EUR 4,468.604472 million.
+- 2012 pension expenditure: EUR 7,950.81699733 million.
+- 2012 other benefits: EUR 33.26012993 million.
+- 2012 subscribers: 531,814.
+- 2012 retirees: 462,446.
 - 2013 worker quotations: EUR 1,335.20041667 million.
 - 2013 employer contributions: EUR 2,303.42092459 million.
 - 2013 State Budget transfers: EUR 4,364.146366 million.
@@ -122,7 +129,7 @@ The pensioner-count field records aposentados/reformados only. Survival and
 other pensionists are visible in the reports but are not loaded into that single
 ledger field.
 
-The 2013, 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
+The 2012, 2013, 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
 contributions as `Contribuição de Entidades`; these are loaded into the
 comparable ledger fields while retaining the source labels in the extraction
 audit.
