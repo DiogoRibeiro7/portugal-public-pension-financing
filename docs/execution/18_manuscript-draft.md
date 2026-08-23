@@ -22,6 +22,7 @@ Status: `partial_bounded_reconstruction`
 - Added a related-work and contribution section tied to the bounded literature map.
 - Added a research-questions section tied to the analysis protocol and missing-input boundary.
 - Added a scope-and-units section tied to the concept registry and non-equivalence rules.
+- Added a source-coverage and conflict-handling section tied to source status and reconciliation gates.
 
 ## Result
 
