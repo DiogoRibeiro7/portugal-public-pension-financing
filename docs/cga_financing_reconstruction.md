@@ -11,10 +11,11 @@ Rows without extracted component values are explicit blockers, not zeros. They
 point to registered official account routes and carry the missing component list
 needed before a complete financing identity can be computed.
 
-## Current Extract
+## Current Extracts
 
-The only current quantitative CGA financing extract remains the bounded 2011 row
-from `DGO_CGE_2011`.
+The ledger currently contains two partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and a 2024 CGA annual-report extract from
+`CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -27,16 +28,30 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 `186.2 = 476.7 + (-290.6) + 0.1`
 
+Extracted CGA 2024 values from the annual report:
+
+- Worker quotations: EUR 1,364.79288482 million.
+- Employer contributions: EUR 2,904.15942995 million.
+- State Budget transfers: EUR 7,126.116564 million.
+- Pension expenditure: EUR 12,329.25635274 million.
+- Other benefits: EUR 19.20822306 million.
+- Subscribers: 359,795.
+- Retirees: 494,354.
+
+The 2024 pensioner-count field records aposentados/reformados only. Survival
+and other pensionists are visible in the report but are not loaded into that
+single ledger field.
+
 ## Limitations
 
-CGE 2011 volume 1 does not provide a full CGA component ledger separating
-employee quotations, employer contributions, total State Budget transfers, other
-public transfers, investment income, pension expenditure, other benefits,
-administration, contributor count, pensioner count and payroll. Those missing
-components are recorded both in the ledger row and in
-`evidence/data_quality_registry.csv`.
+CGE 2011 volume 1 does not provide a full CGA component ledger separating all
+required financing, expenditure, population, and payroll components. The 2024
+CGA report extract resolves several high-value components but still leaves
+other public transfers, investment income, administration, and contribution-base
+payroll unresolved.
 
-Rows marked `partial_cge_extract` or `blocked_missing_primary_account_components`
-must not be used as complete financing identities. `python -m
-portugal_pensions.cli validate-evidence` enforces this distinction, the
-1977-2025 row coverage, source IDs, and the 2011 balance-decomposition residual.
+Rows marked `partial_cge_extract`, `partial_cga_report_extract`, or
+`blocked_missing_primary_account_components` must not be used as complete
+financing identities. `python -m portugal_pensions.cli validate-evidence`
+enforces this distinction, the 1977-2025 row coverage, source IDs, and the 2011
+balance-decomposition residual.
