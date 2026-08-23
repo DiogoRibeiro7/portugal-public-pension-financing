@@ -245,6 +245,7 @@ def validate_cga_financing_ledger(
         "blocked_missing_primary_account_components",
         "complete",
         "partial_cge_extract",
+        "partial_cga_report_extract",
     }
     allowed_identity_statuses = {"blocked_missing_components", "reconciled"}
     allowed_units = {"EUR_million", "mixed"}
@@ -300,9 +301,18 @@ def validate_cga_financing_ledger(
                     errors.append(f"Complete CGA ledger row {row_number} missing {column}")
             if identity_status != "reconciled":
                 errors.append(f"Complete CGA ledger row {row_number} must reconcile identity")
-        elif status in {"blocked_missing_primary_account_components", "partial_cge_extract"}:
+        elif status in {
+            "blocked_missing_primary_account_components",
+            "partial_cge_extract",
+            "partial_cga_report_extract",
+        }:
             missing_components = set(_field(record, "missing_components").split(";"))
-            for component in sorted(required_missing_components.difference(missing_components)):
+            required_blockers = {
+                component
+                for component in required_missing_components
+                if not _field(record, component)
+            }
+            for component in sorted(required_blockers.difference(missing_components)):
                 errors.append(
                     f"Incomplete CGA ledger row {row_number} missing blocker for {component}"
                 )

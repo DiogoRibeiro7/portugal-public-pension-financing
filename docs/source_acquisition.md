@@ -25,6 +25,15 @@ The files are stored under `data/raw/source_catalogues/` and registered in
 Stored HTML captures use LF line endings so the registered hashes validate on
 Windows and Linux checkouts.
 
+A later 2026-08-23 acquisition added the official CGA 2024 annual report PDF:
+
+- `CGA_REPORT_2024`, stored at `data/raw/cga/CGA_REPORT_2024.pdf`.
+- SHA-256:
+  `9c32c61e76beb3d2d165408f1fa8c3135df1dfd7a4f908c9a932424e6a67f8b6`.
+- Selected 2024 financing, expenditure, and population values were extracted
+  into `data/processed/cga_financing_ledger.csv` and audited in
+  `evidence/extraction_audit.csv`.
+
 ## Rejected Captures
 
 Five Diário da República detail URLs returned generic OutSystems shell HTML
