@@ -13,9 +13,9 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains two partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and a 2024 CGA annual-report extract from
-`CGA_REPORT_2024`.
+The ledger currently contains three partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2023-2024 CGA annual-report extracts from
+`CGA_REPORT_2023` and `CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -28,25 +28,32 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 `186.2 = 476.7 + (-290.6) + 0.1`
 
-Extracted CGA 2024 values from the annual report:
+Extracted CGA annual-report values:
 
-- Worker quotations: EUR 1,364.79288482 million.
-- Employer contributions: EUR 2,904.15942995 million.
-- State Budget transfers: EUR 7,126.116564 million.
-- Pension expenditure: EUR 12,329.25635274 million.
-- Other benefits: EUR 19.20822306 million.
-- Subscribers: 359,795.
-- Retirees: 494,354.
+- 2023 worker quotations: EUR 1,278.52621286 million.
+- 2023 employer contributions: EUR 2,719.38860724 million.
+- 2023 State Budget transfers: EUR 6,208.0845 million.
+- 2023 pension expenditure: EUR 11,242.25151920 million.
+- 2023 other benefits: EUR 20.28792585 million.
+- 2023 subscribers: 380,060.
+- 2023 retirees: 487,576.
+- 2024 worker quotations: EUR 1,364.79288482 million.
+- 2024 employer contributions: EUR 2,904.15942995 million.
+- 2024 State Budget transfers: EUR 7,126.116564 million.
+- 2024 pension expenditure: EUR 12,329.25635274 million.
+- 2024 other benefits: EUR 19.20822306 million.
+- 2024 subscribers: 359,795.
+- 2024 retirees: 494,354.
 
-The 2024 pensioner-count field records aposentados/reformados only. Survival
-and other pensionists are visible in the report but are not loaded into that
-single ledger field.
+The pensioner-count field records aposentados/reformados only. Survival and
+other pensionists are visible in the reports but are not loaded into that single
+ledger field.
 
 ## Limitations
 
 CGE 2011 volume 1 does not provide a full CGA component ledger separating all
 required financing, expenditure, population, and payroll components. The 2024
-CGA report extract resolves several high-value components but still leaves
+annual-report extracts resolve several high-value components but still leave
 other public transfers, investment income, administration, and contribution-base
 payroll unresolved.
 

@@ -12,7 +12,7 @@ Status: `partial_bounded_reconstruction`
   2025.
 - Preserved the 2011 CGE extract for global balance, PT pension-fund effect,
   balance excluding PT effect, and additional State transfer.
-- Added a partial 2024 extraction from the official CGA annual report for
+- Added partial 2023 and 2024 extractions from official CGA annual reports for
   worker quotations, employer contributions, State Budget transfers, pension
   expenditure, other benefits, subscribers, and retirees.
 - Marked years without component extraction as blocked rows rather than leaving
@@ -23,13 +23,13 @@ Status: `partial_bounded_reconstruction`
 ## Result
 
 Added an executable year-level CGA financing ledger gate and extended it with a
-partial 2024 annual-report extraction.
+partial 2023 and 2024 annual-report extractions.
 
 ## Current Stop Condition
 
 Completion beyond this bounded ledger requires additional CGA annual report and
 CGE account extraction, especially for other public transfers, investment
-income, administration, payroll, and historical years before 2024.
+income, administration, payroll, and historical years before 2023.
 
 ## Validation
 
