@@ -13,11 +13,12 @@ needed before a complete financing identity can be computed.
 
 ## Current Extracts
 
-The ledger currently contains twelve partial quantitative extracts: the bounded
-2011 row from `DGO_CGE_2011` and 2014-2024 CGA annual-report extracts from
-`CGA_REPORT_2014`, `CGA_REPORT_2015`, `CGA_REPORT_2016`, `CGA_REPORT_2017`,
-`CGA_REPORT_2018`, `CGA_REPORT_2019`, `CGA_REPORT_2020`, `CGA_REPORT_2021`,
-`CGA_REPORT_2022`, `CGA_REPORT_2023`, and `CGA_REPORT_2024`.
+The ledger currently contains thirteen partial quantitative extracts: the bounded
+2011 row from `DGO_CGE_2011` and 2013-2024 CGA annual-report extracts from
+`CGA_REPORT_2013`, `CGA_REPORT_2014`, `CGA_REPORT_2015`, `CGA_REPORT_2016`,
+`CGA_REPORT_2017`, `CGA_REPORT_2018`, `CGA_REPORT_2019`, `CGA_REPORT_2020`,
+`CGA_REPORT_2021`, `CGA_REPORT_2022`, `CGA_REPORT_2023`, and
+`CGA_REPORT_2024`.
 
 Extracted CGE 2011 values:
 
@@ -32,6 +33,13 @@ The balance decomposition reconciles with a EUR 0.1 million rounding residual:
 
 Extracted CGA annual-report values:
 
+- 2013 worker quotations: EUR 1,335.20041667 million.
+- 2013 employer contributions: EUR 2,303.42092459 million.
+- 2013 State Budget transfers: EUR 4,364.146366 million.
+- 2013 pension expenditure: EUR 9,212.97587337 million.
+- 2013 other benefits: EUR 17.46504520 million.
+- 2013 subscribers: 509,869.
+- 2013 retirees: 471,149.
 - 2014 worker quotations: EUR 1,292.82254270 million.
 - 2014 employer contributions: EUR 2,665.44809246 million.
 - 2014 State Budget transfers: EUR 4,130.842669 million.
@@ -114,7 +122,7 @@ The pensioner-count field records aposentados/reformados only. Survival and
 other pensionists are visible in the reports but are not loaded into that single
 ledger field.
 
-The 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
+The 2013, 2014, 2015, 2016, 2017, 2018, and 2019 reports label worker quotations as `Quotas` and employer
 contributions as `Contribuição de Entidades`; these are loaded into the
 comparable ledger fields while retaining the source labels in the extraction
 audit.
