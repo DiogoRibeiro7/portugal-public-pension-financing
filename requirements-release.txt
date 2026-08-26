@@ -8,5 +8,5 @@ mypy==1.20.2
 pandas-stubs==2.3.3.260113
 types-PyYAML==6.0.12.20250915
 jupyter==1.0.0
-matplotlib==3.10.8
+matplotlib==3.11.1
 scipy==1.15.3
