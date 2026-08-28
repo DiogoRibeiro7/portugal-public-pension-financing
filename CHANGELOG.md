@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-08-28
+
+- added official 2023 and 2024 CGE public-account workbook extracts for Social Security, central government, central government plus Social Security, and public administrations;
+- registered CGE report/workbook URLs, retrieval dates, SHA-256 hashes, licensing posture, coverage status and extraction-audit rows;
+- added validated 2023 and 2024 Social Security revenue, expenditure, contribution, State Budget transfer and pension-expenditure anchors;
+- moved unclear-redistribution raw source files out of tracked release archives while preserving source URLs, hashes and local acquisition paths;
+- kept working notes and instruction files local-only and out of remote archives.
+
 ## 0.1.0 — 2026-08-19
 
 - Initial research repository.
@@ -23,4 +31,3 @@
 - added literature/novelty, licensing, manuscript-language and submission-replication prompts;
 - expanded all pre-existing task prompts with execution, provenance, QA and completion contracts;
 - removed generated cache artifacts from the release package.
-
