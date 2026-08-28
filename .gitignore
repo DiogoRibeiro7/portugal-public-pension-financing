@@ -20,6 +20,7 @@ build/
 # keeps source URLs, hashes, and derived extracts instead of republishing raws.
 /data/raw/**/*.html
 /data/raw/**/*.pdf
+/data/raw/**/*.xls
 /data/raw/**/*.xlsx
 !/data/raw/README.md
 
