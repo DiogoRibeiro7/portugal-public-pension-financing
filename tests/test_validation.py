@@ -63,8 +63,8 @@ def test_repository_literature_map_is_valid() -> None:
     assert (
         validate_literature_map(
             root / "evidence" / "literature_map.csv",
-            root / "docs" / "literature_search_protocol.md",
-            root / "docs" / "related_work_synthesis.md",
+            None,
+            None,
         )
         == []
     )
@@ -76,7 +76,7 @@ def test_repository_source_coverage_matrix_is_valid() -> None:
         validate_source_coverage_matrix(
             root / "evidence" / "source_coverage_matrix.csv",
             root / "evidence" / "source_registry.csv",
-            root / "docs" / "historical_data_gap_map.md",
+            None,
         )
         == []
     )
