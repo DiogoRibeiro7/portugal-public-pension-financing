@@ -74,7 +74,6 @@ data/processed/          validated analytical datasets
 evidence/                source, claim, legal and reconciliation registries
 notebooks/               sequential research notebooks
 paper/                   manuscript scaffold and hypothesis registry
-prompts/                 reproducible research prompts and audit instructions
 src/portugal_pensions/   reusable research code
 tests/                   deterministic unit tests
 ```

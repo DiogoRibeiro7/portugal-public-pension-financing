@@ -18,6 +18,10 @@ build/
 *.synctex.gz
 # Raw data are intentionally not ignored: provenance matters.
 
+# Local working notes and instruction files.
+/docs/
+/prompts/
+
 # LaTeX build artifacts
 *.aux
 *.bbl

@@ -699,7 +699,7 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
             validate_source_coverage_matrix(
                 evidence_dir / "source_coverage_matrix.csv",
                 evidence_dir / "source_registry.csv",
-                evidence_dir.parent / "docs" / "historical_data_gap_map.md",
+                None,
             )
         )
     if (evidence_dir / "concept_registry.csv").is_file():
@@ -710,8 +710,8 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
         errors.extend(
             validate_literature_map(
                 evidence_dir / "literature_map.csv",
-                evidence_dir.parent / "docs" / "literature_search_protocol.md",
-                evidence_dir.parent / "docs" / "related_work_synthesis.md",
+                None,
+                None,
             )
         )
     if (evidence_dir / "analysis_protocol.csv").is_file():
@@ -1596,14 +1596,14 @@ def validate_source_acquisition_log(
 def validate_source_coverage_matrix(
     matrix_path: Path,
     source_registry_path: Path,
-    gap_map_path: Path,
+    gap_map_path: Path | None,
 ) -> list[str]:
     """Return validation errors for the historical source coverage matrix."""
     if not isinstance(matrix_path, Path):
         raise TypeError("matrix_path must be pathlib.Path")
     if not isinstance(source_registry_path, Path):
         raise TypeError("source_registry_path must be pathlib.Path")
-    if not isinstance(gap_map_path, Path):
+    if gap_map_path is not None and not isinstance(gap_map_path, Path):
         raise TypeError("gap_map_path must be pathlib.Path")
 
     matrix = pd.read_csv(matrix_path, dtype=str, keep_default_na=False)
@@ -1674,6 +1674,9 @@ def validate_source_coverage_matrix(
                     f"{source_id}"
                 )
 
+    if gap_map_path is None:
+        return errors
+
     if not gap_map_path.is_file():
         errors.append(f"Missing historical data gap map: {gap_map_path}")
     else:
@@ -1689,15 +1692,15 @@ def validate_source_coverage_matrix(
 
 def validate_literature_map(
     map_path: Path,
-    protocol_path: Path,
-    synthesis_path: Path,
+    protocol_path: Path | None,
+    synthesis_path: Path | None,
 ) -> list[str]:
     """Return validation errors for the literature and novelty map."""
     if not isinstance(map_path, Path):
         raise TypeError("map_path must be pathlib.Path")
-    if not isinstance(protocol_path, Path):
+    if protocol_path is not None and not isinstance(protocol_path, Path):
         raise TypeError("protocol_path must be pathlib.Path")
-    if not isinstance(synthesis_path, Path):
+    if synthesis_path is not None and not isinstance(synthesis_path, Path):
         raise TypeError("synthesis_path must be pathlib.Path")
 
     literature = pd.read_csv(map_path, dtype=str, keep_default_na=False)
@@ -1776,6 +1779,8 @@ def validate_literature_map(
         (protocol_path, "literature search protocol"),
         (synthesis_path, "related-work synthesis"),
     ):
+        if path is None:
+            continue
         if not path.is_file():
             errors.append(f"Missing {label}: {path}")
             continue
