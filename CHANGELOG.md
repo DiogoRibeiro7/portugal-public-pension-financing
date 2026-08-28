@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 — 2026-08-28
+
+- updated Zenodo metadata references to include the official DGO CGE 2023 and 2024 report and workbook sources used by the public-account extracts.
+
 ## 0.3.0 — 2026-08-28
 
 - added official 2023 and 2024 CGE public-account workbook extracts for Social Security, central government, central government plus Social Security, and public administrations;

@@ -2,7 +2,7 @@
   "title": "Who Funded the Public Pension Promise? Historical financing of Portugal's CGA, Social Security, and transferred banking-sector pension liabilities",
   "upload_type": "software",
   "publication_date": "2026-08-28",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "language": "eng",
   "license": "mit",
   "access_right": "open",
@@ -52,7 +52,11 @@
     "Decreto-Lei n.º 54/2009: new banking-sector workers enter the general social security regime.",
     "Decreto-Lei n.º 1-A/2011: active banking-sector workers covered by CAFEB are integrated into the general regime for specified contingencies and CAFEB is extinguished.",
     "Decreto-Lei n.º 127/2011: Social Security assumes specified pensions in payment on 31 December 2011, the assets of the relevant private pension funds are transferred to the State, the State becomes responsible for financing those pensions through a specific transfer to Social Security, and the corresponding bank responsibilities are definitively extinguished once the transfer is made.",
-    "Decreto-Lei n.º 88/2012: special treatment for the BPN group transfers specified liabilities to CGA with corresponding financing."
+    "Decreto-Lei n.º 88/2012: special treatment for the BPN group transfers specified liabilities to CGA with corresponding financing.",
+    "Direção-Geral do Orçamento. Conta Geral do Estado 2023, volume 1, tomo 1. https://www.dgo.gov.pt/politicaorcamental/ContaGeraldoEstado/2023/CGE_2023_vol1tomo01.pdf",
+    "Direção-Geral do Orçamento. Conta Geral do Estado 2023, quadros volume 1, tomo 1. https://www.dgo.gov.pt/politicaorcamental/ContaGeraldoEstado/2023/CGE2023_Quadros_vol1tomo1.xlsx",
+    "Direção-Geral do Orçamento. Conta Geral do Estado 2024, relatório de análise global e Conta da Segurança Social. https://www.dgo.gov.pt/politicaorcamental/ContaGeraldoEstado/01_CGE2024_Relatorio_AnaliseGlobal_ContaSS.pdf",
+    "Direção-Geral do Orçamento. Conta Geral do Estado 2024, quadros e gráficos. https://www.dgo.gov.pt/politicaorcamental/ContaGeraldoEstado/CGE2024_Quadros_Graficos.xlsx"
   ],
   "related_identifiers": [
     {
