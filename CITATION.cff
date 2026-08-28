@@ -15,7 +15,7 @@ authors:
     given-names: Diogo
     orcid: "https://orcid.org/0009-0001-2022-7072"
     affiliation: "School of Media Arts and Design, Polytechnic of Porto"
-version: 0.3.0
+version: 0.3.1
 date-released: 2026-08-28
 license: MIT
 repository-code: "https://github.com/DiogoRibeiro7/portugal-public-pension-financing"
