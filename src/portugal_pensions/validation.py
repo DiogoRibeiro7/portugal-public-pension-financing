@@ -604,6 +604,50 @@ TEXT_MANIFEST_SUFFIXES: frozenset[str] = frozenset(
 )
 TEXT_MANIFEST_NAMES: frozenset[str] = frozenset({"Makefile"})
 
+MANIFEST_EXCLUDED_PATHS: frozenset[str] = frozenset(
+    {
+        # Dependency pins. Automated dependency updates rewrite these files but
+        # cannot regenerate the manifest, so covering them makes every such
+        # update fail the integrity gate on the very file it exists to change.
+        # Their integrity is already carried by version control and the lock
+        # file itself.
+        "pyproject.toml",
+        "requirements-release.txt",
+        # Workflow action pins, for the same reason.
+        ".github/workflows/ci.yml",
+        # Derived artifact. The PDF is rebuilt from paper/manuscript.tex, which
+        # is covered, and its bytes are not reproducible: each build embeds a
+        # fresh creation timestamp and file id.
+        "paper/manuscript.pdf",
+    }
+)
+
+
+def _raw_file_may_be_absent_for_release(source_id: str, root: Path) -> bool:
+    """Return True when licensing metadata excludes a raw file from release archives."""
+    license_path = root / "evidence" / "data_license_registry.csv"
+    if not license_path.is_file():
+        return False
+
+    try:
+        licenses = pd.read_csv(license_path, dtype=str, keep_default_na=False)
+    except Exception:  # pragma: no cover - defensive parsing boundary
+        return False
+
+    required_columns = {"source_id", "redistribution_status", "repository_action"}
+    if not required_columns.issubset(licenses.columns):
+        return False
+
+    matches = licenses.loc[licenses["source_id"].astype(str) == source_id]
+    if matches.empty:
+        return False
+
+    row = matches.iloc[0]
+    return (
+        str(row["redistribution_status"]).strip() == "permission_unclear_do_not_redistribute"
+        and "exclude_raw_from_public_release" in str(row["repository_action"])
+    )
+
 
 def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     """Return validation errors for the repository evidence directory."""
@@ -1564,7 +1608,8 @@ def validate_source_acquisition_log(
                 continue
             raw_file = root / candidate
             if not raw_file.is_file():
-                errors.append(f"Source acquisition raw file is missing: {raw_path}")
+                if not _raw_file_may_be_absent_for_release(source_id, root):
+                    errors.append(f"Source acquisition raw file is missing: {raw_path}")
                 continue
             actual_hash = hashlib.sha256(raw_file.read_bytes()).hexdigest()
             if actual_hash != expected_hash:
@@ -3998,7 +4043,8 @@ def validate_source_registry(registry_path: Path, root: Path) -> list[str]:
 
         raw_file = root / candidate
         if not raw_file.is_file():
-            errors.append(f"Source {source_id} raw file is missing: {raw_path_value}")
+            if not _raw_file_may_be_absent_for_release(source_id, root):
+                errors.append(f"Source {source_id} raw file is missing: {raw_path_value}")
             continue
 
         actual_hash = hashlib.sha256(raw_file.read_bytes()).hexdigest()
@@ -4131,6 +4177,12 @@ def validate_manifest(manifest_path: Path, root: Path | None = None) -> list[str
         candidate = Path(relative_path.removeprefix("./"))
         if candidate.is_absolute() or ".." in candidate.parts:
             errors.append(f"Unsafe manifest path on line {line_number}: {relative_path}")
+            continue
+
+        if candidate.as_posix() in MANIFEST_EXCLUDED_PATHS:
+            errors.append(
+                f"Manifest covers an excluded path on line {line_number}: {relative_path}"
+            )
             continue
 
         path = root_dir / candidate

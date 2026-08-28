@@ -16,7 +16,12 @@ build/
 *.log
 *.out
 *.synctex.gz
-# Raw data are intentionally not ignored: provenance matters.
+# Raw source files with unclear redistribution stay local-only. The repository
+# keeps source URLs, hashes, and derived extracts instead of republishing raws.
+/data/raw/**/*.html
+/data/raw/**/*.pdf
+/data/raw/**/*.xlsx
+!/data/raw/README.md
 
 # Local working notes and instruction files.
 /docs/
