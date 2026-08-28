@@ -14,6 +14,9 @@ Status: `partial_bounded_reconstruction`
   `data/raw/cga/`.
 - Recorded 5 Diario da Republica shell-HTML captures as not usable evidence.
 - Recorded 3 failed acquisition attempts for later source work.
+- A later 2026-08-28 route-recovery pass acquired the DGO Conta Geral do
+  Estado and State Budget catalogue anchors and refreshed the IGFSS Social
+  Security budget/account page.
 - Added `evidence/source_acquisition_log.csv` and `docs/source_acquisition.md`.
 - Added an acquisition-log validation gate tying raw files to the source
   registry and SHA-256 hashes.
@@ -29,9 +32,10 @@ official sources, then extended it with the CGA 2011, 2012, 2013, 2014, 2015,
 ## Current Stop Condition
 
 Completion beyond this record requires acquiring the remaining official sources,
-especially the DGO archive routes, the Banco de Portugal ESA2010 page, Diario
-da Republica full-text/PDF forms that are not shell HTML, and older CGA annual
-reports needed for historical component extraction before 2011.
+especially the Banco de Portugal ESA2010 page, Diario da Republica full-text/PDF
+forms that are not shell HTML, the Tribunal de Contas 2024 opinion, year-level
+DGO documents from the recovered catalogues, and older CGA annual reports needed
+for historical component extraction before 2011.
 
 ## Validation
 

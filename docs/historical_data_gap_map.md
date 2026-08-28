@@ -39,10 +39,12 @@ The bounded source pass registered official catalogue anchors for:
 - INE historical publications.
 - Banco de Portugal ESA2010 statistical-series release.
 
-These are discovery anchors, not completed acquisitions. Rows marked `observed`
-mean that an official route or already acquired official source was identified
-for that variable-year. They do not mean the relevant table has already been
-downloaded, hashed, extracted, and reconciled.
+The DGO CGE and State Budget catalogue anchors, CGA annual-report anchors, and
+IGFSS Social Security budget/account page are acquired raw evidence, but they
+are still route-level sources for many rows. Rows marked `observed` mean that an
+official route or already acquired official source was identified for that
+variable-year. They do not mean the relevant table has already been downloaded,
+hashed, extracted, and reconciled.
 
 ## Main Breaks
 

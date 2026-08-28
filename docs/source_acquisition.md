@@ -73,6 +73,22 @@ A later 2026-08-23 acquisition added official CGA annual report PDFs:
   into `data/processed/cga_financing_ledger.csv` and audited in
   `evidence/extraction_audit.csv`.
 
+A later 2026-08-28 route-recovery pass acquired official DGO catalogue anchors
+and refreshed the IGFSS catalogue capture:
+
+- `DGO_CGE_ARCHIVE`, stored at
+  `data/raw/source_catalogues/DGO_CGE_ARCHIVE.html`.
+- SHA-256:
+  `ad07c248aed59e6975d3537a8d6d90706bc058ac710ddf8a9a65523039e32ed4`.
+- `DGO_OE_ARCHIVE`, stored at
+  `data/raw/source_catalogues/DGO_OE_ARCHIVE.html`.
+- SHA-256:
+  `defeafa77854787d9bcfbab94e531626c35dd826466391d5ec2d108f94c3c5aa`.
+- `IGFSS_CSS_ARCHIVE`, refreshed at
+  `data/raw/source_catalogues/IGFSS_CSS_ARCHIVE.html`.
+- SHA-256:
+  `4401b2d662845f9cc191f5c287405cbbd0ed99524ffdf2916b0149891d66eb27`.
+
 ## Rejected Captures
 
 Five Diário da República detail URLs returned generic OutSystems shell HTML
@@ -82,14 +98,13 @@ marked as acquired sources in `evidence/source_registry.csv`.
 
 ## Failed Attempts
 
-Three registered URLs were not acquired in this pass:
+One registered URL from this pass still lacks an acquired source:
 
-- DGO Conta Geral do Estado archive: SSL connection failure.
-- DGO State Budget archive: SSL connection failure.
 - Banco de Portugal ESA2010 statistical-series release: HTTP failure.
 
-They remain registered source routes and need a later acquisition path. Existing
-already-acquired PDFs remain unchanged.
+The DGO archive routes that initially failed with SSL errors were recovered on
+2026-08-28 using a certificate-fallback request. Existing already-acquired PDFs
+remain unchanged.
 
 ## Gate
 
