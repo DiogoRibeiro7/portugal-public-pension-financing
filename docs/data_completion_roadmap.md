@@ -9,8 +9,8 @@ they are ranked after the core public-finance spine.
 
 Current coverage-matrix baseline:
 
-- 29 registered sources acquired as usable raw evidence.
-- 8 registered sources still lack usable raw evidence.
+- 31 registered sources acquired as usable raw evidence.
+- 6 registered sources still lack usable raw evidence.
 - 396 open coverage rows require extraction, backfill, provisional-series
   review, or accounting-boundary resolution.
 - 208 of those rows are directly marked `not_extracted`.
@@ -19,17 +19,25 @@ Current coverage-matrix baseline:
 
 ## 1. Source Recovery Required Before Extraction
 
-These 8 registered sources must be recovered as citable raw evidence or replaced
+These 6 registered sources must be recovered as citable raw evidence or replaced
 with accepted official alternates:
 
-- `DGO_CGE_ARCHIVE`: Conta Geral do Estado archive route or year-level CGE PDFs.
-- `DGO_OE_ARCHIVE`: State Budget archive route or year-level budget PDFs.
 - `BDP_ESA2010_SERIES`: Banco de Portugal ESA2010 statistical-series evidence.
 - `DR_DL127_2011`: citable decree text or PDF.
 - `DR_LEI60_2005`: citable law text or PDF.
 - `DR_EA_CONSOLIDATED`: citable consolidated Estatuto da Aposentacao text or PDF.
 - `DR_LEI64_1977`: citable law text or PDF.
 - `TC_PCGE_2024`: citable Tribunal de Contas opinion text or PDF.
+
+Recovered on 2026-08-28 as catalogue anchors:
+
+- `DGO_CGE_ARCHIVE`: official Conta Geral do Estado archive page captured and
+  hashed under `data/raw/source_catalogues/`.
+- `DGO_OE_ARCHIVE`: official State Budget archive page captured and hashed
+  under `data/raw/source_catalogues/`.
+
+These recovered routes still require year-level document extraction before they
+can support quantitative bridge values.
 
 Gate for each recovered source: update `evidence/source_registry.csv`,
 `evidence/source_acquisition_log.csv`, `evidence/data_license_registry.csv`,
@@ -276,8 +284,10 @@ gross-debt classification before using any figure in the surplus bridge.
 
 ## 8. Suggested Work Order
 
-1. Recover `DGO_CGE_ARCHIVE`, `DGO_OE_ARCHIVE`, and Social Security annual
-   account routes or year-level PDFs.
+1. Use the recovered `DGO_CGE_ARCHIVE` and `DGO_OE_ARCHIVE` catalogues to
+   acquire year-level CGE and State Budget documents; recover remaining legal,
+   Banco de Portugal, Tribunal de Contas, and Social Security annual-account
+   routes or year-level PDFs.
 2. Extract 1996-2025 CGE, Social Security, and State Budget values first, since
    these years are more likely to have structured annual documents.
 3. Build the first Social Security contribution-to-surplus bridge for the
@@ -295,7 +305,7 @@ gross-debt classification before using any figure in the surplus bridge.
 
 The extraction roadmap is complete only when:
 
-- the 8 missing registered sources are recovered or formally superseded;
+- the 6 missing registered sources are recovered or formally superseded;
 - the 208 `not_extracted` rows are either extracted or converted to explicit
   blockers with source-backed reasons;
 - the 97 `not_assessed` rows are assessed and either extracted, blocked, or
