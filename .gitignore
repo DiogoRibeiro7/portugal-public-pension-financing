@@ -17,3 +17,15 @@ build/
 *.out
 *.synctex.gz
 # Raw data are intentionally not ignored: provenance matters.
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.synctex.gz
+*.toc

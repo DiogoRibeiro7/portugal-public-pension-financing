@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .bibliography import write_bibliography
 from .validation import validate_evidence_directory, validate_manifest, validate_zenodo_metadata
 
 
@@ -20,6 +21,10 @@ def build_parser() -> argparse.ArgumentParser:
     manifest.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     zenodo = subparsers.add_parser("validate-zenodo", help="Validate .zenodo.json metadata")
     zenodo.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
+    bibliography = subparsers.add_parser(
+        "build-bibliography", help="Regenerate paper/references.bib from the literature map"
+    )
+    bibliography.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     validate_all = subparsers.add_parser("validate-all", help="Run all repository validations")
     validate_all.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
     return parser
@@ -51,6 +56,12 @@ def main() -> None:
                 print(f"ERROR: {error}")
             raise SystemExit(1)
         print("Zenodo metadata is valid.")
+    elif args.command == "build-bibliography":
+        write_bibliography(
+            args.root / "evidence" / "literature_map.csv",
+            args.root / "paper" / "references.bib",
+        )
+        print("Bibliography regenerated from the literature map.")
     elif args.command == "validate-all":
         errors = [
             *validate_evidence_directory(args.root / "evidence"),

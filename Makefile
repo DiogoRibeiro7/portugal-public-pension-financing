@@ -1,4 +1,4 @@
-.PHONY: install format lint typecheck test validate validate-manifest validate-zenodo quality clean
+.PHONY: install format lint typecheck test validate validate-manifest validate-zenodo bibliography paper quality clean
 
 install:
 	python -m pip install -e ".[dev]"
@@ -25,6 +25,12 @@ validate-manifest:
 
 validate-zenodo:
 	python -m portugal_pensions.cli validate-zenodo
+
+bibliography:
+	python -m portugal_pensions.cli build-bibliography
+
+paper: bibliography
+	cd paper && latexmk -pdf -interaction=nonstopmode manuscript.tex
 
 quality: lint typecheck test validate validate-manifest validate-zenodo
 

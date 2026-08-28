@@ -1,8 +1,12 @@
 \documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
 \usepackage[a4paper,margin=2.5cm]{geometry}
-\usepackage{amsmath,amssymb,booktabs,graphicx,hyperref}
+\usepackage{amsmath,amssymb,booktabs,graphicx}
+\usepackage[authoryear,round]{natbib}
+\usepackage{hyperref}
 
-\title{Who Funded the Public Pension Promise?\\\large A Bounded Evidence Draft on Portugal's CGA and Transferred Pension Liabilities}
+\title{Who Funded the Public Pension Promise?\\\large The Financing of Portugal's CGA, Social Security, and Transferred Banking-Sector Pension Liabilities}
 \author{Diogo Ribeiro}
 \date{}
 
@@ -10,132 +14,167 @@
 \maketitle
 
 \begin{abstract}
-This draft asks how Portugal's public pension obligations and financing flows should be described when responsibilities move across institutional boundaries. The current evidence supports a limited set of legal and accounting facts about CGA financing and the 2011--2012 banking-sector pension transfers. It does not yet support definitive claims about employee remittance loss, quantified employer underpayment, a post-2006 reallocation magnitude, a combined pension-balance sign, a subsidy for banks, or a full lifecycle public-finance gain or loss. The paper is therefore written as an evidence-controlled reconstruction: it reports registered values, separates accounting standards from economic incidence, and leaves unresolved claims outside the article boundary.
+Portugal's public pension obligations have repeatedly crossed institutional boundaries: from the civil-service scheme CGA towards the general Social Security regime after CGA closed to new entrants in 2006, and from private credit institutions to the State and Social Security in the banking-sector transfers of 2011 and 2012. This paper reconstructs those movements from primary budget accounts, official audit reports, and the governing legislation. For 2011 it establishes that CGA's reported global balance of positive EUR 186.2 million reverses in sign, to negative EUR 290.6 million, once a EUR 476.7 million pension-fund effect is removed; that the banking pension-fund transfer of EUR 5,993.2 million, about 3.5 percent of GDP, improved the ESA-95 headline balance by that same magnitude while being classified as a financial transaction under ESA-2010; and that pensions transferred from the banking sector cost EUR 516.0 million in 2012. Each figure is bound to a registered source, extraction, and transformation. The reconstruction is deliberately bounded, and it does not yet support definitive claims about employee remittance, employer underpayment amounts, the magnitude of post-2006 contribution reallocation, the sign of the combined pension balance, or the lifecycle public-finance consequences of the banking transfer. On the evidence assembled so far, the proposition that CGA financing or the 2011 transfer harmed Social Security is neither supported nor refuted.
 \end{abstract}
 
 \section{Introduction}
+\label{sec:introduction}
 \paragraph{[Interpretation]}
-Public debates about pension finance often compress several questions into one conclusion: who paid, which institution carried the burden, and whether a reported balance reflects an economic gain or loss. This paper separates those questions. It studies the movement of pension obligations, assets, and financing flows across CGA, Social Security, the State, and private banking institutions. The current draft remains deliberately bounded. It treats the motivating suspicions as hypotheses to be tested, not as findings already established by the available record.
+Public argument about pension finance tends to compress three separate questions into a single verdict: who paid, which institution carried the obligation, and whether a reported balance reflects an economic gain or loss. The three come apart in Portugal more sharply than in most systems, because Portuguese pension obligations have moved across institutional boundaries several times within a single generation. CGA, the scheme for civil servants, was closed to new entrants in 2006, so that public employees hired afterwards contribute to the general regime while CGA retains an ageing and contracting membership. Between 2009 and 2012 the pension responsibilities of banking-sector employees moved out of private substitute schemes into public ones, accompanied by a transfer of the assets that had backed them. Each move changed which ledger records a contribution, which records an expenditure, and which reports a balance, without necessarily changing who ultimately bears the cost.
+
+\paragraph{[Interpretation]}
+Because the ledgers moved, the figures that enter public debate are unusually sensitive to the perimeter in which they are computed. That sensitivity is the subject of this paper. It is also the reason the paper reaches a narrower conclusion than the debate expects: an operation that changes a reported balance has not thereby been shown to constitute a subsidy to any party, and a scheme whose accounts move into or out of balance has not thereby been shown to be financed adequately or inadequately.
 
 \paragraph{[Unresolved evidence]}
-The manuscript gate is defined by \texttt{evidence/article\_evidence.csv}, \texttt{evidence/article\_evidence\_claim\_boundaries.csv}, \texttt{evidence/manuscript\_section\_boundaries.csv}, and \texttt{paper/falsification\_report.md}. A material claim remains outside the draft unless it has source IDs, raw values, a transformation, a processed dataset, an output artifact, and a section-level boundary. The present evidence does not establish that CGA financing practices or the 2011 banking-sector pension transfer harmed Social Security on a lifecycle basis.
+The draft treats the suspicions that motivate the project as hypotheses rather than findings. It does not establish an employee remittance loss, a quantified employer shortfall, or an adverse outcome for Social Security from the 2011 banking transfer, and it is constructed so that completed evidence could support, weaken, or overturn any of them. Section~\ref{sec:limitations} states which inputs each of those assessments requires.
 
 \section{Evidence and Validation Method}
+\label{sec:method}
 \paragraph{[Interpretation]}
-The paper uses a source-to-claim design. A value can enter the manuscript only after the repository records its source, extraction status, transformation, processed dataset, and manuscript-facing artifact. This makes the current draft narrower than a narrative review, but it keeps accounting descriptions separate from legal conclusions and economic incidence claims.
+The reconstruction uses a source-to-claim design. A value enters the manuscript only once its source, extraction status, transformation, processed dataset, and manuscript-facing artifact are recorded, together with a section-level boundary stating what the value may and may not be used to argue. Every quantity reported below therefore carries an evidence identifier, marked in the source of this document, that resolves to that chain. The design makes the paper narrower than a narrative review; it also makes each reported figure independently checkable, and it prevents a number extracted for one purpose from silently supporting a different one.
 
 \paragraph{[Unresolved evidence]}
-The method is also falsification-oriented. Each material claim must have a condition under which it would be revised, blocked, or removed. Missing inputs are therefore reported as blockers rather than filled with estimates. This rule is especially important for remittance, employer-contribution, post-2006 reallocation, bank-benefit, and lifecycle classifications, where the available evidence does not yet identify all required cash-flow or perimeter inputs.
+The method is falsification-oriented: each material claim carries a condition under which it would be revised, weakened, or withdrawn, and a missing input is reported as a blocker rather than filled with an estimate. That rule binds most tightly on the questions the public debate cares about most, where the available record does not yet identify all the cash-flow and perimeter inputs a conclusion would need.
 
 \section{Related Work and Contribution}
+\label{sec:related}
 \paragraph{[Interpretation]}
-The nearest recorded studies examine adjacent parts of the question rather than the full financing perimeter. Campos and Pereira study the 2006 CGA reform through microsimulation of retirement timing, initial pensions, and expenditure. Pereira and Rodrigues, the revised projection work, and Garcia and da Silva place Portuguese pensions in long-run expenditure or macroeconomic projection settings. Abreu and David are closer to the institutional-accounting problem because they stress dispersed CGA financial information and consolidation issues.
+The nearest existing studies address adjacent parts of the problem rather than the financing perimeter as a whole. \citet{campos_pereira_2008_cga_reform} simulate the 2006 CGA reform at the individual level, projecting its effect on retirement timing, initial pensions, and scheme expenditure. \citet{pereira_rodrigues_2001_ageing} and the revised official long-term projections published by the European Commission \citep{revised_projections_2006} situate Portuguese pensions in long-run expenditure paths, the latter keeping the public-employee scheme and Social Security as separate models. \citet{garcia_silva_2023_determinants} estimate the macro-demographic determinants of Portuguese pension expenditure as a share of GDP over 1975--2014, finding unemployment and productivity more important than ageing. \citet{financialisation_portugal_pensions} reads the same period through the lens of pension financialisation. \citet{abreu_david_cga_financial_analysis}, in an AECA conference paper covering 2002--2008, come closest to the institutional-accounting problem: they document dispersion and consolidation difficulties in CGA financial information.
 
 \paragraph{[Interpretation]}
-The contribution of this draft is therefore procedural as much as substantive. It organizes legal mechanisms, account values, perimeter definitions, and unresolved tests into a reproducible source-to-claim package. The recorded literature search does not prove novelty. It only supports the bounded statement that the nearest mapped work does not yet combine CGA closure mechanics, RGSS reallocation questions, contribution-remittance tests, State financing, bank pension-fund transfers, actuarial stocks, and ESA accounting bridges in one flow-of-funds reconstruction.
+What none of this work does is combine the CGA closure mechanics, the post-2006 reallocation question, contribution-remittance tests, State financing, the bank pension-fund transfers, actuarial stocks, and the ESA accounting bridges into a single flow-of-funds reconstruction. That combination is the contribution attempted here, and it is as much procedural as substantive: legal mechanisms, account values, perimeter definitions, and unresolved tests are organised into a reproducible source-to-claim package in which every reported number carries its provenance. The recorded literature search supports only the bounded statement that the nearest mapped work does not span the full perimeter; it is not offered as proof of novelty.
 
 \section{Research Questions}
+\label{sec:questions}
 \paragraph{[Interpretation]}
-The manuscript is organized around three bounded questions. First, which legal obligations, account values, and institutional flows can be reconstructed from registered sources? Second, how do accounting perimeters change the presentation of CGA balances, Social Security flows, and bank pension-fund transfers? Third, which additional inputs would be required before the paper could move from accounting reconstruction to claims about economic incidence?
+The paper asks three bounded questions. Which legal obligations, account values, and institutional flows can be reconstructed from registered primary sources? How do accounting perimeters change the presentation of CGA balances, Social Security flows, and the banking pension-fund transfers? And which additional inputs would be required before the reconstruction could speak to economic incidence rather than accounting presentation? The first two are answerable in part from the evidence assembled here; the third is answered as a specification of what is missing.
 
 \paragraph{[Unresolved evidence]}
-These questions are narrower than the motivating hypotheses in the analysis protocol. The current draft can describe legal mechanisms, extracted account values, and required falsification tests, but it cannot yet answer whether specific workers, employers, banks, Social Security, or the State bore a final net burden. Those answers require the missing component ledgers, payroll bases, public-worker RGSS flows, asset schedules, liability schedules, and lifecycle cash-flow series recorded elsewhere in the repository.
+These questions are narrower than the hypotheses recorded in the analysis protocol, and deliberately so. The draft can describe legal mechanisms, extracted account values, and the tests that would discriminate between competing explanations. It cannot yet say whether particular workers, employers, banks, Social Security, or the State bore a final net burden, because the component ledgers, payroll bases, public-worker flows into the general regime, asset schedules, and liability schedules that such an answer requires are not registered.
 
 \section{Scope and Units of Analysis}
+\label{sec:scope}
 \paragraph{[Interpretation]}
-The units of analysis are institutional ledgers and source-defined flows, not a single aggregate pension account. CGA, RGSS, the Social Security previdential subsystem, the State Budget, bank pension funds, and ESA general-government accounts are treated as separate perimeters unless a bridge explicitly consolidates them. This convention follows the repository ontology, which requires each recurring label to state its institution, accounting basis, sign rule, and guardrail language.
+The units of analysis are institutional ledgers and source-defined flows, not a single aggregate pension account. CGA, the general regime RGSS, the Social Security previdential subsystem, the State Budget, bank pension funds, and the ESA general-government accounts are treated as separate perimeters unless a bridge explicitly consolidates them. This convention follows the repository ontology, in which each recurring label states its institution, accounting basis, sign rule, and guardrail language.
 
 \paragraph{[Interpretation]}
-The draft also separates legal obligations, cash receipts, asset transfers, pension expenditure, and actuarial liability stocks. A transfer is therefore not interpreted as income without asking which obligation or financing source moves with it. A contribution label is not interpreted as legal compliance without a legal rate, base, receipt, timing adjustment, and employer or worker perimeter. These separations define the manuscript's evidentiary scope.
+Within each perimeter the analysis further separates legal obligations, cash receipts, asset transfers, pension expenditure, and actuarial liability stocks. A transfer is consequently not read as income without asking which obligation or financing source moves alongside it, and a contribution figure is not read as evidence of legal compliance without a rate, a base, a receipt, a timing adjustment, and a defined employer or worker perimeter. These separations define the evidentiary scope of what follows.
 
 \section{Source Coverage and Conflict Handling}
+\label{sec:coverage}
 \paragraph{[Interpretation]}
-The source-coverage matrix is a discovery and extraction map. A row marked as observed means that an official route or already acquired official source has been identified for that variable and year. It does not mean that the relevant table has already been downloaded, hashed, extracted, transformed, and reconciled for article use. Rows marked unavailable, definition-break, revision-conflict, or not-applicable therefore remain part of the evidence record rather than gaps to be silently smoothed.
+The source-coverage matrix is a discovery and extraction map. A row marked as observed means that an official route to a variable has been identified for that year, not that the relevant table has been downloaded, hashed, extracted, transformed, and reconciled for article use. Rows marked unavailable, definition-break, revision-conflict, or not-applicable therefore remain part of the evidence record rather than gaps to be silently smoothed.
 
 \paragraph{[Interpretation]}
-When official values differ, the repository records the difference by concept, period, source pair, unit, tolerance rule, materiality rule, and resolution status. The manuscript follows that policy by preserving values that answer different estimands instead of selecting whichever value better fits a narrative. Rounded approximations, accounting-basis differences, timing differences, and distinct booked items can be reconciled only when the registry records why they are or are not the same quantity.
+Where official values disagree, the difference is preserved rather than resolved by selection. Differences are recorded by concept, period, source pair, unit, tolerance rule, materiality rule, and resolution status, and two figures are reconciled only when the record establishes why they answer the same question. Rounded approximations, accounting-basis differences, timing differences, and distinct booked items are treated as distinct estimands until shown otherwise.
 
 \section{Institutional Architecture}
+\label{sec:architecture}
 \paragraph{[Legal fact]}
-The repository records the 2011 banking transfer as a legal mechanism through which specified pension responsibilities moved from private credit institutions into a public financing channel. The legal registry covers the transfer perimeter, financing channel, valuation rate, asset-composition constraint, transfer schedule, and extinguishment rule for the covered responsibilities. These legal features define the perimeter of the current banking-transfer analysis.
+The 2011 banking transfer is a legal mechanism through which specified pension responsibilities moved from private credit institutions into a public financing channel. The legislation fixes the perimeter of responsibilities covered, the financing channel through which they are met, the valuation rate applied to them, the composition constraint on the assets surrendered, the schedule on which the transfer occurs, and the rule under which the transferring institutions are released from the covered responsibilities.
 
 \paragraph{[Unresolved evidence]}
-The legal mechanism does not by itself quantify bank-level net gains or losses. That assessment requires bank-level liability values, surrendered asset values, retained responsibilities, and cash-flow schedules that remain absent from the registered evidence. The manuscript therefore distinguishes legal transfer mechanics from economic incidence.
+These legal features determine the perimeter of the analysis; they do not by themselves quantify gains or losses at the level of individual banks. That assessment requires bank-level liability values, surrendered asset values, retained responsibilities, and cash-flow schedules, none of which are present in the registered evidence. The distinction between the mechanics of a legal transfer and its economic incidence is maintained throughout what follows.
 
 \section{Definitions and Accounting Perimeters}
+\label{sec:definitions}
 \paragraph{[Accounting fact]}
-The same transaction can have different accounting presentations under different standards. The article evidence records that the 2011 banking pension-fund transfer reduced the ESA-95 headline deficit by about 3.5 percent of GDP. The EC source classifies the same operation under ESA-2010 as a financial transaction with no direct deficit impact.
+One transaction can carry two accounting presentations. The 2011 banking pension-fund transfer reduced the ESA-95 headline deficit by about 3.5 percent of GDP. Under ESA-2010 the European Commission classifies the same operation as a financial transaction with no direct deficit impact.
 
 % AE_BANK_FISCAL_001
 % AE_BANK_FISCAL_002
 \paragraph{[Interpretation]}
-This distinction is central to the paper's design. A headline-deficit effect is an accounting-standard result, not by itself a welfare result, a bank subsidy, or an uncompensated Social Security cost. Those stronger classifications require a stock-flow bridge that includes assets, liabilities, financing costs, and pension payments over the relevant horizon.
+This contrast is the organising problem of the paper. A headline effect of that size is a result about a statistical convention, and the operation cannot be classified as a bank subsidy or as an uncompensated Social Security cost on the strength of it. Establishing either would require a stock-flow bridge covering the assets received, the liabilities assumed, the financing costs incurred, and the pension payments made over the horizon on which the obligation runs. Both presentations are correct under their own standard, which is precisely why a reported balance carries no meaning until its perimeter and its accounting basis are stated. The successor standard removes the one-off deficit effect not because the economics changed but because the classification did.
 
 \section{Data and Historical Reconstruction}
+\label{sec:data}
 \paragraph{[Accounting fact]}
-The current evidence base is strongest for a small set of extracted account values and legal classifications. Article-evidence rows map each supported number to a source ID, raw value, transformation, processed dataset, and output artifact. Source-coverage rows and data-quality blockers then identify which historical series remain discovery targets rather than article-ready inputs. This structure is narrower than the motivating research question, but it makes clear which facts can be carried into the manuscript.
+The evidence base is strongest for a small set of extracted account values and legal classifications drawn from the 2011 State accounts, the 2012 Social Security audit, and the governing decree-laws. Each supported number maps to a source identifier, a raw value, a transformation, a processed dataset, and an output artifact, so that the figures reported below can be regenerated rather than taken on trust.
 
 \paragraph{[Unresolved evidence]}
-Several requested series remain blocked: CGA component ledgers, payroll and contribution revenue splits, public-worker RGSS flows, FEFSS annual flows, bank pension cash-flow schedules, bank asset composition, investment income, and combined-balance series. The draft therefore reports a partial reconstruction rather than a completed historical account.
+The base is weakest, and in places empty, for the long historical series that the motivating research question ultimately requires. The reconstruction reported below is accordingly a partial one covering a small number of years, and Section~\ref{sec:limitations} specifies its boundary in full.
 
 \section{CGA Financing}
+\label{sec:cga}
 \paragraph{[Accounting fact]}
-For 2011, the CGE source reports a CGA global balance of EUR 186.2 million, a PT pension-fund effect of EUR 476.7 million, and a CGA balance excluding that effect of EUR -290.6 million. The processed ledger checks this decomposition within one-decimal rounding.
+For 2011 the State accounts report a CGA global balance of positive EUR 186.2 million. That figure incorporates a pension-fund effect of EUR 476.7 million. Excluding that effect, the same source reports a CGA balance of negative EUR 290.6 million. The decomposition closes at EUR 186.1 million against the reported EUR 186.2 million, within the one-decimal rounding of the published account.
 
 % AE_CGA_CGE_2011_001
+\paragraph{[Interpretation]}
+The sign of CGA's reported balance for 2011 is therefore determined by a single item that is not part of the scheme's recurrent financing. A reader taking the published figure at face value and a reader netting out the one-off would draw opposite conclusions about the same institution in the same year, differing by EUR 476.7 million. This is the paper's central methodological point in its smallest form, and it is not confined to 2011: \citet{cfp_2024_cga_outturn} reports that CGA's 2023 cash position was likewise driven by an extraordinary liability-transfer compensation and reverses once that item is removed. Institutional cash balances in this system require transfer and perimeter decomposition before they can be read as evidence of anything.
+
 \paragraph{[Unresolved evidence]}
-This is not yet a full CGA financing reconstruction. The evidence gate blocks claims about historical employee remittance gaps, employer underpayment amounts, or State-transfer intent until detailed component ledgers and payroll/revenue splits are registered. At this stage, the CGA result is an extracted 2011 accounting decomposition, not a multi-decade financing diagnosis.
+A single-year decomposition is not a financing reconstruction. What the 2011 figures establish is that a one-off item determined the reported sign in that year. They do not establish how CGA was financed across its history, whether contributions were remitted in full, or what the State intended by any given transfer. Those questions require the component ledgers and the payroll and revenue splits catalogued in Section~\ref{sec:limitations}.
 
 \section{Contribution Remittance}
+\label{sec:remittance}
 \paragraph{[Unresolved evidence]}
-Employee remittance claims remain unresolved. Apparent gaps could arise from timing artifacts, arrears corrections, base-definition differences, or perimeter effects. The required payroll withholding totals, CGA worker-quota receipts, timing adjustments, and arrears corrections are not yet available in registered form.
+No magnitude is reported for employee remittance. The question is whether employee deductions legally attributable to CGA reconcile with employee contributions recorded as received, and the available record does not answer it. An apparent gap in such a comparison can arise from timing artifacts, arrears corrections, differences in base definition, or perimeter effects, and the payroll withholding totals, worker-quota receipts, timing adjustments, and arrears corrections that would separate these explanations from a genuine shortfall are not registered.
 
 \paragraph{[Unresolved evidence]}
-Employer contribution claims are also bounded. The repository tracks the distinction between legal rates and economic benchmark rates, but a quantified employer gap would require payroll bases and recorded employer-revenue splits. Without those inputs, the manuscript can identify the evidentiary test but cannot report a magnitude.
+The employer question is bounded in the same way. The repository holds the distinction between statutory contribution rates and economic benchmark rates, which is the conceptual prerequisite for the test, but quantifying an employer shortfall additionally requires payroll bases and recorded employer-revenue splits. The evidentiary test can therefore be specified; a number cannot be reported.
 
 \section{The 2006 Reform}
+\label{sec:reform2006}
 \paragraph{[Unresolved evidence]}
-The current evidence records the CGA closure mechanism, but not the annual public-worker new-entrant cohorts, contribution bases, or RGSS contribution paths required to quantify the post-2006 reallocation. The manuscript therefore cannot state a magnitude for the 2006 effect. Any future estimate must distinguish gross contribution flows from net effects after State financing and future pension rights.
+The closure of CGA to new entrants in 2006 redirected subsequent public-employee contributions into the general regime, but the record does not yet support a magnitude for that reallocation. The annual new-entrant cohorts, their contribution bases, and the resulting RGSS contribution paths are not registered. Any future estimate will also have to separate gross contribution inflows from the net effect after State financing and the future pension rights that those contributions accrue, since a scheme that gains a contributor also gains an obligation.
 
 \section{Banking-Sector Pension Transfer}
+\label{sec:banking}
 \paragraph{[Accounting fact]}
-The CGE and EC sources record the aggregate 2011 banking pension-fund transfer at EUR 5,993.2 million, equal to about 3.5 percent of GDP in the ESA-95 bridge. The CGE source also records EUR 3,263.1 million as the 2011 part of the credit-institution pension-fund asset-title transfer booked as non-tax revenue.
+The aggregate 2011 banking pension-fund transfer is recorded at EUR 5,993.2 million, about 3.5 percent of GDP. This is the same magnitude as the ESA-95 headline improvement reported in Section~\ref{sec:definitions}: the transfer amount and the headline effect are recorded as one quantity, not two, because the receipt scored as revenue under that standard. Within the 2011 account, EUR 3,263.1 million is recorded as the portion of the credit-institution pension-fund asset-title transfer booked as non-tax revenue.
 
 % AE_BANK_AL_2011_001
 % AE_BANK_AL_2011_002
 \paragraph{[Accounting fact]}
-For 2012, the official Social Security audit records EUR 516.0 million in banking substitute-regime pension expenditure and EUR 516.0 million in current-transfer financing. This reconciles the EC statement that transferred bank pensions added roughly EUR 0.5 billion of pension expenditure in 2012.
+Against that receipt, the official Social Security audit records EUR 516.0 million of banking substitute-regime pension expenditure in 2012. This sits close to, and is consistent with, the European Commission's benchmark of roughly EUR 0.5 billion of additional pension expenditure attributable to the transferred bank pensions in that year.
 
 % AE_BANK_COST_001
+\paragraph{[Unresolved evidence]}
+Whether that expenditure was matched by specific State financing in the same year is not established here. The registered evidence carries the expenditure side of the 2012 position; it does not carry a separately sourced current-transfer financing figure. Because a financing amount derived from the expenditure amount would reconcile by construction rather than by observation, the two sides must be extracted independently before the transfer can be described as fully financed, partially financed, or unfinanced in any year. Neither a gain nor a loss for Social Security can be stated on the strength of a single year of expenditure. The asset composition and statistical classification of the transferred portfolio remain unregistered on the same grounds.
+
 \paragraph{[Legal fact]}
-The BPN 2012 case is separate from the main 2011 DL127 transfer perimeter. DL88/2012 required EUR 96.768004 million to be transferred from the BPN pension fund to CGA; the processed ledger reconciles this legal amount to the rounded official account value.
+The BPN case of 2012 sits outside the main 2011 transfer perimeter. Decree-Law 88/2012 required EUR 96.768004 million to be transferred from the BPN pension fund to CGA, and the processed ledger reconciles this statutory amount to the rounded value in the official account.
 
 % AE_BPN_2012_002
 \paragraph{[Interpretation]}
-The 2011 asset receipt created a financing or liquidity resource for the State, while the 2012 pension expenditure records an observed obligation cost. The bounded debt-financing ledger separates these sides and does not classify the operation as a consolidated public-finance gain or loss.
+The two sides of the operation are of different kinds. The 2011 asset receipt created a financing or liquidity resource for the State at a single moment; the 2012 pension expenditure is the first observed instalment of an obligation that runs for decades. The bounded debt-financing ledger keeps them apart and does not classify the operation as a consolidated public-finance gain or loss, because the comparison that would justify netting one against the other requires the full stream of assets, investment income, State financing, and pension payments rather than one year of each.
 
 % AE_BANK_DEBT_001
 \section{Balance Reconstruction}
+\label{sec:balance}
 \paragraph{[Unresolved evidence]}
-The reported-versus-alternative combined pension-balance figure remains blocked. The current flow-of-funds matrix identifies consolidation boundaries and bridge components, but it does not yet contain the RGSS/previdential balance series, FEFSS annual flows, or complete CGA component flows required for a combined-balance sign claim. Reproducing the published combined-balance definition would not endorse it as the economically correct definition; it would only show whether the stated perimeter and adjustments are arithmetically reproducible from registered sources.
+The comparison between reported and alternative definitions of the combined pension balance remains blocked. The flow-of-funds matrix identifies the consolidation boundaries and bridge components that such a comparison would need, but it does not yet hold the RGSS and previdential balance series, the FEFSS annual flows, or the complete CGA component flows required to state a sign. Reproducing the published combined-balance definition would not endorse it as the economically correct definition; it would establish only whether the stated perimeter and adjustments are arithmetically reproducible from registered sources.
 
 \section{Counterfactual Financing}
+\label{sec:counterfactual}
 \paragraph{[Counterfactual result]}
-No numerical counterfactual result is reported in this draft. The counterfactual regime table currently defines rules: funding substitution must preserve total cash financing, funded reserves must be treated as additional historical expenditure unless another source is explicitly reduced, and bank-transfer sensitivity must compare the full stream of assets, investment income, State financing, and pension expenditure.
+No numerical counterfactual result is reported in this draft. The counterfactual regime table currently defines the rules any such exercise must obey: a funding substitution must preserve total cash financing; funded reserves must be treated as additional historical expenditure unless another source is explicitly reduced; and bank-transfer sensitivity must compare the full stream of assets, investment income, State financing, and pension expenditure rather than any single year.
 
 \paragraph{[Actuarial assumption]}
-The bank-liability present-value sensitivity grid records discount-rate scenarios from 2 percent to 6 percent, including the legal 4 percent reference. The values cannot be computed until pension cash-flow and demographic schedules are registered.
+The sensitivity grid for the bank-liability present value spans discount rates from 2 to 6 percent and includes the statutory 4 percent reference. Its cells cannot be filled until pension cash-flow and demographic schedules are registered, and the grid is reported here as a specification rather than as a result.
 
 \section{Implications for the 2026 Debate}
+\label{sec:implications}
 \paragraph{[Interpretation]}
-The current evidence supports a narrower claim than the motivating public debate often suggests. It shows that accounting perimeters and one-off transfers can materially affect reported balances, and that the 2011 banking transfer had different ESA-95 and ESA-2010 presentations. It does not yet show whether CGA financing or the bank transfer was economically adverse once legal financing, asset composition, investment income, and lifecycle pension payments are included.
+The evidence supports a narrower proposition than the public argument usually advances, but not an empty one. It shows that accounting perimeters and one-off transfers can determine the sign of a reported pension balance, demonstrated in CGA's 2011 accounts and again in its 2023 position; and it shows that a single banking transaction was presented as improving the headline balance by about 3.5 percent of GDP under one European accounting standard and as balance-neutral under its successor. Any argument in the 2026 debate that rests on a headline figure therefore has to state which perimeter and which standard produced it before that figure carries meaning.
+
+\paragraph{[Unresolved evidence]}
+What the evidence does not yet show is whether CGA financing or the banking transfer was economically adverse once legal financing, asset composition, investment income, and lifecycle pension payments are taken into account. That is the question the debate is really asking, and it remains open here.
 
 \section{Limitations}
+\label{sec:limitations}
 \paragraph{[Unresolved evidence]}
-The manuscript remains partial. Missing inputs include payroll withholding and contribution revenue splits, State-transfer classifications, public-worker RGSS flows, RGSS and FEFSS annual balances, bank-level asset and liability schedules, and full bank pension lifecycle cash flows. The falsification report requires these inputs before stronger causal or lifecycle-cost language can be used.
+The reconstruction is partial, and its boundary is specific. On the CGA and Social Security side the missing inputs are the CGA component ledgers, payroll withholding totals and contribution revenue splits, worker-quota receipts with timing and arrears adjustments, State-transfer classifications, the annual public-worker flows into the general regime after 2006, and the RGSS and FEFSS annual balance series. On the banking side they are bank-level asset and liability schedules, the composition and statistical classification of the transferred portfolio, attributable investment income, the population covered by the transferred regime, and the full lifecycle pension cash flows. The ESA-2010 restatement of the 2011 operation is likewise incomplete: the ESA-95 arithmetic is replicated here, its machine-readable ESA-2010 counterpart is not.
+
+\paragraph{[Interpretation]}
+These gaps bound every section above, and they are the reason no magnitude is reported for remittance, employer contributions, the post-2006 reallocation, the combined balance, or lifecycle cost. They are recorded as blockers rather than filled with estimates, and each carries a condition under which the corresponding claim would be revised, weakened, or withdrawn. Stronger causal or lifecycle language becomes available only once those inputs are registered, and not before.
 
 \section{Conclusion}
+\label{sec:conclusion}
 \paragraph{[Interpretation]}
-The current contribution is an evidence-controlled reconstruction scaffold rather than a final causal finding. It converts several official account values and legal classifications into checked article evidence, while preserving the possibility that completed evidence could weaken, overturn, or materially qualify the initial suspicion about CGA financing and transferred bank pension liabilities.
+The contribution here is an evidence-controlled reconstruction rather than a settled causal finding. It converts a set of official account values and legal classifications into checked, traceable article evidence, and in doing so establishes one substantive result: in Portuguese public pension accounts, the reported sign of a balance can be produced by a single transferred item rather than by the underlying financing position, as CGA's 2011 accounts show directly. That result constrains how any balance figure may be used in argument. It does not settle the questions that motivated the project, and the reconstruction is deliberately built so that completed evidence could weaken, qualify, or overturn the initial suspicion about CGA financing and transferred banking-sector pension liabilities.
+\bibliographystyle{plainnat}
+\bibliography{references}
 
 \end{document}

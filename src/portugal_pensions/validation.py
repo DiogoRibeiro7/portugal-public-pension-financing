@@ -41,6 +41,7 @@ from .banking import (
     validate_bpn_2012_boundary_requirements,
     validate_bpn_2012_pension_transfer,
 )
+from .bibliography import validate_bibliography, validate_manuscript_citations
 from .counterfactuals import (
     validate_counterfactual_execution_requirements,
     validate_counterfactual_financing_regimes,
@@ -586,6 +587,7 @@ ARTICLE_EVIDENCE_BLOCKING_STATUSES: frozenset[str] = frozenset(
 
 TEXT_MANIFEST_SUFFIXES: frozenset[str] = frozenset(
     {
+        ".bib",
         ".cff",
         ".csv",
         ".gitignore",
@@ -1075,6 +1077,20 @@ def validate_evidence_directory(evidence_dir: Path) -> list[str]:
     manuscript = evidence_dir.parent / "paper" / "manuscript.tex"
     if manuscript.is_file() and article_evidence.is_file():
         errors.extend(validate_manuscript_draft(manuscript, article_evidence))
+    if article_evidence.is_file():
+        errors.extend(
+            validate_manuscript_section_pointers(
+                article_evidence,
+                evidence_dir / "claim_registry.csv",
+                evidence_dir / "manuscript_section_boundaries.csv",
+            )
+        )
+    bibliography = evidence_dir.parent / "paper" / "references.bib"
+    literature_map = evidence_dir / "literature_map.csv"
+    if literature_map.is_file():
+        errors.extend(validate_bibliography(bibliography, literature_map))
+    if manuscript.is_file() and bibliography.is_file():
+        errors.extend(validate_manuscript_citations(manuscript, bibliography))
     manuscript_boundaries = evidence_dir / "manuscript_section_boundaries.csv"
     article_boundaries = evidence_dir / "article_evidence_claim_boundaries.csv"
     if manuscript.is_file() and manuscript_boundaries.is_file() and article_boundaries.is_file():
@@ -2642,6 +2658,57 @@ def validate_manuscript_draft(
         if phrase.lower() in lowered_text:
             errors.append(f"Manuscript contains unsupported phrase: {phrase}")
 
+    return errors
+
+
+def validate_manuscript_section_pointers(
+    article_evidence_path: Path,
+    claim_registry_path: Path,
+    boundary_path: Path,
+) -> list[str]:
+    """Return errors for manuscript_section pointers that name no known section.
+
+    The column is a cross-registry reference, not a position. Positional
+    integers silently repoint whenever a section is inserted or reordered, so
+    every value must resolve to a section_id in the section-boundary registry.
+    """
+    for name, path in (
+        ("article_evidence_path", article_evidence_path),
+        ("claim_registry_path", claim_registry_path),
+        ("boundary_path", boundary_path),
+    ):
+        if not isinstance(path, Path):
+            raise TypeError(f"{name} must be pathlib.Path")
+    if not boundary_path.is_file():
+        return [f"Missing manuscript section boundaries: {boundary_path.name}"]
+
+    boundaries = pd.read_csv(boundary_path, dtype=str)
+    if "section_id" not in boundaries.columns:
+        return ["Manuscript section boundaries missing columns: section_id"]
+    known_sections = set(boundaries["section_id"].dropna().astype(str))
+    # "all" marks a boundary that binds every section rather than one of them.
+    known_sections.add("all")
+
+    errors: list[str] = []
+    for registry_path, key_column in (
+        (article_evidence_path, "evidence_id"),
+        (claim_registry_path, "claim_id"),
+    ):
+        if not registry_path.is_file():
+            continue
+        registry = pd.read_csv(registry_path, dtype=str)
+        if "manuscript_section" not in registry.columns:
+            errors.append(f"{registry_path.name} missing columns: manuscript_section")
+            continue
+        for record in registry.to_dict("records"):
+            pointer = _registry_field(record, "manuscript_section")
+            row_key = _registry_field(record, key_column) or "unknown row"
+            if not pointer:
+                errors.append(f"{registry_path.name} row {row_key} has no manuscript_section")
+            elif pointer not in known_sections:
+                errors.append(
+                    f"{registry_path.name} row {row_key} names unknown manuscript section {pointer}"
+                )
     return errors
 
 
