@@ -513,6 +513,42 @@ def test_source_acquisition_log_rejects_hash_mismatch(tmp_path: Path) -> None:
     assert "Source acquisition hash mismatch: SRC" in errors
 
 
+def test_source_acquisition_log_allows_release_excluded_raw_file_absence(
+    tmp_path: Path,
+) -> None:
+    evidence_dir = tmp_path / "evidence"
+    evidence_dir.mkdir()
+    registry = evidence_dir / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,official,2026,https://example.test,https://example.test,"
+        "2026-08-21,2026,basis,data/raw/source_catalogues/SRC.html,"
+        f"{'0' * 64},acquired,notes\n",
+        encoding="utf-8",
+    )
+    (evidence_dir / "data_license_registry.csv").write_text(
+        "source_id,access_status,redistribution_status,license_or_terms,retrieval_method,"
+        "archival_reference,clean_room_instruction,repository_action,notes\n"
+        "SRC,acquired_public_download,permission_unclear_do_not_redistribute,"
+        "terms not captured,download registered URL,source_registry sha256,"
+        "Use source_registry download_url,exclude_raw_from_public_release,notes\n",
+        encoding="utf-8",
+    )
+    log = evidence_dir / "source_acquisition_log.csv"
+    log.write_text(
+        "source_id,attempted_url,retrieval_date,raw_path,sha256,status,notes\n"
+        "SRC,https://example.test,2026-08-21,data/raw/source_catalogues/SRC.html,"
+        f"{'0' * 64},acquired,notes\n",
+        encoding="utf-8",
+    )
+
+    errors = validate_source_acquisition_log(log, registry, tmp_path)
+    assert (
+        "Source acquisition raw file is missing: data/raw/source_catalogues/SRC.html" not in errors
+    )
+
+
 def test_data_license_registry_requires_public_release_exclusion_for_unclear_raw(
     tmp_path: Path,
 ) -> None:
@@ -1429,6 +1465,38 @@ def test_manifest_validation_reports_mismatch(tmp_path: Path) -> None:
     assert validate_manifest(manifest, tmp_path) == ["Checksum mismatch for ./payload.txt"]
 
 
+def test_manifest_rejects_excluded_dependency_pin(tmp_path: Path) -> None:
+    """Files that automated dependency updates rewrite must stay uncovered.
+
+    Covering them makes every dependency update fail the integrity gate on the
+    very file it exists to change, because the bot cannot regenerate the
+    manifest.
+    """
+    payload = tmp_path / "requirements-release.txt"
+    payload.write_bytes(b"pandas==2.3.3\n")
+    manifest = tmp_path / "MANIFEST.sha256"
+    manifest.write_text(
+        f"{'0' * 64}  requirements-release.txt\n",
+        encoding="utf-8",
+    )
+
+    assert validate_manifest(manifest, tmp_path) == [
+        "Manifest covers an excluded path on line 1: requirements-release.txt"
+    ]
+
+
+def test_manifest_rejects_excluded_built_artifact(tmp_path: Path) -> None:
+    payload = tmp_path / "paper"
+    payload.mkdir()
+    (payload / "manuscript.pdf").write_bytes(b"%PDF-1.5\n")
+    manifest = tmp_path / "MANIFEST.sha256"
+    manifest.write_text(f"{'0' * 64}  ./paper/manuscript.pdf\n", encoding="utf-8")
+
+    assert validate_manifest(manifest, tmp_path) == [
+        "Manifest covers an excluded path on line 1: ./paper/manuscript.pdf"
+    ]
+
+
 def test_source_registry_accepts_acquired_file(tmp_path: Path) -> None:
     raw_dir = tmp_path / "data" / "raw"
     raw_dir.mkdir(parents=True)
@@ -1465,6 +1533,32 @@ def test_source_registry_reports_missing_raw_file(tmp_path: Path) -> None:
     assert validate_source_registry(registry, tmp_path) == [
         "Source SRC raw file is missing: data/raw/source.pdf"
     ]
+
+
+def test_source_registry_allows_release_excluded_raw_file_absence(tmp_path: Path) -> None:
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    registry = evidence / "source_registry.csv"
+    registry.write_text(
+        "source_id,title,institution,source_type,year,url,download_url,retrieval_date,"
+        "reporting_period,accounting_basis,raw_path,sha256,status,notes\n"
+        "SRC,Source,Institution,primary,2026,https://example.test,"
+        "https://example.test/source.pdf,2026-08-19,2026,source,"
+        "data/raw/source.pdf,"
+        "60b1c307209d5ed068dbb745b6e03e7a13bd447936c98931791a833998e8c25f,"
+        "acquired,Test source\n",
+        encoding="utf-8",
+    )
+    (evidence / "data_license_registry.csv").write_text(
+        "source_id,access_status,redistribution_status,license_or_terms,retrieval_method,"
+        "archival_reference,clean_room_instruction,repository_action,notes\n"
+        "SRC,acquired_public_download,permission_unclear_do_not_redistribute,"
+        "terms not captured,download registered URL,source_registry sha256,"
+        "Use source_registry download_url,exclude_raw_from_public_release,notes\n",
+        encoding="utf-8",
+    )
+
+    assert validate_source_registry(registry, tmp_path) == []
 
 
 def test_source_registry_reports_checksum_mismatch(tmp_path: Path) -> None:
