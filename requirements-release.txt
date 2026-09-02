@@ -1,5 +1,5 @@
 # Pinned direct dependencies for the 2026-08-20 release-readiness snapshot.
-numpy==2.3.5
+numpy==2.4.6
 pandas==2.3.3
 PyYAML==6.0.2
 pytest==9.0.3
